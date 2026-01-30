@@ -105,7 +105,7 @@ jobs:
         run: |
           mkdir -p frontend/dist
           cp -r ../frontend/out/* frontend/dist/
-          wails build -platform ${{ matrix.platform }} -skipfrontend
+          wails build -platform ${{ matrix.platform }} -s
 
       - name: Rename Binaries
         shell: bash
