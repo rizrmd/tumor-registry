@@ -16,7 +16,7 @@ func SetProcessGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr.Setpgid = true
 }
 
-func KillProcessGroup(cmd *exec.Cmd, signal syscall.Signal) error {
+func KillProcessGroup(cmd *exec.Cmd, sig Signal) error {
 	if cmd == nil || cmd.Process == nil {
 		return nil
 	}
@@ -24,8 +24,21 @@ func KillProcessGroup(cmd *exec.Cmd, signal syscall.Signal) error {
 	if err != nil {
 		return err
 	}
+
+	var sysSig syscall.Signal
+	switch sig {
+	case SigTerm:
+		sysSig = syscall.SIGTERM
+	case SigKill:
+		sysSig = syscall.SIGKILL
+	case SigQuit:
+		sysSig = syscall.SIGQUIT
+	default:
+		sysSig = syscall.SIGKILL
+	}
+
 	// Kill the whole process group
-	return syscall.Kill(-pgid, signal)
+	return syscall.Kill(-pgid, sysSig)
 }
 
 func CleanupPort(port int) {

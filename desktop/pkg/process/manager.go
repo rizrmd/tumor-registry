@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"time"
 )
 
@@ -159,14 +158,14 @@ func (m *Manager) StopAll() {
 	if m.backendCmd != nil && m.backendCmd.Process != nil {
 		fmt.Println("Stopping Backend...")
 		// Use cross-platform kill
-		KillProcessGroup(m.backendCmd, syscall.SIGKILL)
+		KillProcessGroup(m.backendCmd, SigKill)
 		m.backendCmd.Wait()
 	}
 
 	if m.postgresCmd != nil && m.postgresCmd.Process != nil {
 		fmt.Println("Stopping Postgres...")
 		// Send SIGTERM (Smart Shutdown)
-		KillProcessGroup(m.postgresCmd, syscall.SIGTERM)
+		KillProcessGroup(m.postgresCmd, SigTerm)
 
 		// Wait with timeout
 		done := make(chan error, 1)
@@ -179,14 +178,14 @@ func (m *Manager) StopAll() {
 			fmt.Println("🐘 Postgres stopped cleanly.")
 		case <-time.After(5 * time.Second):
 			fmt.Println("⚠️  Postgres shutdown timed out, forcing fast shutdown...")
-			KillProcessGroup(m.postgresCmd, syscall.SIGQUIT) // SIGQUIT is "Fast Shutdown" in Postgres
+			KillProcessGroup(m.postgresCmd, SigQuit) // SIGQUIT is "Fast Shutdown" in Postgres
 			
 			select {
 			case <-done:
 				fmt.Println("🐘 Postgres stopped after fast shutdown.")
 			case <-time.After(2 * time.Second):
 				fmt.Println("❌ Postgres still running, sending SIGKILL...")
-				KillProcessGroup(m.postgresCmd, syscall.SIGKILL)
+				KillProcessGroup(m.postgresCmd, SigKill)
 			}
 		}
 	}

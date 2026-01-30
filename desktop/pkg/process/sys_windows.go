@@ -5,14 +5,13 @@ package process
 import (
 	"fmt"
 	"os/exec"
-	"syscall"
 )
 
 func SetProcessGroup(cmd *exec.Cmd) {
 	// Not supported/needed for basic Windows usage in this context
 }
 
-func KillProcessGroup(cmd *exec.Cmd, signal syscall.Signal) error {
+func KillProcessGroup(cmd *exec.Cmd, sig Signal) error {
 	if cmd == nil || cmd.Process == nil {
 		return nil
 	}
@@ -24,6 +23,7 @@ func KillProcessGroup(cmd *exec.Cmd, signal syscall.Signal) error {
 func CleanupPort(port int) {
 	fmt.Printf("⚠️  Checking port %d...\n", port)
 	// Windows equivalent using netstat and taskkill
+	// Note: using %a instead of %%a when calling direct from cmd /c
 	cmdStr := fmt.Sprintf("for /f \"tokens=5\" %%a in ('netstat -aon ^| findstr :%d') do taskkill /f /pid %%a", port)
 	exec.Command("cmd", "/c", cmdStr).Run()
 }

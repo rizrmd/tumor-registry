@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { QueryProvider } from '@/providers/QueryProvider';
+import { SyncProvider } from '@/contexts/SyncContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -29,7 +30,9 @@ export default function RootLayout({
       <body className={`${inter.className} h-full bg-gray-50`}>
         <QueryProvider>
           <AuthProvider>
-            {children}
+            <SyncProvider>
+              {children}
+            </SyncProvider>
           </AuthProvider>
         </QueryProvider>
       </body>
