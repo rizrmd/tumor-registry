@@ -1,0 +1,5504 @@
+generator client {
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "debian-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["audit", "medical", "system"]
+}
+
+model Center {
+  id                   String                       @id @default(cuid())
+  name                 String
+  code                 String                       @unique
+  province             String
+  regency              String?
+  address              String?
+  isActive             Boolean                      @default(true)
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  patients             Patient[]
+  users                User[]
+  analyticsMetrics     AnalyticsPerformanceMetric[]
+  benchmarks           CenterBenchmark[]
+  reportTemplates      ReportTemplate[]
+  systemConfigurations SystemConfiguration[]
+  externalIntegrations ExternalIntegration[]        @relation("CenterIntegrations")
+  performanceMetrics   PerformanceMetric[]          @relation("CenterPerformanceMetrics")
+  scheduledTasks       ScheduledTask[]              @relation("CenterTasks")
+  researchRequests     ResearchRequest[]            @relation("RequestingCenter")
+  activityLogs         ActivityLog[]                @relation("ActivityCenter")
+  
+  // INAMSOS Medical Record Configuration
+  mrPrefix             String?                      @unique @db.VarChar(3)
+  mrSequenceCounter    Int                          @default(0)
+  mrSequenceYear       Int                          @default(2025)
+  medicalRecordSequences MedicalRecordSequence[]
+
+  @@map("centers")
+  @@schema("system")
+}
+
+model OfflineSyncState {
+  id              String   @id @default(cuid())
+  entityType      String   @unique
+  lastPullAt      DateTime @default(now())
+  lastPushAt      DateTime?
+  totalItemsSynced Int     @default(0)
+  
+  @@map("offline_sync_state")
+  @@schema("system")
+}
+
+model User {
+  id                        String                    @id @default(cuid())
+  email                     String                    @unique
+  name                      String
+  kolegiumId                String?
+  passwordHash              String
+  phone                     String?
+  nik                       String?
+  isActive                  Boolean                   @default(true)
+  isEmailVerified           Boolean                   @default(false)
+  mfaEnabled                Boolean                   @default(false)
+  mfaSecret                 String?
+  lastLoginAt               DateTime?
+  isLocked                  Boolean                   @default(false)
+  lockedUntil               DateTime?
+  isSsoUser                 Boolean                   @default(false)
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  centerId                  String?
+  createdDataAccess         DataAccessSession[]       @relation("DataAccessCreator")
+  dataAccessSessions        DataAccessSession[]       @relation("DataAccessUser")
+  researchApprovals         ResearchApproval[]        @relation("ResearchApprover")
+  createdApprovals          ResearchApproval[]        @relation("ResearchApprovalCreator")
+  delegatedApprovals        ResearchApproval[]        @relation("ResearchDelegatedApprover")
+  collaborations            ResearchCollaboration[]   @relation("ResearchCollaborator")
+  createdCollaborations     ResearchCollaboration[]   @relation("ResearchCollaborationCreator")
+  createdImpactMetrics      ResearchImpactMetric[]    @relation("ImpactMetricCreator")
+  verifiedImpactMetrics     ResearchImpactMetric[]    @relation("ImpactMetricVerifier")
+  createdPublications       ResearchPublication[]     @relation("PublicationCreator")
+  researchRequestsAsCreator ResearchRequest[]         @relation("ResearchCreator")
+  researchRequestsAsPI      ResearchRequest[]         @relation("ResearchInvestigator")
+  researchRequestActivities ResearchRequestActivity[] @relation("ResearchActivityActor")
+  userRoles                 UserRole[]
+  userActivity              UserActivityLog[]         @relation("UserActivity")
+  activityLogs              ActivityLog[]             @relation("ActivityActor")
+  approvedRequests          ResearchRequestApproval[]
+  securityEvents            SecurityEvent[]           @relation("SecurityEvents")
+  securityAlerts            SecurityAlert[]           @relation("SecurityAlerts")
+  notifications             Notification[]            @relation("UserNotifications")
+  apiUsage                  ApiUsage[]                @relation("ApiUsage")
+  center                    Center?                   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  offlineDataQueue          OfflineDataQueue[]
+  providerDiagnoses         PatientDiagnosis[]        @relation("ProviderDiagnoses")
+  createdPatients           Patient[]                 @relation("PatientCreator")
+
+  @@map("users")
+  @@schema("system")
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  code        String           @unique
+  description String?
+  level       Int
+  permissions RolePermission[]
+  userRoles   UserRole[]
+
+  @@map("roles")
+  @@schema("system")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+  @@schema("system")
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  code            String           @unique
+  resource        String
+  action          String
+  description     String?
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+  @@schema("system")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+  @@schema("system")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+  @@schema("audit")
+}
+
+model MedicalRecordSequence {
+  id           String   @id @default(cuid())
+  centerId     String
+  year         Int
+  lastSequence Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  center       Center   @relation(fields: [centerId], references: [id])
+
+  @@unique([centerId, year])
+  @@index([centerId, year])
+  @@map("medical_record_sequences")
+  @@schema("medical")
+}
+
+model Patient {
+  id                   String         @id @default(cuid())
+  anonymousId          String?        @unique // P-XXX-NNNNN
+  inamsosRecordNumber  String?        @unique // Format: {CENTER}-{YEAR}-{SEQ}
+  hospitalRecordNumber String?        // Old medicalRecordNumber
+  nik                  String         @unique
+  name                String
+  dateOfBirth         DateTime
+  placeOfBirth        String?
+  gender              Gender
+  bloodType           BloodType?
+  religion            String?
+  maritalStatus       MaritalStatus?
+  occupation          String?
+  education           String?
+  phoneNumber         String?
+  email               String?
+  address             String?
+  province            String?
+  regency             String?
+  district            String?
+  village             String?
+  postalCode          String?
+  emergencyContact    Json?
+  isActive            Boolean        @default(true)
+  isDeceased          Boolean        @default(false)
+  dateOfDeath         DateTime?
+  causeOfDeath        String?
+  centerId            String
+
+  // ========== MUSCULOSKELETAL TUMOR REGISTRY FIELDS ==========
+
+  // Section 1: Pathology Type
+  pathologyType String? // "bone_tumor", "soft_tissue_tumor", "metastatic_bone_disease"
+
+  // Section 3: Clinical Data
+  chiefComplaint          String?
+  onsetDate               DateTime?
+  symptomDuration         Int? // in months
+  presentingSymptoms      String? // JSON: pain, swelling, mass, pathologicalFracture, functionalImpairment
+  tumorSizeAtPresentation Float? // in cm
+  familyHistoryCancer     String?
+  tumorSyndromeId         String? // FK to TumorSyndrome
+  karnofskysScore         Int? // 0-100
+
+  // Section 4: Diagnostic Investigations
+  biopsyDate     DateTime?
+  biopsyType     String? // "Incisional", "Excisional", "Core needle", "Fine needle aspiration"
+  biopsyResult   String?
+  imagingStudies String? // JSON: xray, ct, mri, boneScan, petCt
+
+  // Section 5: Diagnosis & Location
+  whoBoneTumorId       String? // FK to WhoBoneTumorClassification
+  whoSoftTissueTumorId String? // FK to WhoSoftTissueTumorClassification
+  boneLocationId       String? // FK to BoneLocation
+  softTissueLocationId String? // FK to SoftTissueLocation
+  laterality           String? // "Left", "Right", "Bilateral", "Midline"
+  histopathologyGrade  String? // "Low grade", "High grade", "Grade I", "Grade II", "Grade III"
+  mitosisCount         Int? // per 10 HPF
+  necrosisPercentage   Float? // 0-100%
+
+  // Section 6: Staging
+  ennekingStage     String? // "IA", "IB", "IIA", "IIB", "III"
+  ajccStage         String? // "IA", "IB", "IIA", "IIB", "III", "IVA", "IVB"
+  tumorSizeT1       Float? // Tumor dimension 1 in cm
+  tumorSizeT2       Float? // Tumor dimension 2 in cm
+  tumorSizeT3       Float? // Tumor dimension 3 in cm
+  mirrelScore       Int? // 0-12 (pathological fracture risk)
+  metastasisPresent Boolean?
+  metastasisSites   String?
+
+  // Section 7: CPC Conference
+  cpcDate           DateTime?
+  cpcRecommendation String?
+
+  // Section 8: Treatment Intent
+  intendedTreatment String? // "Curative", "Palliative", "Supportive"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  createdById String?
+  creator     User?    @relation("PatientCreator", fields: [createdById], references: [id])
+
+  // Relations
+  laboratoryResults  LaboratoryResult[]
+  medicalRecords     MedicalRecord[]
+  allergies          PatientAllergy[]
+  consents           PatientConsent[]
+  diagnoses          PatientDiagnosis[]
+  insuranceInfos     PatientInsurance[]
+  medications        PatientMedication[]
+  procedures         PatientProcedure[]
+  visits             PatientVisit[]
+  medicalImages      MedicalImage[]
+  pathologyReports   PathologyReport[]
+  radiologyResults   RadiologyResult[]
+  vitalSigns         VitalSign[]
+  Center             Center                            @relation(fields: [centerId], references: [id])
+  whoBoneTumor       WhoBoneTumorClassification?       @relation(fields: [whoBoneTumorId], references: [id])
+  whoSoftTissueTumor WhoSoftTissueTumorClassification? @relation(fields: [whoSoftTissueTumorId], references: [id])
+  boneLocation       BoneLocation?                     @relation(fields: [boneLocationId], references: [id])
+  softTissueLocation SoftTissueLocation?               @relation(fields: [softTissueLocationId], references: [id])
+  tumorSyndrome      TumorSyndrome?                    @relation(fields: [tumorSyndromeId], references: [id])
+  mstsScores         MstsScore[]
+  followUpVisits     FollowUpVisit[]
+  cpcConferences     CpcConference[]
+  treatments         TreatmentManagement[]
+
+  // New musculoskeletal tumor clinical data relations
+  clinicalPresentation      ClinicalPresentation?
+  clinicalPhotos            ClinicalPhoto[]
+  laboratoryResultsExtended LaboratoryResult_Extended[]
+  radiologyFindings         RadiologyFinding[]
+  mirrelScores              MirrelScore[]
+  pathologyReportsExtended  PathologyReport_Extended[]
+  huvosGrades               HuvosGrade[]
+  stagingData               StagingData?
+  cpcRecords                CpcRecord[]
+  chemotherapyRecords       ChemotherapyRecord[]
+  surgicalRecords           SurgicalRecord[]
+  radiotherapyRecords       RadiotherapyRecord[]
+  followUpVisitsEnhanced    FollowUpVisit_Enhanced[]
+  mstsScoresEnhanced        MstsScore_Enhanced[]
+  recurrenceTracking        RecurrenceTracking[]
+  complicationTracking      ComplicationTracking[]
+
+  @@index([pathologyType])
+  @@index([whoBoneTumorId])
+  @@index([whoSoftTissueTumorId])
+  @@index([boneLocationId])
+  @@index([softTissueLocationId])
+  @@index([ennekingStage])
+  @@index([ajccStage])
+  @@index([updatedAt])
+  @@map("patients")
+  @@schema("medical")
+}
+
+model MedicalRecord {
+  id               String     @id @default(cuid())
+  patientId        String
+  recordType       RecordType
+  recordNumber     String
+  providerId       String
+  chiefComplaint   String?
+  historyOfPresent String?
+  pastMedical      Json?
+  surgicalHistory  Json?
+  familyHistory    Json?
+  socialHistory    Json?
+  reviewOfSystems  Json?
+  physicalExam     Json?
+  assessment       String?
+  plan             String?
+  notes            String?
+  isConfidential   Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  patient          Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  // TODO: Add MedicalImage model
+  //   medicalImages    MedicalImage[]
+
+  @@map("medical_records")
+  @@schema("medical")
+}
+
+model PatientDiagnosis {
+  id             String             @id @default(cuid())
+  patientId      String
+  diagnosisCode  String
+  diagnosisName  String
+  diagnosisType  DiagnosisType
+  severity       DiagnosisSeverity?
+  status         DiagnosisStatus
+  onsetDate      DateTime?
+  resolutionDate DateTime?
+  notes          String?
+  providerId     String
+  isPrimary      Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  patient        Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  provider       User               @relation("ProviderDiagnoses", fields: [providerId], references: [id])
+
+  @@index([updatedAt])
+  @@map("patient_diagnoses")
+  @@schema("medical")
+}
+
+model PatientAllergy {
+  id           String          @id @default(cuid())
+  patientId    String
+  allergenType AllergenType
+  allergenName String
+  reaction     String?
+  severity     AllergySeverity
+  status       AllergyStatus
+  onsetDate    DateTime?
+  notes        String?
+  providerId   String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  patient      Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("patient_allergies")
+  @@schema("medical")
+}
+
+model PatientMedication {
+  id             String          @id @default(cuid())
+  patientId      String
+  medicationName String
+  genericName    String?
+  brandName      String?
+  dosage         String?
+  frequency      String?
+  route          MedicationRoute
+  startDate      DateTime
+  endDate        DateTime?
+  isActive       Boolean         @default(true)
+  purpose        String?
+  instructions   String?
+  sideEffects    String?
+  prescribedBy   String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  patient        Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
+  @@map("patient_medications")
+  @@schema("medical")
+}
+
+model VitalSign {
+  id                     String   @id @default(cuid())
+  patientId              String
+  temperature            Float?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  heartRate              Int?
+  respiratoryRate        Int?
+  oxygenSaturation       Float?
+  height                 Float?
+  weight                 Float?
+  bmi                    Float?
+  painScale              Int?
+  bloodGlucose           Float?
+  notes                  String?
+  recordedBy             String
+  recordedAt             DateTime @default(now())
+  patient                Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("vital_signs")
+  @@schema("medical")
+}
+
+model LaboratoryResult {
+  id          String       @id @default(cuid())
+  patientId   String
+  testType    String
+  testName    String
+  result      String
+  normalRange String?
+  unit        String?
+  status      ResultStatus
+  notes       String?
+  orderedBy   String
+  performedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("laboratory_results")
+  @@schema("medical")
+}
+
+model RadiologyResult {
+  id              String       @id @default(cuid())
+  patientId       String
+  examinationType String
+  indication      String?
+  findings        String?
+  impression      String?
+  recommendation  String?
+  status          ResultStatus
+  radiologistId   String
+  examinationDate DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  patient         Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("radiology_results")
+  @@schema("medical")
+}
+
+model PatientProcedure {
+  id            String          @id @default(cuid())
+  patientId     String
+  procedureName String
+  procedureCode String?
+  indication    String?
+  description   String?
+  startDate     DateTime
+  endDate       DateTime?
+  status        ProcedureStatus
+  complications String?
+  outcome       String?
+  performedBy   String
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  patient       Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("patient_procedures")
+  @@schema("medical")
+}
+
+model PatientConsent {
+  id               String      @id @default(cuid())
+  patientId        String
+  consentType      ConsentType
+  description      String
+  isConsented      Boolean
+  consentDate      DateTime
+  expiredDate      DateTime?
+  guardianName     String?
+  guardianRelation String?
+  providerId       String
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  patient          Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("patient_consents")
+  @@schema("medical")
+}
+
+model PatientVisit {
+  id             String      @id @default(cuid())
+  patientId      String
+  visitType      VisitType
+  visitDate      DateTime
+  dischargeDate  DateTime?
+  department     String?
+  chiefComplaint String?
+  diagnosis      String?
+  treatment      String?
+  providerId     String
+  status         VisitStatus
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  patient        Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("patient_visits")
+  @@schema("medical")
+}
+
+model MedicalImage {
+  id               String    @id @default(cuid())
+  patientId        String
+  recordId         String?
+  imageType        String
+  category         String
+  fileName         String
+  originalFileName String
+  filePath         String
+  fileSize         BigInt
+  mimeType         String
+  width            Int?
+  height           Int?
+  isDicom          Boolean   @default(false)
+  dicomMetadata    Json?
+  thumbnailPath    String?
+  compressedPath   String?
+  annotations      Json?
+  description      String?
+  findings         String?
+  bodyPart         String?
+  modality         String?
+  studyDate        DateTime?
+  seriesNumber     String?
+  instanceNumber   String?
+  isCompressed     Boolean   @default(false)
+  compressionRatio Float?
+  tags             String[]  @default([])
+  uploadedBy       String
+  uploadedAt       DateTime  @default(now())
+  quality          String?
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  isActive         Boolean   @default(true)
+  isDeleted        Boolean   @default(false)
+  deletedBy        String?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  patient          Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("medical_images")
+  @@schema("medical")
+}
+
+model PathologyReport {
+  id                     String    @id @default(cuid())
+  patientId              String
+  reportNumber           String    @unique
+  biopsyType             String
+  biopsyDate             DateTime
+  specimenReceivedDate   DateTime?
+  specimenSite           String
+  specimenDescription    String?
+  grossDescription       String
+  microscopicDescription String
+  diagnosis              String
+  tumorGrade             String?
+  mitosisCount           String?
+  necrosisPercentage     String?
+  cellularity            String?
+  immunohistochemistry   String?
+  molecularFindings      String?
+  marginsStatus          String?
+  isMalignant            Boolean?
+  status                 String
+  comments               String?
+  pathologistId          String
+  reportDate             DateTime?
+  specialStains          String[]  @default([])
+  ihcMarkers             String[]  @default([])
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  patient                Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("pathology_reports")
+  @@schema("medical")
+}
+
+model PatientInsurance {
+  id                String    @id @default(cuid())
+  patientId         String
+  insuranceProvider String
+  policyNumber      String
+  memberNumber      String?
+  planType          String?
+  coverageType      String?
+  isActive          Boolean   @default(true)
+  effectiveDate     DateTime
+  expirationDate    DateTime?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("patient_insurances")
+  @@schema("medical")
+}
+
+model ResearchRequest {
+  id                          String                @id @default(cuid())
+  requestNumber               String?               @unique // RR-2025-001
+  title                       String
+  description                 String
+  principalInvestigatorId     String
+  studyType                   StudyType
+  objectives                  String
+  methodology                 String
+  inclusionCriteria           String
+  exclusionCriteria           String
+  sampleSize                  Int
+  duration                    Int
+  requiresEthicsApproval      Boolean               @default(false)
+  dataRequested               String
+  confidentialityRequirements String?
+  fundingSource               String?
+  collaborators               String?
+  status                      ResearchRequestStatus @default(DRAFT)
+  ethicsStatus                EthicsStatus          @default(NOT_REQUIRED)
+  ethicsApprovalNumber        String?
+  ethicsApprovalDate          DateTime?
+  priority                    ResearchPriority      @default(MEDIUM)
+  expectedOutcomes            String?
+  riskAssessment              String?
+  dataRetentionPeriod         Int?
+  submittedAt                 DateTime?
+  reviewedAt                  DateTime?
+  approvedAt                  DateTime?
+  rejectedAt                  DateTime?
+  completedAt                 DateTime?
+  expiresAt                   DateTime?
+  notes                       String?
+  createdBy                   String
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+
+  // NEW: Enhanced fields for checklist-based request
+  researchAbstract      String? @db.Text
+  researcherPhone       String?
+  researcherInstitution String?
+
+  // NEW: Data fields selection (JSON)
+  requestedDataFields Json? // {demographics: {selected: true, justification: "..."}, clinicalPresentation: {...}, ...}
+
+  // NEW: Data filters (JSON)
+  dataFilters Json? // {periodStart: "2020-01-01", periodEnd: "2024-12-31", tumorTypes: ["bone"], whoClassifications: [...], ennekingStages: ["IIA", "IIB"], ...}
+
+  // NEW: Estimated patient count
+  estimatedPatientCount Int?
+
+  // NEW: Data sensitivity score (0-100)
+  dataSensitivityScore Int?
+
+  // NEW: Auto-approval eligibility
+  isAutoApprovalEligible Boolean @default(false)
+
+  // NEW: Ethics & compliance
+  needsEthicsReview         Boolean @default(true)
+  needsDataProtectionReview Boolean @default(false)
+
+  // NEW: Document uploads
+  irbCertificateUrl String?
+  protocolUrl       String?
+  proposalUrl       String?
+  cvUrl             String?
+
+  // NEW: Agreement
+  agreementSigned Boolean   @default(false)
+  agreementDate   DateTime?
+
+  // NEW: Data export & access tracking
+  dataExportGeneratedAt DateTime?
+  dataExportUrl         String?
+  dataExportFileSize    Int? // in bytes
+  dataDownloadedAt      DateTime?
+  dataDownloadCount     Int       @default(0)
+
+  // Relations
+  dataAccessSessions    DataAccessSession[]
+  approvals             ResearchApproval[]
+  collaborations        ResearchCollaboration[]
+  impactMetrics         ResearchImpactMetric[]
+  publications          ResearchPublication[]
+  impactAnalyses        ResearchImpactAnalysis[]
+  innovations           ResearchInnovation[]
+  contributions         ResearcherContribution[]
+  outcomes              ResearchOutcome[]
+  projects              ResearchProject[]
+  activities            ResearchRequestActivity[]
+  creator               User                      @relation("ResearchCreator", fields: [createdBy], references: [id])
+  principalInvestigator User                      @relation("ResearchInvestigator", fields: [principalInvestigatorId], references: [id])
+  requestingCenter      Center?                   @relation("RequestingCenter", fields: [requestingCenterId], references: [id]) // Phase 4
+  requestingCenterId    String? 
+
+  // Phase 4: National Approval Flow
+  approverRole          String?                   @default("NATIONAL_ADMIN") // 'NATIONAL_ADMIN' | 'SYSTEM_ADMIN'
+  visibilityLevel       String?                   @default("IDENTIFIABLE")   // 'AGGREGATED' | 'ANONYMIZED' | 'IDENTIFIABLE'
+  
+  requestApprovals      ResearchRequestApproval[]
+
+
+  @@index([status])
+  @@index([priority])
+  @@index([dataSensitivityScore])
+  @@index([requestingCenterId])
+  @@map("research_requests")
+  @@schema("medical")
+}
+
+model ResearchRequestApproval {
+  id                String          @id @default(cuid())
+  requestId         String
+  approverLevel     Int?            // 1 = National Admin, 2 = System Admin
+  approverRole      String?
+  approverId        String?
+  decision          String          // 'APPROVED', 'REJECTED', 'REQUEST_MORE_INFO'
+  decisionDate      DateTime?
+  notes             String?         @db.Text
+  conditions        String?         @db.Text
+  dataAccessLevel   String?         // 'AGGREGATED', 'ANONYMIZED', 'IDENTIFIABLE'
+  maxRecords        Int?
+  expiresAt         DateTime?
+  createdAt         DateTime        @default(now())
+
+  request           ResearchRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approver          User?           @relation(fields: [approverId], references: [id])
+
+  @@index([requestId])
+  @@map("research_request_approvals_new") // Using _new suffix to avoid conflict with existing if any, but plan says replace/new
+  @@schema("medical")
+}
+
+model NationalStatisticsCache {
+  id            String    @id @default(cuid())
+  statisticType String    // 'daily', 'weekly', 'monthly', 'yearly'
+  periodStart   DateTime? @db.Date
+  periodEnd     DateTime? @db.Date
+  
+  // Aggregate Data
+  totalPatients Int
+  totalCenters  Int
+  byGender      Json
+  byAgeGroup    Json?
+  byCancerStage Json?
+  byTreatmentStatus Json?
+  byPrimarySite Json?
+  byProvince    Json?
+  byCenter      Json?
+
+  generatedAt   DateTime
+  expiresAt     DateTime?
+  lastUpdatedAt DateTime  @default(now())
+
+  @@index([statisticType, periodStart, periodEnd])
+  @@map("national_statistics_cache")
+  @@schema("medical")
+}
+
+model ActivityLog {
+  id            String    @id @default(cuid())
+  actorId       String?
+  actorName     String?
+  actorRole     String?
+  actorCenterId String?
+  
+  action        String
+  entity        String?
+  entityId      String?
+  
+  changesBefore Json?
+  changesAfter  Json?
+  
+  ipAddress     String?
+  userAgent     String?
+  requestMethod String?
+  requestPath   String?
+  
+  centerId      String?
+  sessionId     String?
+  
+  createdAt     DateTime  @default(now())
+  
+  actor         User?     @relation("ActivityActor", fields: [actorId], references: [id])
+  center        Center?   @relation("ActivityCenter", fields: [centerId], references: [id])
+
+  @@index([actorId])
+  @@index([centerId])
+  @@index([action])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("activity_logs_new") // Avoiding conflict with existing audit_logs
+  @@schema("audit")
+}
+
+model ResearchApproval {
+  id                String          @id @default(cuid())
+  researchRequestId String
+  approverId        String
+  level             ApprovalLevel
+  status            ApprovalStatus
+  comments          String?
+  conditions        String?
+  approvedAt        DateTime?
+  reviewedAt        DateTime        @default(now())
+  expiresAt         DateTime?
+  isFinal           Boolean         @default(false)
+  delegationAllowed Boolean         @default(false)
+  delegatedToId     String?
+  createdBy         String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  approver          User            @relation("ResearchApprover", fields: [approverId], references: [id])
+  creator           User            @relation("ResearchApprovalCreator", fields: [createdBy], references: [id])
+  delegatedTo       User?           @relation("ResearchDelegatedApprover", fields: [delegatedToId], references: [id])
+  researchRequest   ResearchRequest @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+
+  @@map("research_approvals")
+  @@schema("medical")
+}
+
+model ResearchRequestActivity {
+  id                String   @id @default(cuid())
+  researchRequestId String
+  actorId           String
+  action            String // CREATED, SUBMITTED, REVIEWED, APPROVED, REJECTED, DOWNLOADED, etc
+  statusFrom        String?
+  statusTo          String?
+  notes             String?  @db.Text
+  metadata          Json? // Additional context like {fields: [...], justifications: {...}, etc}
+  createdAt         DateTime @default(now())
+
+  researchRequest ResearchRequest @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+  actor           User            @relation("ResearchActivityActor", fields: [actorId], references: [id])
+
+  @@index([researchRequestId])
+  @@index([actorId])
+  @@index([action])
+  @@map("research_request_activities")
+  @@schema("medical")
+}
+
+model ResearchCollaboration {
+  id                 String              @id @default(cuid())
+  researchRequestId  String
+  collaboratorId     String
+  role               CollaborationRole
+  responsibilities   String?
+  affiliation        String?
+  email              String?
+  phone              String?
+  status             CollaborationStatus @default(PENDING)
+  invitedAt          DateTime?
+  acceptedAt         DateTime?
+  declinedAt         DateTime?
+  contributionLevel  String?
+  expertise          String?
+  conflictOfInterest String?
+  dataAccessLevel    DataAccessLevel     @default(LIMITED)
+  createdBy          String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  collaborator       User                @relation("ResearchCollaborator", fields: [collaboratorId], references: [id])
+  creator            User                @relation("ResearchCollaborationCreator", fields: [createdBy], references: [id])
+  researchRequest    ResearchRequest     @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+
+  @@map("research_collaborations")
+  @@schema("medical")
+}
+
+model DataAccessSession {
+  id                  String                     @id @default(cuid())
+  researchRequestId   String
+  userId              String
+  sessionType         SessionType
+  accessLevel         DataAccessLevel
+  ipAddress           String?
+  userAgent           String?
+  startTime           DateTime                   @default(now())
+  endTime             DateTime?
+  duration            Int?
+  dataAccessed        String?
+  queriesExecuted     String?
+  purpose             String?
+  complianceStatus    DataAccessComplianceStatus @default(COMPLIANT)
+  violationReason     String?
+  automatedMonitoring Boolean                    @default(true)
+  approvalReference   String?
+  createdBy           String
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  creator             User                       @relation("DataAccessCreator", fields: [createdBy], references: [id])
+  researchRequest     ResearchRequest            @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+  user                User                       @relation("DataAccessUser", fields: [userId], references: [id])
+
+  @@map("data_access_sessions")
+  @@schema("medical")
+}
+
+model ResearchPublication {
+  id                    String             @id @default(cuid())
+  researchRequestId     String
+  title                 String
+  abstract              String?
+  authors               String
+  journal               String?
+  publicationDate       DateTime?
+  volume                String?
+  issue                 String?
+  pages                 String?
+  doi                   String?
+  pmid                  String?
+  publicationType       PublicationType
+  status                PublicationStatus  @default(DRAFT)
+  peerReviewStatus      PeerReviewStatus   @default(PENDING)
+  citationCount         Int                @default(0)
+  downloadCount         Int                @default(0)
+  openAccess            Boolean            @default(false)
+  license               String?
+  keywords              String?
+  fundingAcknowledged   Boolean            @default(false)
+  dataAvailability      String?
+  ethicalConsiderations String?
+  limitations           String?
+  conflictsOfInterest   String?
+  createdBy             String
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  citations             ResearchCitation[]
+  creator               User               @relation("PublicationCreator", fields: [createdBy], references: [id])
+  researchRequest       ResearchRequest    @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+
+  @@map("research_publications")
+  @@schema("medical")
+}
+
+model ResearchImpactMetric {
+  id                String           @id @default(cuid())
+  researchRequestId String
+  metricType        ImpactMetricType
+  value             Float
+  unit              String?
+  description       String?
+  date              DateTime
+  source            String?
+  methodology       String?
+  baseline          Float?
+  target            Float?
+  category          String?
+  tags              String?
+  isVerified        Boolean          @default(false)
+  verificationDate  DateTime?
+  verifiedBy        String?
+  notes             String?
+  createdBy         String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  creator           User             @relation("ImpactMetricCreator", fields: [createdBy], references: [id])
+  researchRequest   ResearchRequest  @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+  verifier          User?            @relation("ImpactMetricVerifier", fields: [verifiedBy], references: [id])
+
+  @@map("research_impact_metrics")
+  @@schema("medical")
+}
+
+model CancerGeographicData {
+  id                    String      @id @default(cuid())
+  province              String
+  regency               String?
+  district              String?
+  cancerType            String
+  stage                 String?
+  year                  Int
+  month                 Int?
+  count                 Int
+  population            Int?
+  incidenceRate         Float?
+  mortalityRate         Float?
+  ageStandardizedRate   Float?
+  gender                Gender?
+  ageGroup              String?
+  socioeconomicLevel    String?
+  urbanRural            String?
+  coordinates           Json?
+  dataQuality           DataQuality @default(STANDARD)
+  reportingCompleteness Float?
+  lastUpdated           DateTime    @default(now())
+  createdBy             String
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@map("cancer_geographic_data")
+  @@schema("medical")
+}
+
+model CancerAggregateStats {
+  id                   String   @id @default(cuid())
+  cancerType           String
+  year                 Int
+  totalCases           Int
+  maleCases            Int
+  femaleCases          Int
+  ageGroup_0_14        Int
+  ageGroup_15_24       Int
+  ageGroup_25_44       Int
+  ageGroup_45_64       Int
+  ageGroup_65_plus     Int
+  earlyStage           Int
+  lateStage            Int
+  mortalityRate        Float
+  survivalRate         Float
+  mostAffectedProvince String?
+  trendDirection       String?
+  trendPercent         Float?
+  lastUpdated          DateTime @default(now())
+
+  @@map("cancer_aggregate_stats")
+  @@schema("medical")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+
+  @@map("genders")
+  @@schema("medical")
+}
+
+enum BloodType {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+
+  @@map("blood_types")
+  @@schema("medical")
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  SEPARATED
+
+  @@map("marital_statuses")
+  @@schema("medical")
+}
+
+enum RecordType {
+  INITIAL
+  PROGRESS
+  DISCHARGE
+  CONSULTATION
+  EMERGENCY
+  FOLLOW_UP
+
+  @@map("record_types")
+  @@schema("medical")
+}
+
+enum DiagnosisType {
+  PRIMARY
+  SECONDARY
+  ADMITTING
+  DISCHARGE
+  COMPLICATION
+
+  @@map("diagnosis_types")
+  @@schema("medical")
+}
+
+enum DiagnosisSeverity {
+  MILD
+  MODERATE
+  SEVERE
+  CRITICAL
+
+  @@map("diagnosis_severities")
+  @@schema("medical")
+}
+
+enum DiagnosisStatus {
+  ACTIVE
+  RESOLVED
+  CHRONIC
+  RECURRING
+
+  @@map("diagnosis_statuses")
+  @@schema("medical")
+}
+
+enum AllergenType {
+  DRUG
+  FOOD
+  ENVIRONMENTAL
+  LATEX
+  OTHER
+
+  @@map("allergen_types")
+  @@schema("medical")
+}
+
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+  ANAPHYLAXIS
+
+  @@map("allergy_severities")
+  @@schema("medical")
+}
+
+enum AllergyStatus {
+  ACTIVE
+  RESOLVED
+  UNKNOWN
+
+  @@map("allergy_statuses")
+  @@schema("medical")
+}
+
+enum MedicationRoute {
+  ORAL
+  INJECTION
+  INTRAVENOUS
+  TOPICAL
+  INHALATION
+  RECTAL
+  NASAL
+  OPHTHALMIC
+  OTIC
+
+  @@map("medication_routes")
+  @@schema("medical")
+}
+
+enum ResultStatus {
+  PENDING
+  COMPLETED
+  ABNORMAL
+  CRITICAL
+  CANCELLED
+
+  @@map("result_statuses")
+  @@schema("medical")
+}
+
+enum ProcedureStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  COMPLICATION
+
+  @@map("procedure_statuses")
+  @@schema("medical")
+}
+
+enum ConsentType {
+  TREATMENT
+  SURGERY
+  ANESTHESIA
+  BLOOD_TRANSFUSION
+  RESEARCH
+  PHOTOGRAPHY
+  TELEHEALTH
+  PRIVACY
+
+  @@map("consent_types")
+  @@schema("medical")
+}
+
+enum VisitType {
+  OUTPATIENT
+  INPATIENT
+  EMERGENCY
+  DAY_CARE
+  HOME_VISIT
+  TELEHEALTH
+
+  @@map("visit_types")
+  @@schema("medical")
+}
+
+enum VisitStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@map("visit_statuses")
+  @@schema("medical")
+}
+
+enum StudyType {
+  OBSERVATIONAL
+  INTERVENTIONAL
+  CASE_CONTROL
+  COHORT
+  CROSS_SECTIONAL
+  CASE_SERIES
+  META_ANALYSIS
+  SYSTEMATIC_REVIEW
+  QUALITATIVE
+  MIXED_METHODS
+
+  @@map("study_types")
+  @@schema("medical")
+}
+
+enum ResearchRequestStatus {
+  DRAFT // Researcher sedang isi form
+  SUBMITTED // Researcher submit, masuk approval queue
+  PENDING_REVIEW // Belum di-review admin
+  UNDER_REVIEW // Admin sedang review
+  NEED_MORE_INFO // Admin minta info tambahan
+  ETHICS_REVIEW // Menunggu IRB approval
+  APPROVED // Admin approve
+  APPROVED_WITH_CONDITIONS // Approve dengan syarat
+  REJECTED // Admin reject
+  DATA_READY // Export file siap download
+  ACTIVE // Researcher sedang akses data
+  CONDITIONS_MET
+  IN_PROGRESS
+  COMPLETED // Research selesai/access expired
+  SUSPENDED
+  CANCELLED
+  WITHDRAWN // Researcher batalkan request
+  EXPIRED // Access expired
+
+  @@map("research_request_statuses")
+  @@schema("medical")
+}
+
+enum EthicsStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+  RESUBMITTED
+  EXEMPTED
+  WAIVED
+
+  @@map("ethics_statuses")
+  @@schema("medical")
+}
+
+enum ResearchPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("research_priorities")
+  @@schema("medical")
+}
+
+enum ApprovalLevel {
+  CENTER_DIRECTOR
+  ETHICS_COMMITTEE
+  DATA_STEWARD
+  PRIVACY_OFFICER
+  NATIONAL_ADMIN
+  SYSTEM_ADMIN
+
+  @@map("approval_levels")
+  @@schema("medical")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONDITIONS
+  DELEGATED
+  EXPIRED
+
+  @@map("approval_statuses")
+  @@schema("medical")
+}
+
+enum CollaborationRole {
+  PRINCIPAL_INVESTIGATOR
+  CO_INVESTIGATOR
+  STATISTICIAN
+  DATA_ANALYST
+  CLINICAL_COORDINATOR
+  RESEARCH_ASSISTANT
+  ETHICS_ADVISOR
+  SUBJECT_MATTER_EXPERT
+  CONSULTANT
+  STUDENT_RESEARCHER
+
+  @@map("collaboration_roles")
+  @@schema("medical")
+}
+
+enum CollaborationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  ACTIVE
+  COMPLETED
+  SUSPENDED
+  TERMINATED
+
+  @@map("collaboration_statuses")
+  @@schema("medical")
+}
+
+enum DataAccessLevel {
+  LIMITED
+  AGGREGATE_ONLY
+  DEIDENTIFIED
+  LIMITED_IDENTIFIABLE
+  FULL_ACCESS
+
+  @@map("data_access_levels")
+  @@schema("medical")
+}
+
+enum SessionType {
+  QUERY
+  EXPORT
+  ANALYSIS
+  VISUALIZATION
+  REPORT_GENERATION
+  DATA_VALIDATION
+
+  @@map("session_types")
+  @@schema("medical")
+}
+
+enum DataAccessComplianceStatus {
+  COMPLIANT
+  WARNING
+  VIOLATION
+  SUSPENDED
+  INVESTIGATION
+
+  @@map("compliance_statuses")
+  @@schema("medical")
+}
+
+enum PublicationType {
+  JOURNAL_ARTICLE
+  CONFERENCE_PAPER
+  BOOK_CHAPTER
+  THESIS
+  DISSERTATION
+  TECHNICAL_REPORT
+  PREPRINT
+  DATA_PAPER
+  REVIEW_ARTICLE
+  EDITORIAL
+
+  @@map("publication_types")
+  @@schema("medical")
+}
+
+enum PublicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  PUBLISHED
+  REJECTED
+  WITHDRAWN
+  IN_PRESS
+
+  @@map("publication_statuses")
+  @@schema("medical")
+}
+
+enum PeerReviewStatus {
+  PENDING
+  UNDER_REVIEW
+  MAJOR_REVISION
+  MINOR_REVISION
+  ACCEPTED
+  REJECTED
+  REVISE_AND_RESUBMIT
+
+  @@map("peer_review_statuses")
+  @@schema("medical")
+}
+
+enum ImpactMetricType {
+  PUBLICATIONS
+  CITATIONS
+  POLICY_IMPACT
+  CLINICAL_GUIDELINES
+  PATENTS
+  GRANT_FUNDING
+  MEDIA_COVERAGE
+  PATIENT_OUTCOMES
+  SCREENING_RATES
+  SURVIVAL_IMPROVEMENT
+  COST_SAVINGS
+  QUALITY_METRICS
+
+  @@map("impact_metric_types")
+  @@schema("medical")
+}
+
+enum DataQuality {
+  EXCELLENT
+  GOOD
+  STANDARD
+  POOR
+  INCOMPLETE
+
+  @@map("data_qualities")
+  @@schema("medical")
+}
+
+// Sprint 4: Analytics & Intelligence Schema
+
+model AnalyticsPerformanceMetric {
+  id                    String              @id @default(cuid())
+  centerId              String?
+  metricType            AnalyticsMetricType
+  metricName            String
+  value                 Float
+  unit                  String?
+  baseline              Float?
+  target                Float?
+  percentileRank        Float?
+  comparisonGroup       String?
+  timeFrame             String
+  dataQuality           DataQuality         @default(STANDARD)
+  confidenceInterval    Json?
+  riskAdjustmentFactors Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  center                Center?             @relation(fields: [centerId], references: [id], onDelete: SetNull)
+
+  @@map("analytics_performance_metrics")
+  @@schema("medical")
+}
+
+model PredictiveModel {
+  id                  String                   @id @default(cuid())
+  name                String
+  version             String
+  modelType           PredictiveModelType
+  description         String?
+  trainingDataSize    Int
+  validationDataSize  Int?
+  accuracy            Float?
+  precision           Float?
+  recall              Float?
+  f1Score             Float?
+  aucScore            Float?
+  calibrationScore    Float?
+  features            Json
+  hyperparameters     Json?
+  trainingDate        DateTime
+  lastValidated       DateTime?
+  validationMetrics   Json?
+  deploymentStatus    DeploymentStatus         @default(STAGING)
+  modelVersion        String
+  isActive            Boolean                  @default(true)
+  retrainingFrequency Int? // days
+  lastRetrainedAt     DateTime?
+  nextRetrainingDue   DateTime?
+  performanceHistory  Json?
+  createdBy           String
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  predictions         ModelPrediction[]
+  modelMetrics        ModelPerformanceMetric[]
+
+  @@map("predictive_models")
+  @@schema("medical")
+}
+
+model ModelPrediction {
+  id             String          @id @default(cuid())
+  modelId        String
+  patientId      String?
+  inputFeatures  Json
+  prediction     Json
+  confidence     Float
+  predictionType PredictionType
+  actualOutcome  Json?
+  accuracyScore  Float?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  model          PredictiveModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@map("model_predictions")
+  @@schema("medical")
+}
+
+model ModelPerformanceMetric {
+  id                String          @id @default(cuid())
+  modelId           String
+  metricName        String
+  value             Float
+  timestamp         DateTime        @default(now())
+  dataSlice         String? // e.g., 'validation', 'test', 'production'
+  additionalMetrics Json?
+  model             PredictiveModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@map("model_performance_metrics")
+  @@schema("medical")
+}
+
+model ExecutiveDashboard {
+  id              String          @id @default(cuid())
+  title           String
+  description     String?
+  dashboardType   DashboardType
+  layout          Json
+  widgets         Json
+  filters         Json?
+  accessLevel     DataAccessLevel @default(AGGREGATE_ONLY)
+  isActive        Boolean         @default(true)
+  refreshInterval Int? // minutes
+  lastRefreshed   DateTime?
+  createdBy       String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("executive_dashboards")
+  @@schema("medical")
+}
+
+model ReportSchedule {
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  reportType     ReportType
+  schedule       String // cron expression
+  recipients     Json // emails, roles
+  parameters     Json?
+  isActive       Boolean        @default(true)
+  lastRun        DateTime?
+  nextRun        DateTime?
+  format         ReportFormat   @default(PDF)
+  deliveryMethod DeliveryMethod @default(EMAIL)
+  templateId     String?
+  createdBy      String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("report_schedules")
+  @@schema("medical")
+}
+
+model CenterBenchmark {
+  id                    String   @id @default(cuid())
+  centerId              String
+  benchmarkPeriod       String
+  totalPatients         Int
+  newPatients           Int
+  dataQualityScore      Float
+  reportingCompleteness Float
+  timelinessScore       Float
+  overallScore          Float
+  rank                  Int?
+  percentileRank        Float?
+  peerGroup             String?
+  improvementAreas      Json?
+  strengths             Json?
+  recommendations       Json?
+  comparisonMetrics     Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  center                Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@map("center_benchmarks")
+  @@schema("medical")
+}
+
+model ResearchImpactAnalysis {
+  id                  String          @id @default(cuid())
+  researchRequestId   String
+  analysisDate        DateTime        @default(now())
+  impactScore         Float
+  citationCount       Int
+  publicationCount    Int
+  patentCount         Int?
+  guidelineCount      Int?
+  policyImpactCount   Int?
+  clinicalAdoptions   Int?
+  patientImpactScore  Float?
+  economicImpact      Float?
+  collaborationIndex  Float?
+  innovationIndex     Float?
+  reachScore          Float?
+  influenceScore      Float?
+  trendData           Json?
+  comparativeAnalysis Json?
+  recommendations     Json?
+  verifiedBy          String?
+  verificationDate    DateTime?
+  createdBy           String
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  researchRequest     ResearchRequest @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+
+  @@map("research_impact_analyses")
+  @@schema("medical")
+}
+
+model CancerTrendAnalysis {
+  id                 String         @id @default(cuid())
+  cancerType         String
+  geographicLevel    String // national, province, regency
+  geographicArea     String?
+  trendPeriod        String // monthly, quarterly, yearly
+  startDate          DateTime
+  endDate            DateTime
+  baselineIncidence  Float?
+  currentIncidence   Float?
+  trendDirection     TrendDirection
+  trendSignificance  Float?
+  confidenceInterval Json?
+  predictedValues    Json?
+  seasonalFactors    Json?
+  riskFactors        Json?
+  recommendations    Json?
+  dataQuality        DataQuality    @default(STANDARD)
+  lastUpdated        DateTime       @default(now())
+  createdBy          String
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@map("cancer_trend_analyses")
+  @@schema("medical")
+}
+
+model RealTimeAnalyticsCache {
+  id              String    @id @default(cuid())
+  cacheKey        String    @unique
+  cacheValue      Json
+  cacheType       CacheType
+  expiresAt       DateTime
+  refreshInterval Int // minutes
+  lastRefreshed   DateTime  @default(now())
+  hitCount        Int       @default(0)
+  isActive        Boolean   @default(true)
+  metadata        Json?
+
+  @@map("real_time_analytics_cache")
+  @@schema("medical")
+}
+
+model NationalCancerIntelligence {
+  id                     String      @id @default(cuid())
+  reportDate             DateTime    @default(now())
+  totalRegisteredCases   Int
+  newCasesThisMonth      Int
+  activeCases            Int
+  mortalityRate          Float?
+  survivalRate           Float?
+  screeningCoverage      Float?
+  earlyDetectionRate     Float?
+  topCancerTypes         Json
+  demographicBreakdown   Json
+  geographicDistribution Json
+  trendAnalysis          Json?
+  riskFactorAnalysis     Json?
+  healthcareSystemLoad   Json?
+  resourceUtilization    Json?
+  qualityMetrics         Json?
+  policyRecommendations  Json?
+  dataQuality            DataQuality @default(STANDARD)
+  reportingCompleteness  Float?
+  lastUpdated            DateTime    @default(now())
+  verifiedBy             String?
+  verificationDate       DateTime?
+
+  @@map("national_cancer_intelligence")
+  @@schema("medical")
+}
+
+model MaterializedViewRefresh {
+  id              String        @id @default(cuid())
+  viewName        String
+  tableName       String
+  refreshSchedule String // cron expression
+  lastRefreshed   DateTime?
+  nextRefresh     DateTime?
+  refreshDuration Int? // seconds
+  status          RefreshStatus @default(PENDING)
+  errorMessage    String?
+  rowCount        Int?
+  sizeInMB        Float?
+  isActive        Boolean       @default(true)
+  dependencies    Json? // other views/tables
+  createdBy       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("materialized_view_refresh")
+  @@schema("medical")
+}
+
+model AnalyticsEventLog {
+  id            String             @id @default(cuid())
+  eventType     AnalyticsEventType
+  eventCategory String
+  description   String?
+  eventData     Json?
+  userId        String?
+  sessionId     String?
+  ipAddress     String?
+  userAgent     String?
+  timestamp     DateTime           @default(now())
+  duration      Int? // milliseconds
+  success       Boolean
+  errorCode     String?
+  errorMessage  String?
+  metadata      Json?
+
+  @@map("analytics_event_logs")
+  @@schema("audit")
+}
+
+// Analytics Enums
+
+enum AnalyticsMetricType {
+  PATIENT_VOLUME
+  DATA_QUALITY
+  REPORTING_TIMELINESS
+  TREATMENT_OUTCOMES
+  SURVIVAL_RATES
+  SCREENING_COVERAGE
+  EARLY_DETECTION
+  COST_EFFICIENCY
+  RESOURCE_UTILIZATION
+  RESEARCH_PRODUCTIVITY
+  PATIENT_SATISFACTION
+  CLINICAL_TRIAL_ENROLLMENT
+  WAITING_TIMES
+  READMISSION_RATES
+  COMPLICATION_RATES
+
+  @@map("analytics_metric_types")
+  @@schema("medical")
+}
+
+enum PredictiveModelType {
+  CANCER_RISK_PREDICTION
+  TREATMENT_RESPONSE
+  SURVIVAL_ANALYSIS
+  RECURRENCE_RISK
+  POPULATION_HEALTH_TRENDS
+  RESOURCE_UTILIZATION
+  DEMAND_FORECASTING
+  QUALITY_OUTCOMES
+  COST_PREDICTION
+  READMISSION_PREDICTION
+
+  @@map("predictive_model_types")
+  @@schema("medical")
+}
+
+enum DeploymentStatus {
+  DEVELOPMENT
+  TESTING
+  STAGING
+  PRODUCTION
+  DEPRECATED
+  ARCHIVED
+
+  @@map("deployment_statuses")
+  @@schema("medical")
+}
+
+enum PredictionType {
+  CLASSIFICATION
+  REGRESSION
+  SURVIVAL_ANALYSIS
+  TIME_SERIES
+  CLUSTERING
+  ANOMALY_DETECTION
+  RECOMMENDATION
+  RISK_SCORE
+
+  @@map("prediction_types")
+  @@schema("medical")
+}
+
+enum DashboardType {
+  EXECUTIVE_OVERVIEW
+  CLINICAL_PERFORMANCE
+  RESEARCH_INSIGHTS
+  OPERATIONAL_METRICS
+  PATIENT_OUTCOMES
+  QUALITY_IMPROVEMENT
+  FINANCIAL_ANALYTICS
+  POPULATION_HEALTH
+
+  @@map("dashboard_types")
+  @@schema("medical")
+}
+
+enum ReportType {
+  DAILY_SUMMARY
+  WEEKLY_ANALYTICS
+  MONTHLY_PERFORMANCE
+  QUARTERLY_REVIEW
+  ANNUAL_REPORT
+  AD_HOC_ANALYSIS
+  RESEARCH_IMPACT
+  QUALITY_METRICS
+  EXECUTIVE_BRIEFING
+
+  @@map("report_types")
+  @@schema("medical")
+}
+
+enum ReportFormat {
+  PDF
+  EXCEL
+  CSV
+  JSON
+  HTML
+  POWERPOINT
+
+  @@map("report_formats")
+  @@schema("medical")
+}
+
+enum DeliveryMethod {
+  EMAIL
+  FILE_SHARE
+  API_WEBHOOK
+  SFTP
+  CLOUD_STORAGE
+  PRINT
+
+  @@map("delivery_methods")
+  @@schema("medical")
+}
+
+enum TrendDirection {
+  INCREASING
+  DECREASING
+  STABLE
+  FLUCTUATING
+  SEASONAL
+  INSUFFICIENT_DATA
+
+  @@map("trend_directions")
+  @@schema("medical")
+}
+
+enum CacheType {
+  DASHBOARD_DATA
+  ANALYTICS_QUERY
+  AGGREGATE_METRICS
+  PATIENT_STATS
+  RESEARCH_DATA
+  TREND_ANALYSIS
+  BENCHMARK_DATA
+  EXECUTIVE_SUMMARY
+
+  @@map("cache_types")
+  @@schema("medical")
+}
+
+enum RefreshStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  SKIPPED
+
+  @@map("refresh_statuses")
+  @@schema("medical")
+}
+
+enum AnalyticsEventType {
+  DASHBOARD_VIEW
+  REPORT_GENERATED
+  QUERY_EXECUTED
+  CACHE_HIT
+  CACHE_MISS
+  MODEL_PREDICTION
+  DATA_EXPORT
+  ALERT_TRIGGERED
+  USER_LOGIN
+  PERFORMANCE_METRIC
+  ERROR_OCCURRED
+  SCHEDULE_EXECUTED
+
+  @@map("analytics_event_types")
+  @@schema("audit")
+}
+
+// Sprint 5: System Administration & Reporting Schema
+
+model SystemConfiguration {
+  id              String   @id @default(cuid())
+  category        String
+  key             String
+  value           Json
+  description     String?
+  isEncrypted     Boolean  @default(false)
+  isRequired      Boolean  @default(true)
+  defaultValue    Json?
+  validationRules Json?
+  environment     String? // development, staging, production
+  centerId        String?
+  isActive        Boolean  @default(true)
+  lastModifiedBy  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  center          Center?  @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([category, key, centerId])
+  @@map("system_configurations")
+  @@schema("system")
+}
+
+model ReportTemplate {
+  id               String            @id @default(cuid())
+  name             String
+  title            String
+  description      String?
+  reportType       ReportType
+  templateType     TemplateType      @default(CUSTOM)
+  dataSource       String // tables, views, queries
+  parameters       Json? // report parameters schema
+  layout           Json // drag-drop layout config
+  styling          Json? // colors, fonts, formatting
+  filters          Json? // available filters
+  aggregations     Json? // data aggregations
+  charts           Json? // chart configurations
+  accessLevel      DataAccessLevel   @default(AGGREGATE_ONLY)
+  isActive         Boolean           @default(true)
+  isPublic         Boolean           @default(false)
+  centerId         String?
+  createdBy        String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  center           Center?           @relation(fields: [centerId], references: [id], onDelete: SetNull)
+  generatedReports GeneratedReport[]
+  scheduledReports ScheduledReport[]
+
+  @@map("report_templates")
+  @@schema("system")
+}
+
+model GeneratedReport {
+  id            String         @id @default(cuid())
+  templateId    String
+  name          String
+  parameters    Json?
+  format        ReportFormat   @default(PDF)
+  status        ReportStatus   @default(PENDING)
+  filePath      String?
+  fileSize      Int?
+  downloadCount Int            @default(0)
+  expiresAt     DateTime?
+  generatedBy   String
+  generatedAt   DateTime       @default(now())
+  completedAt   DateTime?
+  errorMessage  String?
+  template      ReportTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("generated_reports")
+  @@schema("system")
+}
+
+model ScheduledReport {
+  id             String            @id @default(cuid())
+  templateId     String
+  name           String
+  description    String?
+  schedule       String // cron expression
+  recipients     Json // emails, roles, users
+  parameters     Json?
+  format         ReportFormat      @default(PDF)
+  deliveryMethod DeliveryMethod    @default(EMAIL)
+  isActive       Boolean           @default(true)
+  lastRun        DateTime?
+  nextRun        DateTime?
+  successCount   Int               @default(0)
+  failureCount   Int               @default(0)
+  createdBy      String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  template       ReportTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  executions     ReportExecution[]
+
+  @@map("scheduled_reports")
+  @@schema("system")
+}
+
+model ReportExecution {
+  id                String               @id @default(cuid())
+  scheduledReportId String
+  executionTime     DateTime             @default(now())
+  status            ExecutionStatus
+  filePath          String?
+  fileSize          Int?
+  duration          Int? // seconds
+  recipients        Json?
+  success           Boolean
+  errorMessage      String?
+  deliveryStatus    DeliveryStatus?
+  retryCount        Int                  @default(0)
+  scheduledReport   ScheduledReport      @relation(fields: [scheduledReportId], references: [id], onDelete: Cascade)
+  distributions     ReportDistribution[]
+
+  @@map("report_executions")
+  @@schema("system")
+}
+
+// Story 6.5: Report History Tracking Models
+model ReportHistory {
+  id                String               @id @default(cuid())
+  reportId          String // Reference to GeneratedReport or ScheduledReport
+  reportType        HistoryReportType
+  templateId        String
+  templateVersion   String?
+  name              String
+  format            ReportFormat
+  parameters        Json?
+  status            ReportStatus
+  generatedBy       String?
+  generatedAt       DateTime
+  completedAt       DateTime?
+  fileSize          Int?
+  filePath          String?
+  fileHash          String? // SHA-256 hash for integrity
+  changeDescription String?
+  previousVersion   String? // Reference to previous history entry
+  retentionUntil    DateTime?
+  archivedAt        DateTime?
+  metadata          Json?
+  createdAt         DateTime             @default(now())
+  distributions     ReportDistribution[]
+  accessLogs        ReportAccessLog[]
+
+  @@index([reportId, reportType])
+  @@index([templateId])
+  @@index([generatedAt])
+  @@map("report_history")
+  @@schema("system")
+}
+
+model ReportDistribution {
+  id                String           @id @default(cuid())
+  reportHistoryId   String?
+  reportExecutionId String?
+  recipientType     RecipientType
+  recipientId       String // User ID, email, or role
+  recipientEmail    String?
+  recipientName     String?
+  deliveryMethod    DeliveryMethod
+  deliveryStatus    DeliveryStatus
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  downloadedAt      DateTime?
+  failureReason     String?
+  retryCount        Int              @default(0)
+  maxRetries        Int              @default(3)
+  metadata          Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  reportHistory     ReportHistory?   @relation(fields: [reportHistoryId], references: [id], onDelete: Cascade)
+  reportExecution   ReportExecution? @relation(fields: [reportExecutionId], references: [id], onDelete: Cascade)
+
+  @@index([reportHistoryId])
+  @@index([reportExecutionId])
+  @@index([recipientId])
+  @@map("report_distributions")
+  @@schema("system")
+}
+
+model ReportAccessLog {
+  id               String           @id @default(cuid())
+  reportHistoryId  String
+  userId           String?
+  userName         String?
+  accessType       ReportAccessType
+  ipAddress        String?
+  userAgent        String?
+  accessedAt       DateTime         @default(now())
+  duration         Int? // seconds spent viewing
+  pagesViewed      Int?
+  actionsPerformed Json? // downloads, prints, etc.
+  metadata         Json?
+  reportHistory    ReportHistory    @relation(fields: [reportHistoryId], references: [id], onDelete: Cascade)
+
+  @@index([reportHistoryId])
+  @@index([userId])
+  @@index([accessedAt])
+  @@map("report_access_logs")
+  @@schema("system")
+}
+
+// Story 6.4: Notifications Models
+model NotificationPreference {
+  id              String                @id @default(cuid())
+  userId          String
+  category        NotificationCategory
+  channel         NotificationChannel
+  isEnabled       Boolean               @default(true)
+  frequency       NotificationFrequency @default(IMMEDIATE)
+  quietHoursStart String? // HH:MM format
+  quietHoursEnd   String? // HH:MM format
+  digestSchedule  String? // cron expression
+  priority        NotificationPriority  @default(MEDIUM)
+  filters         Json? // Advanced filtering rules
+  metadata        Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([userId, category, channel])
+  @@index([userId])
+  @@map("notification_preferences")
+  @@schema("system")
+}
+
+model NotificationHistory {
+  id               String              @id @default(cuid())
+  notificationId   String
+  recipientId      String
+  recipientType    RecipientType
+  channel          NotificationChannel
+  status           NotificationStatus
+  sentAt           DateTime?
+  deliveredAt      DateTime?
+  readAt           DateTime?
+  failedAt         DateTime?
+  errorMessage     String?
+  retryCount       Int                 @default(0)
+  deliveryDuration Int? // milliseconds
+  metadata         Json?
+  createdAt        DateTime            @default(now())
+
+  @@index([notificationId])
+  @@index([recipientId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notification_history")
+  @@schema("system")
+}
+
+model NotificationDigest {
+  id                String                @id @default(cuid())
+  userId            String
+  category          NotificationCategory
+  frequency         NotificationFrequency
+  lastSentAt        DateTime?
+  nextScheduledAt   DateTime?
+  notificationCount Int                   @default(0)
+  notificationIds   String[]              @default([])
+  status            DigestStatus          @default(PENDING)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([userId, category])
+  @@index([nextScheduledAt])
+  @@map("notification_digests")
+  @@schema("system")
+}
+
+model CalendarIntegration {
+  id           String           @id @default(cuid())
+  userId       String
+  provider     CalendarProvider
+  accessToken  String // Encrypted
+  refreshToken String? // Encrypted
+  expiresAt    DateTime?
+  calendarId   String?
+  isActive     Boolean          @default(true)
+  syncEnabled  Boolean          @default(true)
+  lastSyncAt   DateTime?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("calendar_integrations")
+  @@schema("system")
+}
+
+model BackupJob {
+  id               String            @id @default(cuid())
+  name             String
+  backupType       BackupType
+  dataSource       String // database, files, full_system
+  schedule         String? // cron expression
+  retentionDays    Int               @default(30)
+  compression      Boolean           @default(true)
+  encryption       Boolean           @default(true)
+  storageLocation  String // S3, local, FTP
+  storagePath      String?
+  isActive         Boolean           @default(true)
+  lastBackup       DateTime?
+  nextBackup       DateTime?
+  successCount     Int               @default(0)
+  failureCount     Int               @default(0)
+  totalSize        BigInt            @default(0)
+  estimatedSize    BigInt?
+  backupOptions    Json? // custom backup options
+  verificationMode VerificationMode  @default(CHECKSUM)
+  createdBy        String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  executions       BackupExecution[]
+
+  @@map("backup_jobs")
+  @@schema("system")
+}
+
+model BackupExecution {
+  id                 String       @id @default(cuid())
+  backupJobId        String
+  executionTime      DateTime     @default(now())
+  status             BackupStatus @default(RUNNING)
+  startTime          DateTime     @default(now())
+  endTime            DateTime?
+  duration           Int? // seconds
+  fileSize           BigInt?
+  compressedSize     BigInt?
+  filesCount         Int?
+  filePath           String?
+  checksum           String?
+  verificationPassed Boolean?
+  errorMessage       String?
+  retryCount         Int          @default(0)
+  metadata           Json?
+  backupJob          BackupJob    @relation(fields: [backupJobId], references: [id], onDelete: Cascade)
+
+  @@map("backup_executions")
+  @@schema("system")
+}
+
+model UserActivityLog {
+  id           String       @id @default(cuid())
+  userId       String?
+  sessionId    String?
+  activityType ActivityType
+  activity     String
+  resource     String?
+  resourceId   String?
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  deviceId     String?
+  location     Json? // country, city, coordinates
+  duration     Int? // milliseconds
+  success      Boolean      @default(true)
+  errorCode    String?
+  errorMessage String?
+  riskScore    Int          @default(0)
+  tags         String[]     @default([])
+  timestamp    DateTime     @default(now())
+  user         User?        @relation("UserActivity", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("user_activity_logs")
+  @@schema("audit")
+}
+
+model SecurityEvent {
+  id                String            @id @default(cuid())
+  eventType         SecurityEventType
+  severity          SecuritySeverity  @default(MEDIUM)
+  threatLevel       ThreatLevel       @default(LOW)
+  title             String
+  description       String
+  source            String?
+  ipAddress         String?
+  userAgent         String?
+  userId            String?
+  sessionId         String?
+  resource          String?
+  resourceId        String?
+  details           Json?
+  mitigationActions Json?
+  status            EventStatus       @default(OPEN)
+  assignedTo        String?
+  resolvedBy        String?
+  resolvedAt        DateTime?
+  falsePositive     Boolean           @default(false)
+  isCorrelated      Boolean           @default(false)
+  correlationId     String?
+  externalReference String?
+  complianceImpact  Json? // GDPR, HIPAA, etc.
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User?             @relation("SecurityEvents", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("security_events")
+  @@schema("audit")
+}
+
+model NotificationTemplate {
+  id            String               @id @default(cuid())
+  name          String
+  category      NotificationCategory
+  channel       NotificationChannel
+  templateType  TemplateType         @default(STANDARD)
+  subject       String?
+  content       String // supports templating
+  htmlContent   String?
+  attachments   Json? // file templates
+  variables     Json? // template variables schema
+  styling       Json? // email/HTML styling
+  priority      NotificationPriority @default(MEDIUM)
+  isActive      Boolean              @default(true)
+  isDefault     Boolean              @default(false)
+  language      String               @default("en")
+  centerId      String?
+  createdBy     String
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  notifications Notification[]
+
+  @@map("notification_templates")
+  @@schema("system")
+}
+
+model Notification {
+  id               String                @id @default(cuid())
+  templateId       String?
+  userId           String
+  recipientId      String? // user ID or email/phone
+  recipientType    RecipientType         @default(USER)
+  channel          NotificationChannel
+  type             NotificationType
+  title            String
+  message          String
+  data             Json? // dynamic data
+  priority         NotificationPriority  @default(MEDIUM)
+  status           NotificationStatus    @default(PENDING)
+  scheduledFor     DateTime?
+  sentAt           DateTime?
+  deliveredAt      DateTime?
+  readAt           DateTime?
+  failedAt         DateTime?
+  retryCount       Int                   @default(0)
+  maxRetries       Int                   @default(3)
+  responseRequired Boolean               @default(false)
+  response         Json?
+  expiresAt        DateTime?
+  metadata         Json?
+  createdBy        String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  user             User                  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  template         NotificationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@map("notifications")
+  @@schema("system")
+}
+
+model ExternalIntegration {
+  id             String               @id @default(cuid())
+  name           String
+  type           IntegrationType
+  category       IntegrationCategory
+  description    String?
+  endpoint       String
+  authentication Json // API keys, OAuth, certificates
+  configuration  Json? // integration-specific settings
+  dataMapping    Json? // field mappings
+  syncFrequency  String? // cron expression
+  isActive       Boolean              @default(true)
+  lastSync       DateTime?
+  nextSync       DateTime?
+  successCount   Int                  @default(0)
+  failureCount   Int                  @default(0)
+  timeout        Int                  @default(30000) // milliseconds
+  retryPolicy    Json?
+  rateLimit      Json? // rate limiting config
+  centerId       String?
+  createdBy      String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  center         Center?              @relation("CenterIntegrations", fields: [centerId], references: [id], onDelete: Cascade)
+  syncLogs       IntegrationSyncLog[]
+
+  @@map("external_integrations")
+  @@schema("system")
+}
+
+model IntegrationSyncLog {
+  id                String              @id @default(cuid())
+  integrationId     String
+  syncType          SyncType            @default(FULL)
+  direction         SyncDirection
+  startTime         DateTime            @default(now())
+  endTime           DateTime?
+  duration          Int? // seconds
+  status            SyncStatus          @default(RUNNING)
+  recordsProcessed  Int                 @default(0)
+  recordsSucceeded  Int                 @default(0)
+  recordsFailed     Int                 @default(0)
+  recordsSkipped    Int                 @default(0)
+  dataVolume        BigInt?
+  errorMessage      String?
+  errorDetails      Json?
+  checksumBefore    String?
+  checksumAfter     String?
+  rollbackAvailable Boolean             @default(false)
+  rollbackUntil     DateTime?
+  metadata          Json?
+  integration       ExternalIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@map("integration_sync_logs")
+  @@schema("system")
+}
+
+model PerformanceMetric {
+  id                String                @id @default(cuid())
+  metricType        PerformanceMetricType
+  metricName        String
+  value             Float
+  unit              String?
+  timestamp         DateTime              @default(now())
+  tags              Json?
+  dimensions        Json? // additional dimensions
+  threshold         Json? // warning/critical thresholds
+  aggregationMethod AggregationMethod?    @default(AVERAGE)
+  interval          Int                   @default(60) // seconds
+  source            String? // application, database, external
+  hostname          String?
+  service           String?
+  environment       String? // development, staging, production
+  centerId          String?
+  center            Center?               @relation("CenterPerformanceMetrics", fields: [centerId], references: [id], onDelete: SetNull)
+
+  @@map("performance_metrics")
+  @@schema("system")
+}
+
+model SystemAlert {
+  id                String         @id @default(cuid())
+  alertType         AlertType
+  severity          AlertSeverity  @default(MEDIUM)
+  title             String
+  description       String
+  source            String? // system component
+  metricName        String?
+  currentValue      Float?
+  thresholdValue    Float?
+  condition         AlertCondition
+  isActive          Boolean        @default(true)
+  isAcknowledged    Boolean        @default(false)
+  acknowledgedBy    String?
+  acknowledgedAt    DateTime?
+  resolvedBy        String?
+  resolvedAt        DateTime?
+  resolution        String?
+  falsePositive     Boolean        @default(false)
+  escalationLevel   Int            @default(0)
+  maxEscalation     Int            @default(3)
+  lastEscalatedAt   DateTime?
+  notificationsSent Int            @default(0)
+  metadata          Json?
+  triggeredAt       DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@map("system_alerts")
+  @@schema("system")
+}
+
+model DataExportJob {
+  id                String       @id @default(cuid())
+  name              String
+  exportType        ExportType
+  dataSource        String // tables, views, custom query
+  format            ExportFormat @default(CSV)
+  filters           Json?
+  fields            Json? // field selection and mapping
+  options           Json? // export options
+  compression       Boolean      @default(true)
+  encryption        Boolean      @default(false)
+  retentionDays     Int          @default(7)
+  status            JobStatus    @default(PENDING)
+  progress          Float        @default(0)
+  totalRecords      BigInt?
+  processedRecords  BigInt?
+  filePath          String?
+  fileSize          BigInt?
+  downloadUrl       String?
+  expiresAt         DateTime?
+  estimatedDuration Int? // seconds
+  actualDuration    Int? // seconds
+  errorMessage      String?
+  validationResults Json?
+  requestedBy       String
+  requestedAt       DateTime     @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+
+  @@map("data_export_jobs")
+  @@schema("system")
+}
+
+model DataImportJob {
+  id                String           @id @default(cuid())
+  name              String
+  importType        ImportType
+  sourceType        ImportSourceType
+  filePath          String
+  targetTable       String
+  mapping           Json? // field mappings
+  validation        Json? // validation rules
+  options           Json? // import options
+  batchSize         Int              @default(1000)
+  skipDuplicates    Boolean          @default(false)
+  updateExisting    Boolean          @default(false)
+  dryRun            Boolean          @default(false)
+  status            JobStatus        @default(PENDING)
+  progress          Float            @default(0)
+  totalRecords      BigInt?
+  processedRecords  BigInt?
+  successfulRecords BigInt?
+  failedRecords     BigInt?
+  duplicateRecords  BigInt?
+  errorFilePath     String?
+  validationErrors  Json?
+  rollbackAvailable Boolean          @default(false)
+  rollbackUntil     DateTime?
+  estimatedDuration Int? // seconds
+  actualDuration    Int? // seconds
+  errorMessage      String?
+  requestedBy       String
+  requestedAt       DateTime         @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+
+  @@map("data_import_jobs")
+  @@schema("system")
+}
+
+model ScheduledTask {
+  id              String          @id @default(cuid())
+  name            String
+  taskType        TaskType
+  description     String?
+  schedule        String // cron expression
+  timezone        String          @default("UTC")
+  isActive        Boolean         @default(true)
+  concurrency     Int             @default(1)
+  timeout         Int? // seconds
+  retryAttempts   Int             @default(0)
+  retryDelay      Int             @default(60) // seconds
+  maxRunTime      Int? // seconds
+  lastRun         DateTime?
+  nextRun         DateTime?
+  successCount    Int             @default(0)
+  failureCount    Int             @default(0)
+  averageDuration Int? // seconds
+  configuration   Json?
+  environment     String? // specific environment
+  centerId        String?
+  createdBy       String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  center          Center?         @relation("CenterTasks", fields: [centerId], references: [id], onDelete: Cascade)
+  executions      TaskExecution[]
+
+  @@map("scheduled_tasks")
+  @@schema("system")
+}
+
+model TaskExecution {
+  id           String        @id @default(cuid())
+  taskId       String
+  executionId  String        @unique
+  startTime    DateTime      @default(now())
+  endTime      DateTime?
+  duration     Int? // seconds
+  status       TaskStatus    @default(RUNNING)
+  progress     Float         @default(0)
+  result       Json?
+  errorMessage String?
+  errorDetails Json?
+  workerId     String?
+  queuedAt     DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  retryCount   Int           @default(0)
+  metadata     Json?
+  task         ScheduledTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("task_executions")
+  @@schema("system")
+}
+
+model HealthCheck {
+  id                  String              @id @default(cuid())
+  serviceName         String
+  checkType           HealthCheckType
+  endpoint            String?
+  expectedStatus      Int                 @default(200)
+  timeout             Int                 @default(30000) // milliseconds
+  interval            Int                 @default(60000) // milliseconds
+  isActive            Boolean             @default(true)
+  threshold           Int                 @default(3) // failures before alert
+  configuration       Json?
+  lastCheck           DateTime?
+  nextCheck           DateTime?
+  status              HealthStatus        @default(UNKNOWN)
+  responseTime        Int? // milliseconds
+  uptime              Float? // percentage
+  consecutiveFails    Int                 @default(0)
+  consecutivePasses   Int                 @default(0)
+  lastFailure         DateTime?
+  lastSuccess         DateTime?
+  totalChecks         Int                 @default(0)
+  totalFailures       Int                 @default(0)
+  totalSuccesses      Int                 @default(0)
+  averageResponseTime Float?
+  createdBy           String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  results             HealthCheckResult[]
+
+  @@map("health_checks")
+  @@schema("system")
+}
+
+model HealthCheckResult {
+  id            String       @id @default(cuid())
+  healthCheckId String
+  timestamp     DateTime     @default(now())
+  status        HealthStatus
+  responseTime  Int? // milliseconds
+  statusCode    Int?
+  errorMessage  String?
+  details       Json?
+  metrics       Json? // additional metrics
+  checkedBy     String?
+  healthCheck   HealthCheck  @relation(fields: [healthCheckId], references: [id], onDelete: Cascade)
+
+  @@map("health_check_results")
+  @@schema("system")
+}
+
+model ApiEndpoint {
+  id               String     @id @default(cuid())
+  path             String
+  method           HttpMethod
+  version          String     @default("v1")
+  description      String?
+  category         String?
+  tags             String[]
+  isActive         Boolean    @default(true)
+  isPublic         Boolean    @default(false)
+  requiresAuth     Boolean    @default(true)
+  rateLimit        Json? // rate limiting config
+  requestSchema    Json? // OpenAPI schema
+  responseSchema   Json?
+  deprecated       Boolean    @default(false)
+  deprecationDate  DateTime?
+  sunsetDate       DateTime?
+  migrationGuide   String?
+  documentationUrl String?
+  createdBy        String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  usage            ApiUsage[]
+
+  @@map("api_endpoints")
+  @@schema("system")
+}
+
+model ApiUsage {
+  id           String      @id @default(cuid())
+  endpointId   String
+  userId       String?
+  sessionId    String?
+  ipAddress    String?
+  userAgent    String?
+  requestTime  DateTime    @default(now())
+  responseTime Int? // milliseconds
+  statusCode   Int
+  requestSize  Int? // bytes
+  responseSize Int? // bytes
+  success      Boolean
+  errorMessage String?
+  apiVersion   String?
+  rateLimited  Boolean     @default(false)
+  cached       Boolean     @default(false)
+  metadata     Json?
+  endpoint     ApiEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  user         User?       @relation("ApiUsage", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("api_usage")
+  @@schema("audit")
+}
+
+model ComplianceAudit {
+  id                String              @id @default(cuid())
+  auditType         ComplianceType
+  framework         ComplianceFramework
+  scope             Json // what was audited
+  status            ComplianceStatus    @default(PENDING)
+  scheduledDate     DateTime
+  startDate         DateTime?
+  endDate           DateTime?
+  auditor           String?
+  findings          Json?
+  riskLevel         ComplianceRisk      @default(LOW)
+  recommendations   Json?
+  correctiveActions Json?
+  evidence          Json? // evidence files/references
+  score             Float? // 0-100
+  passed            Boolean?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  nextAuditDate     DateTime?
+  recurrence        String? // recurrence pattern
+  automated         Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@map("compliance_audits")
+  @@schema("audit")
+}
+
+// Sprint 5 Enums
+
+enum TemplateType {
+  STANDARD
+  CUSTOM
+  SYSTEM
+  USER_DEFINED
+
+  @@map("template_types")
+  @@schema("system")
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+
+  @@map("report_statuses")
+  @@schema("system")
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  RETRYING
+
+  @@map("execution_statuses")
+  @@schema("system")
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+  OPENED
+  CLICKED
+
+  @@map("delivery_statuses")
+  @@schema("system")
+}
+
+enum BackupType {
+  FULL
+  INCREMENTAL
+  DIFFERENTIAL
+  TRANSACTION_LOG
+  SNAPSHOT
+  CONTINUOUS
+
+  @@map("backup_types")
+  @@schema("system")
+}
+
+enum BackupStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  CORRUPTED
+  VERIFIED
+
+  @@map("backup_statuses")
+  @@schema("system")
+}
+
+enum VerificationMode {
+  NONE
+  CHECKSUM
+  FULL
+  SAMPLE
+  INTEGRITY_CHECK
+
+  @@map("verification_modes")
+  @@schema("system")
+}
+
+enum ActivityType {
+  LOGIN
+  LOGOUT
+  PAGE_VIEW
+  DATA_ACCESS
+  DATA_MODIFY
+  REPORT_GENERATE
+  EXPORT
+  IMPORT
+  CONFIG_CHANGE
+  PRIVILEGE_ESCALATION
+  SECURITY_EVENT
+  ERROR_OCCURRED
+  SYSTEM_ACTION
+
+  @@map("activity_types")
+  @@schema("audit")
+}
+
+enum SecurityEventType {
+  LOGIN_FAILURE
+  UNAUTHORIZED_ACCESS
+  PRIVILEGE_ESCALATION
+  DATA_BREACH
+  MALICIOUS_REQUEST
+  SUSPICIOUS_ACTIVITY
+  BRUTE_FORCE_ATTACK
+  INJECTION_ATTACK
+  XSS_ATTEMPT
+  CSRF_ATTEMPT
+  DOS_ATTACK
+  POLICY_VIOLATION
+  COMPLIANCE_BREACH
+  ANOMALOUS_BEHAVIOR
+  THREAT_DETECTION
+
+  @@map("security_event_types")
+  @@schema("audit")
+}
+
+enum SecuritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("security_severities")
+  @@schema("audit")
+}
+
+enum ThreatLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+  EMERGENCY
+
+  @@map("threat_levels")
+  @@schema("audit")
+}
+
+enum EventStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+  FALSE_POSITIVE
+  ESCALATED
+
+  @@map("event_statuses")
+  @@schema("audit")
+}
+
+enum NotificationCategory {
+  SYSTEM
+  SECURITY
+  REPORTS
+  BACKUPS
+  PERFORMANCE
+  COMPLIANCE
+  USER_MANAGEMENT
+  INTEGRATIONS
+  HEALTH_CHECKS
+  ALERTS
+
+  @@map("notification_categories")
+  @@schema("system")
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+  PUSH
+  WEBHOOK
+  SLACK
+  TELEGRAM
+  MICROSOFT_TEAMS
+
+  @@map("notification_channels")
+  @@schema("system")
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  ALERT
+  REMINDER
+  SYSTEM_UPDATE
+  SECURITY_ALERT
+  REPORT_READY
+  BACKUP_COMPLETED
+  THRESHOLD_EXCEEDED
+
+  @@map("notification_types")
+  @@schema("system")
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  CRITICAL
+
+  @@map("notification_priorities")
+  @@schema("system")
+}
+
+enum NotificationStatus {
+  PENDING
+  SCHEDULED
+  SENT
+  DELIVERED
+  FAILED
+  CANCELLED
+  EXPIRED
+  READ
+
+  @@map("notification_statuses")
+  @@schema("system")
+}
+
+enum RecipientType {
+  USER
+  ROLE
+  EMAIL
+  PHONE
+  GROUP
+  SYSTEM
+
+  @@map("recipient_types")
+  @@schema("system")
+}
+
+enum IntegrationType {
+  API_REST
+  API_GRAPHQL
+  DATABASE
+  FILE_TRANSFER
+  WEBHOOK
+  MESSAGE_QUEUE
+  BLOCKCHAIN
+  IOT_DEVICE
+
+  @@map("integration_types")
+  @@schema("system")
+}
+
+enum IntegrationCategory {
+  HEALTHCARE_SYSTEMS
+  LABORATORY_SYSTEMS
+  IMAGING_SYSTEMS
+  BILLING_SYSTEMS
+  PHARMACY_SYSTEMS
+  GOVERNMENT_SYSTEMS
+  RESEARCH_PLATFORMS
+  CLOUD_SERVICES
+  MONITORING_TOOLS
+  SECURITY_TOOLS
+  COMMUNICATION_PLATFORMS
+
+  @@map("integration_categories")
+  @@schema("system")
+}
+
+enum SyncType {
+  FULL
+  INCREMENTAL
+  REAL_TIME
+  BATCH
+  ON_DEMAND
+
+  @@map("sync_types")
+  @@schema("system")
+}
+
+enum SyncDirection {
+  INBOUND
+  OUTBOUND
+  BIDIRECTIONAL
+
+  @@map("sync_directions")
+  @@schema("system")
+}
+
+enum SyncStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  ROLLING_BACK
+  ROLLED_BACK
+
+  @@map("sync_statuses")
+  @@schema("system")
+}
+
+enum PerformanceMetricType {
+  CPU_USAGE
+  MEMORY_USAGE
+  DISK_USAGE
+  NETWORK_IO
+  DATABASE_CONNECTIONS
+  RESPONSE_TIME
+  THROUGHPUT
+  ERROR_RATE
+  QUEUE_SIZE
+  CACHE_HIT_RATE
+  ACTIVE_USERS
+  API_REQUESTS
+  BATCH_JOBS
+  BACKUP_DURATION
+  DATA_VOLUME
+
+  @@map("performance_metric_types")
+  @@schema("system")
+}
+
+enum AggregationMethod {
+  AVERAGE
+  SUM
+  MIN
+  MAX
+  COUNT
+  PERCENTILE_50
+  PERCENTILE_90
+  PERCENTILE_95
+  PERCENTILE_99
+
+  @@map("aggregation_methods")
+  @@schema("system")
+}
+
+enum AlertType {
+  THRESHOLD
+  ANOMALY
+  SYSTEM_DOWN
+  PERFORMANCE_DEGRADATION
+  SECURITY_BREACH
+  COMPLIANCE_VIOLATION
+  CAPACITY_LIMIT
+  ERROR_RATE
+  DATA_QUALITY
+  BACKUP_FAILURE
+  INTEGRATION_FAILURE
+  HEALTH_CHECK_FAILURE
+
+  @@map("alert_types")
+  @@schema("system")
+}
+
+enum AlertSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("alert_severities")
+  @@schema("system")
+}
+
+enum AlertCondition {
+  GREATER_THAN
+  LESS_THAN
+  EQUALS
+  NOT_EQUALS
+  GREATER_EQUAL
+  LESS_EQUAL
+  PERCENTAGE_CHANGE
+  ANOMALY_DETECTED
+  SYSTEM_DOWN
+  PATTERN_MATCHED
+
+  @@map("alert_conditions")
+  @@schema("system")
+}
+
+enum ExportType {
+  PATIENT_DATA
+  MEDICAL_RECORDS
+  ANALYTICS_DATA
+  REPORT_DATA
+  CONFIGURATION_DATA
+  AUDIT_LOGS
+  PERFORMANCE_DATA
+  BACKUP_DATA
+  FULL_EXPORT
+  CUSTOM_QUERY
+
+  @@map("export_types")
+  @@schema("system")
+}
+
+enum ExportFormat {
+  CSV
+  EXCEL
+  JSON
+  XML
+  PDF
+  PARQUET
+  SQL_DUMP
+  ARCHIVE
+
+  @@map("export_formats")
+  @@schema("system")
+}
+
+enum ImportType {
+  PATIENT_DATA
+  MEDICAL_RECORDS
+  MASTER_DATA
+  CONFIGURATION
+  BULK_UPDATE
+  MIGRATION
+  RESTORE
+  SYNC_IMPORT
+
+  @@map("import_types")
+  @@schema("system")
+}
+
+enum ImportSourceType {
+  CSV_FILE
+  EXCEL_FILE
+  JSON_FILE
+  XML_FILE
+  DATABASE
+  API_IMPORT
+  FTP_IMPORT
+  ARCHIVE_FILE
+
+  @@map("import_source_types")
+  @@schema("system")
+}
+
+enum JobStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  PAUSED
+  RETRYING
+
+  @@map("job_statuses")
+  @@schema("system")
+}
+
+enum TaskType {
+  BACKUP
+  CLEANUP
+  REPORT_GENERATION
+  DATA_SYNC
+  HEALTH_CHECK
+  NOTIFICATION
+  CACHE_REFRESH
+  LOG_ROTATION
+  INDEX_REBUILD
+  STATISTICS_UPDATE
+  COMPLIANCE_CHECK
+  MAINTENANCE
+  CUSTOM_SCRIPT
+
+  @@map("task_types")
+  @@schema("system")
+}
+
+enum TaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+  SKIPPED
+
+  @@map("task_statuses")
+  @@schema("system")
+}
+
+enum HealthCheckType {
+  HTTP_ENDPOINT
+  DATABASE_CONNECTION
+  FILE_SYSTEM
+  SERVICE_PORT
+  API_HEALTH
+  SSL_CERTIFICATE
+  DOMAIN_DNS
+  NETWORK_CONNECTIVITY
+  CUSTOM_CHECK
+
+  @@map("health_check_types")
+  @@schema("system")
+}
+
+enum HealthStatus {
+  HEALTHY
+  DEGRADED
+  UNHEALTHY
+  UNKNOWN
+  MAINTENANCE
+
+  @@map("health_statuses")
+  @@schema("system")
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+  HEAD
+  OPTIONS
+
+  @@map("http_methods")
+  @@schema("system")
+}
+
+enum ComplianceType {
+  SECURITY
+  PRIVACY
+  DATA_PROTECTION
+  ACCESS_CONTROL
+  AUDIT_TRAIL
+  BUSINESS_CONTINUITY
+  DISASTER_RECOVERY
+  RISK_ASSESSMENT
+
+  @@map("compliance_types")
+  @@schema("audit")
+}
+
+enum ComplianceFramework {
+  GDPR
+  HIPAA
+  ISO_27001
+  ISO_27701
+  NIST
+  SOC_2
+  PDPA
+  HITECH
+  PCI_DSS
+  CUSTOM
+
+  @@map("compliance_frameworks")
+  @@schema("audit")
+}
+
+enum ComplianceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  EXCEPTION
+  WAIVED
+  REVIEW_REQUIRED
+
+  @@map("compliance_statuses")
+  @@schema("audit")
+}
+
+enum ComplianceRisk {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("compliance_risks")
+  @@schema("audit")
+}
+
+// Story 6.4 & 6.5 Additional Enums
+
+enum NotificationFrequency {
+  IMMEDIATE
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+
+  @@map("notification_frequencies")
+  @@schema("system")
+}
+
+enum DigestStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+
+  @@map("digest_statuses")
+  @@schema("system")
+}
+
+enum CalendarProvider {
+  GOOGLE_CALENDAR
+  MICROSOFT_OUTLOOK
+  APPLE_CALENDAR
+  CALDAV
+  CUSTOM
+
+  @@map("calendar_providers")
+  @@schema("system")
+}
+
+enum HistoryReportType {
+  GENERATED
+  SCHEDULED
+  AD_HOC
+  AUTOMATED
+
+  @@map("history_report_types")
+  @@schema("system")
+}
+
+enum ReportAccessType {
+  VIEW
+  DOWNLOAD
+  PRINT
+  SHARE
+  EXPORT
+  EDIT
+  DELETE
+
+  @@map("report_access_types")
+  @@schema("system")
+}
+
+// Epic 3: Research Discovery & Collaboration Schema
+
+model SavedSearch {
+  id             String          @id @default(cuid())
+  userId         String
+  name           String
+  description    String?
+  searchCriteria Json // stores the search parameters
+  isPublic       Boolean         @default(false)
+  alertsEnabled  Boolean         @default(false)
+  alertFrequency AlertFrequency?
+  lastExecuted   DateTime?
+  executionCount Int             @default(0)
+  resultCount    Int?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@map("saved_searches")
+  @@schema("medical")
+}
+
+model ResearcherProfile {
+  id                   String          @id @default(cuid())
+  userId               String          @unique
+  title                String?
+  department           String?
+  institution          String?
+  researchInterests    String[]
+  expertise            String[]
+  qualifications       String?
+  publications         Int             @default(0)
+  hIndex               Int?
+  totalCitations       Int?
+  orcidId              String?
+  googleScholarId      String?
+  researchGateId       String?
+  linkedInUrl          String?
+  bio                  String?
+  profilePictureUrl    String?
+  isPublic             Boolean         @default(true)
+  isAvailableForCollab Boolean         @default(true)
+  preferredCollabTypes String[]
+  languages            String[]
+  timezone             String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  projectMemberships   ProjectMember[]
+
+  @@map("researcher_profiles")
+  @@schema("medical")
+}
+
+model ResearchProject {
+  id                String              @id @default(cuid())
+  researchRequestId String?
+  name              String
+  description       String
+  objectives        String?
+  status            ProjectStatus       @default(PLANNING)
+  startDate         DateTime?
+  endDate           DateTime?
+  estimatedEndDate  DateTime?
+  fundingSource     String?
+  totalBudget       Float?
+  ethicsApprovalId  String?
+  tags              String[]
+  visibility        ProjectVisibility   @default(TEAM_ONLY)
+  createdBy         String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  members           ProjectMember[]
+  annotations       DatasetAnnotation[]
+  researchRequest   ResearchRequest?    @relation(fields: [researchRequestId], references: [id], onDelete: SetNull)
+
+  @@map("research_projects")
+  @@schema("medical")
+}
+
+model ProjectMember {
+  id                  String            @id @default(cuid())
+  projectId           String
+  researcherProfileId String
+  role                ProjectRole
+  permissions         Json? // custom permissions for this member
+  joinedAt            DateTime          @default(now())
+  invitedBy           String?
+  status              MemberStatus      @default(ACTIVE)
+  contributionLevel   String?
+  lastActive          DateTime?
+  project             ResearchProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  researcher          ResearcherProfile @relation(fields: [researcherProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, researcherProfileId])
+  @@map("project_members")
+  @@schema("medical")
+}
+
+model DatasetAnnotation {
+  id             String          @id @default(cuid())
+  projectId      String
+  datasetType    String // e.g., "patient", "diagnosis", "treatment"
+  datasetId      String // ID of the specific record
+  annotationType AnnotationType
+  content        String
+  tags           String[]
+  isResolved     Boolean         @default(false)
+  resolvedBy     String?
+  resolvedAt     DateTime?
+  parentId       String? // for threaded comments
+  attachments    Json?
+  mentions       String[] // user IDs mentioned in annotation
+  createdBy      String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  project        ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, datasetType, datasetId])
+  @@map("dataset_annotations")
+  @@schema("medical")
+}
+
+model ExpertMatch {
+  id           String      @id @default(cuid())
+  userId       String
+  expertUserId String
+  matchScore   Float // 0-100
+  matchReason  String?
+  researchArea String
+  basedOn      Json // factors that led to match
+  status       MatchStatus @default(SUGGESTED)
+  contactedAt  DateTime?
+  respondedAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId, matchScore])
+  @@map("expert_matches")
+  @@schema("medical")
+}
+
+model DataAvailability {
+  id               String   @id @default(cuid())
+  cancerType       String
+  province         String?
+  regency          String?
+  yearFrom         Int
+  yearTo           Int
+  totalRecords     Int
+  completeRecords  Int
+  partialRecords   Int
+  dataQualityScore Float
+  availableFields  Json // list of available data fields
+  missingFields    Json? // commonly missing fields
+  updateFrequency  String?
+  lastUpdated      DateTime @default(now())
+  metadata         Json?
+
+  @@unique([cancerType, province, regency, yearFrom, yearTo])
+  @@map("data_availability")
+  @@schema("medical")
+}
+
+model SimilarStudy {
+  id             String    @id @default(cuid())
+  title          String
+  authors        String
+  year           Int
+  studyType      StudyType
+  cancerType     String
+  sampleSize     Int
+  methodology    String
+  findings       String?
+  strengths      String?
+  limitations    String?
+  citation       String?
+  doi            String?
+  pmid           String?
+  tags           String[]
+  relevanceScore Float?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([cancerType, studyType])
+  @@map("similar_studies")
+  @@schema("medical")
+}
+
+model FeasibilityAssessment {
+  id                   String    @id @default(cuid())
+  researchRequestId    String?
+  userId               String
+  studyType            StudyType
+  cancerType           String
+  inclusionCriteria    String
+  exclusionCriteria    String
+  desiredSampleSize    Int
+  studyDuration        Int // months
+  estimatedAvailable   Int
+  feasibilityScore     Float // 0-100
+  powerAnalysis        Json?
+  recommendations      Json?
+  barriers             Json?
+  mitigationStrategies Json?
+  estimatedCost        Float?
+  estimatedTimeline    String?
+  assessmentDate       DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("feasibility_assessments")
+  @@schema("medical")
+}
+
+// Epic 3 Enums
+
+enum AlertFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  IMMEDIATE
+
+  @@map("alert_frequencies")
+  @@schema("medical")
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+
+  @@map("project_statuses")
+  @@schema("medical")
+}
+
+enum ProjectVisibility {
+  PRIVATE
+  TEAM_ONLY
+  INSTITUTION
+  PUBLIC
+
+  @@map("project_visibilities")
+  @@schema("medical")
+}
+
+enum ProjectRole {
+  LEAD
+  CO_LEAD
+  MEMBER
+  CONTRIBUTOR
+  OBSERVER
+
+  @@map("project_roles")
+  @@schema("medical")
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  INACTIVE
+  REMOVED
+
+  @@map("member_statuses")
+  @@schema("medical")
+}
+
+enum AnnotationType {
+  COMMENT
+  QUESTION
+  OBSERVATION
+  ISSUE
+  INSIGHT
+  TODO
+
+  @@map("annotation_types")
+  @@schema("medical")
+}
+
+enum MatchStatus {
+  SUGGESTED
+  CONTACTED
+  ACCEPTED
+  DECLINED
+  COLLABORATED
+
+  @@map("match_statuses")
+  @@schema("medical")
+}
+
+// Story 5.5: Research Impact Tracking Schema
+
+model ResearchCitation {
+  id               String              @id @default(cuid())
+  publicationId    String
+  citingTitle      String
+  citingAuthors    String?
+  citingJournal    String?
+  citationDate     DateTime?
+  citingDoi        String?
+  citingPmid       String?
+  citationType     String? // direct, supportive, critical, methodological
+  citationContext  String?
+  source           String? // CrossRef, PubMed, Scopus, Google Scholar, Manual
+  isVerified       Boolean             @default(false)
+  verifiedBy       String?
+  verificationDate DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  publication      ResearchPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  @@map("research_citations")
+  @@schema("medical")
+}
+
+model ResearchInnovation {
+  id                  String           @id @default(cuid())
+  researchRequestId   String
+  innovationType      InnovationType
+  title               String
+  description         String?
+  applicationNumber   String?
+  status              InnovationStatus @default(PROPOSED)
+  filingDate          DateTime?
+  approvalDate        DateTime?
+  expiryDate          DateTime?
+  organizations       String?
+  inventors           String?
+  expectedImpact      String?
+  actualImpact        String?
+  economicValue       Float?
+  adoptionRate        Float?
+  relatedPublications String?
+  metadata            Json?
+  createdBy           String
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  researchRequest     ResearchRequest  @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+
+  @@map("research_innovations")
+  @@schema("medical")
+}
+
+model ResearcherContribution {
+  id                    String            @id @default(cuid())
+  researcherId          String
+  researchRequestId     String?
+  contributionType      ContributionType
+  contributionLevel     ContributionLevel @default(MODERATE)
+  role                  String?
+  publicationCount      Int               @default(0)
+  citationCount         Int               @default(0)
+  hIndex                Float?
+  i10Index              Int?
+  totalImpactScore      Float?
+  dataContributions     Int               @default(0)
+  analysisContributions Int               @default(0)
+  mentoringCount        Int               @default(0)
+  grantsFunded          Float?
+  collaborationScore    Float?
+  innovationCount       Int               @default(0)
+  policyInfluence       Float?
+  startDate             DateTime
+  endDate               DateTime?
+  isActive              Boolean           @default(true)
+  notes                 String?
+  metadata              Json?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  researchRequest       ResearchRequest?  @relation(fields: [researchRequestId], references: [id], onDelete: SetNull)
+
+  @@map("researcher_contributions")
+  @@schema("medical")
+}
+
+model ResearchOutcome {
+  id                   String          @id @default(cuid())
+  researchRequestId    String
+  outcomeType          OutcomeType
+  title                String
+  description          String?
+  outcomeDate          DateTime
+  affectedPopulation   String?
+  geographicScope      String?
+  policyDocument       String?
+  implementationStatus String?
+  impactMetrics        Json?
+  stakeholders         String?
+  sustainabilityPlan   String?
+  followUpRequired     Boolean         @default(false)
+  followUpDate         DateTime?
+  verifiedBy           String?
+  verificationDate     DateTime?
+  createdBy            String
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  researchRequest      ResearchRequest @relation(fields: [researchRequestId], references: [id], onDelete: Cascade)
+
+  @@map("research_outcomes")
+  @@schema("medical")
+}
+
+// Story 5.5 Enums (only new ones, not duplicating existing enums)
+
+enum InnovationType {
+  PATENT
+  DIAGNOSTIC_TOOL
+  CLINICAL_PROTOCOL
+  POLICY_CHANGE
+  HEALTHCARE_GUIDELINE
+  TREATMENT_METHOD
+  PREVENTION_STRATEGY
+  SCREENING_PROGRAM
+  CARE_PATHWAY
+  TECHNOLOGY_TRANSFER
+  OTHER
+
+  @@map("innovation_types")
+  @@schema("medical")
+}
+
+enum InnovationStatus {
+  PROPOSED
+  IN_DEVELOPMENT
+  PATENT_PENDING
+  PATENT_GRANTED
+  IMPLEMENTED
+  PILOT_TESTING
+  SCALED_UP
+  ADOPTED
+  DISCONTINUED
+  EXPIRED
+
+  @@map("innovation_statuses")
+  @@schema("medical")
+}
+
+enum ContributionType {
+  PRINCIPAL_INVESTIGATOR
+  CO_INVESTIGATOR
+  DATA_PROVIDER
+  ANALYST
+  METHODOLOGY_EXPERT
+  DOMAIN_EXPERT
+  STUDENT
+  COLLABORATOR
+  ADVISOR
+  REVIEWER
+
+  @@map("contribution_types")
+  @@schema("medical")
+}
+
+enum ContributionLevel {
+  MINIMAL
+  MODERATE
+  SUBSTANTIAL
+  MAJOR
+  LEAD
+
+  @@map("contribution_levels")
+  @@schema("medical")
+}
+
+enum OutcomeType {
+  POLICY_CHANGE
+  CLINICAL_GUIDELINE
+  PRACTICE_CHANGE
+  HEALTHCARE_IMPROVEMENT
+  PUBLIC_AWARENESS
+  CAPACITY_BUILDING
+  SYSTEM_STRENGTHENING
+  COST_REDUCTION
+  QUALITY_IMPROVEMENT
+  ACCESS_IMPROVEMENT
+
+  @@map("outcome_types")
+  @@schema("medical")
+}
+
+// Epic 1: User Management & Security - Additional Models
+
+model PasswordPolicy {
+  id                    String   @id @default(cuid())
+  name                  String   @unique
+  minLength             Int?     @default(8)
+  requireUppercase      Boolean  @default(true)
+  requireLowercase      Boolean  @default(true)
+  requireNumbers        Boolean  @default(true)
+  requireSpecialChars   Boolean  @default(true)
+  preventReuse          Int?     @default(5)
+  maxAge                Int? // days
+  lockoutThreshold      Int?     @default(5)
+  lockoutDuration       Int? // minutes
+  maxConcurrentSessions Int?
+  organizationId        String?
+  roleId                String?
+  centerId              String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("password_policies")
+  @@schema("system")
+}
+
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@map("password_history")
+  @@schema("system")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isRevoked Boolean  @default(false)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+  @@schema("system")
+}
+
+model FailedLoginAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  timestamp DateTime @default(now())
+  ipAddress String?
+
+  @@map("failed_login_attempts")
+  @@schema("system")
+}
+
+model AccountLockout {
+  id          String    @id @default(cuid())
+  userId      String
+  lockedUntil DateTime
+  reason      String
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  unlockedAt  DateTime?
+
+  @@map("account_lockouts")
+  @@schema("system")
+}
+
+model UserSession {
+  id                String    @id @default(cuid())
+  userId            String
+  token             String
+  deviceFingerprint String?
+  userAgent         String
+  ipAddress         String
+  deviceType        String?   @default("unknown")
+  location          Json? // { country, city, latitude, longitude }
+  isActive          Boolean   @default(true)
+  lastActivityAt    DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  expiresAt         DateTime
+  terminatedAt      DateTime?
+  terminationReason String?
+
+  @@map("user_sessions")
+  @@schema("system")
+}
+
+model SecurityAlert {
+  id            String                @id @default(cuid())
+  userId        String?
+  threatType    String
+  severity      SecurityEventSeverity
+  affectedUsers String[]
+  description   String
+  mitigation    String
+  triggeredAt   DateTime              @default(now())
+  isActive      Boolean               @default(true)
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  user          User?                 @relation("SecurityAlerts", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("security_alerts")
+  @@schema("system")
+}
+
+model SecurityIncident {
+  id          String   @id @default(cuid())
+  userId      String?
+  type        String
+  severity    String
+  description String
+  details     Json?
+  status      String   @default("OPEN")
+  priority    Int      @default(3)
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([severity])
+  @@index([priority])
+  @@map("security_incidents")
+  @@schema("system")
+}
+
+model ThreatScan {
+  id           String   @id @default(cuid())
+  userId       String?
+  threatType   String
+  severity     String
+  threatsFound Int      @default(0)
+  details      Json?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([threatType])
+  @@index([createdAt])
+  @@map("threat_scans")
+  @@schema("system")
+}
+
+model BehavioralBaseline {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  avgActivityPerDay Float?
+  commonActions     String[]
+  typicalHours      Int[]
+  dataPoints        Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@map("behavioral_baselines")
+  @@schema("system")
+}
+
+model SsoConfiguration {
+  id               String     @id @default(cuid())
+  centerId         String
+  provider         String
+  providerName     String
+  configuration    Json
+  isActive         Boolean    @default(true)
+  autoProvision    Boolean    @default(true)
+  defaultRole      String?
+  attributeMapping Json?
+  createdById      String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  ssoLogins        SsoLogin[]
+
+  @@index([centerId])
+  @@index([isActive])
+  @@map("sso_configurations")
+  @@schema("system")
+}
+
+model SsoLogin {
+  id             String           @id @default(cuid())
+  userId         String
+  configId       String
+  provider       String
+  externalUserId String?
+  attributes     Json?
+  createdAt      DateTime         @default(now())
+  config         SsoConfiguration @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([configId])
+  @@index([createdAt])
+  @@map("sso_logins")
+  @@schema("system")
+}
+
+model DataProvenance {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  fieldName    String
+  oldValue     String?
+  newValue     String?
+  userId       String
+  changeReason String?
+  dataSource   String   @default("MANUAL_ENTRY")
+  timestamp    DateTime @default(now())
+  hash         String
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([fieldName])
+  @@index([dataSource])
+  @@map("data_provenance")
+  @@schema("system")
+}
+
+model ValidationRule {
+  id           String   @id @default(cuid())
+  centerId     String?
+  name         String
+  description  String?
+  entityType   String
+  fieldName    String
+  ruleType     String
+  ruleConfig   Json
+  errorMessage String?
+  isActive     Boolean  @default(true)
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([centerId])
+  @@index([entityType])
+  @@index([isActive])
+  @@map("validation_rules")
+  @@schema("system")
+}
+
+model AiSuggestion {
+  id              String   @id @default(cuid())
+  entityType      String
+  fieldName       String
+  context         Json?
+  suggestion      String
+  confidenceScore Float?
+  modelVersion    String?
+  userId          String?
+  accepted        Boolean?
+  createdAt       DateTime @default(now())
+
+  @@index([entityType])
+  @@index([fieldName])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_suggestions")
+  @@schema("system")
+}
+
+model CancerPrediction {
+  id                 String    @id @default(cuid())
+  modelId            String
+  predictionType     String
+  geographicArea     String?
+  cancerType         String?
+  predictionData     Json
+  confidenceInterval Json?
+  predictedAt        DateTime  @default(now())
+  validUntil         DateTime?
+
+  @@index([modelId])
+  @@index([predictionType])
+  @@index([geographicArea])
+  @@index([cancerType])
+  @@map("cancer_predictions")
+  @@schema("system")
+}
+
+model ClinicalDecision {
+  id               String   @id @default(cuid())
+  patientId        String?
+  decisionType     String
+  recommendation   String
+  evidenceBase     Json?
+  confidenceScore  Float?
+  similarCases     Int?
+  createdForUserId String?
+  createdAt        DateTime @default(now())
+
+  @@index([patientId])
+  @@index([decisionType])
+  @@index([createdForUserId])
+  @@index([createdAt])
+  @@map("clinical_decisions")
+  @@schema("system")
+}
+
+enum SecurityEventSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("security_event_severities")
+  @@schema("system")
+}
+
+// ============================================================================
+// OFFLINE QUEUE MODELS
+// ============================================================================
+
+model OfflineDataQueue {
+  id             String   @id @default(cuid())
+  userId         String
+  entityType     String // patient, diagnosis, medication, etc.
+  entityId       String? // null for CREATE operations
+  operation      String // CREATE, UPDATE, DELETE, SYNC
+  data           Json // The actual data payload
+  priority       Int      @default(0)
+  localTimestamp DateTime
+  deviceId       String?
+  sessionId      String?
+  metadata       Json?
+
+  status       OfflineQueueStatus @default(PENDING)
+  attemptCount Int                @default(0)
+  maxAttempts  Int                @default(3)
+
+  conflictData Json?
+  resolution   String? // USE_LOCAL, USE_REMOTE, MERGE, MANUAL
+  resolvedBy   String?
+  resolvedAt   DateTime?
+
+  syncedAt     DateTime?
+  errorMessage String?
+  errorDetails Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, priority])
+  @@index([entityType, entityId])
+  @@map("offline_data_queue")
+  @@schema("system")
+}
+
+enum OfflineQueueStatus {
+  PENDING
+  PROCESSING
+  SYNCED
+  FAILED
+  CONFLICT
+  RESOLVED
+
+  @@map("offline_queue_statuses")
+  @@schema("system")
+}
+
+model QualityMetric {
+  id                   String   @id @default(cuid())
+  patientId            String
+  score                Int
+  completeness         Int
+  requiredCompleteness Int
+  medicalCompleteness  Int
+  imageCount           Int
+  recommendations      Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("quality_metrics")
+  @@schema("medical")
+}
+
+// ============================================================================
+// MUSCULOSKELETAL TUMOR REGISTRY MODELS
+// ============================================================================
+
+model PathologyType {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pathology_types")
+  @@schema("medical")
+}
+
+model WhoBoneTumorClassification {
+  id            String   @id @default(cuid())
+  category      String
+  subcategory   String
+  diagnosis     String
+  icdO3Code     String?
+  pageReference String?
+  isMalignant   Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  patients Patient[]
+
+  @@unique([category, diagnosis])
+  @@index([category])
+  @@index([isMalignant])
+  @@map("who_bone_tumor_classifications")
+  @@schema("medical")
+}
+
+model WhoSoftTissueTumorClassification {
+  id          String   @id @default(cuid())
+  category    String
+  subcategory String
+  diagnosis   String
+  icdO3Code   String?
+  isMalignant Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  patients Patient[]
+
+  @@unique([category, diagnosis])
+  @@index([category])
+  @@index([isMalignant])
+  @@map("who_soft_tissue_tumor_classifications")
+  @@schema("medical")
+}
+
+model BoneLocation {
+  id        String         @id @default(cuid())
+  code      String         @unique
+  level     Int
+  region    String
+  boneName  String?
+  segment   String?
+  parentId  String?
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  parent    BoneLocation?  @relation("BoneLocationHierarchy", fields: [parentId], references: [id])
+  children  BoneLocation[] @relation("BoneLocationHierarchy")
+  patients  Patient[]
+
+  @@index([level])
+  @@index([region])
+  @@index([parentId])
+  @@map("bone_locations")
+  @@schema("medical")
+}
+
+model SoftTissueLocation {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  anatomicalRegion String
+  specificLocation String
+  sortOrder        Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  patients Patient[]
+
+  @@index([anatomicalRegion])
+  @@map("soft_tissue_locations")
+  @@schema("medical")
+}
+
+model TumorSyndrome {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  geneticMarker    String?
+  description      String?
+  associatedTumors String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  patients Patient[]
+
+  @@map("tumor_syndromes")
+  @@schema("medical")
+}
+
+model MstsScore {
+  id                  String   @id @default(cuid())
+  patientId           String
+  followUpVisitId     String?
+  pain                Int // 0-5 points
+  function            Int // 0-5 points
+  emotionalAcceptance Int // 0-5 points
+  supports            Int // 0-5 points
+  walking             Int // 0-5 points
+  gait                Int // 0-5 points
+  totalScore          Int // 0-30 points (sum of all domains)
+  assessmentDate      DateTime
+  assessedBy          String
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([followUpVisitId])
+  @@index([assessmentDate])
+  @@index([updatedAt])
+  @@map("msts_scores")
+  @@schema("medical")
+}
+
+model FollowUpVisit {
+  id            String    @id @default(cuid())
+  patientId     String
+  visitNumber   Int // 1-14
+  scheduledDate DateTime
+  actualDate    DateTime?
+  visitType     String // "3-month", "6-month", "annual"
+  status        String // "scheduled", "completed", "missed", "cancelled"
+
+  // Required fields per INAMSOS document
+  examinedBy            String? // Dokter Pemeriksa (examining doctor)
+  chiefComplaint        String? @db.Text // Keluhan (chief complaint)
+  physicalExamination   String? @db.Text // Pemeriksaan Fisik (physical examination)
+  supportingExamination String? @db.Text // Pemeriksaan Penunjang (supporting examination summary)
+
+  // Clinical Status
+  clinicalStatus    String? // "NED", "AWD", "DOD", etc.
+  localRecurrence   Boolean?
+  distantMetastasis Boolean?
+  metastasisSites   String?
+  currentTreatment  String?
+  mstsScoreId       String?
+  karnofskyScore    Int? // 0-100
+
+  // Imaging & Labs (detailed)
+  imagingPerformed String? // "X-ray", "CT", "MRI", "Bone scan", "PET-CT"
+  imagingFindings  String? @db.Text
+  labResults       String? @db.Text
+
+  // Other
+  complications String?   @db.Text
+  nextVisitDate DateTime?
+  notes         String?   @db.Text // General clinical notes
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, visitNumber])
+  @@index([patientId])
+  @@index([scheduledDate])
+  @@index([status])
+  @@index([updatedAt])
+  @@map("follow_up_visits")
+  @@schema("medical")
+}
+
+model CpcConference {
+  id                 String   @id @default(cuid())
+  patientId          String
+  conferenceDate     DateTime
+  attendees          String // JSON array of names/roles
+  presentation       String?
+  recommendation     String
+  recommendationType String // "Surgery", "Chemotherapy", "Radiotherapy", "Combination", "Palliative", "Watch and Wait"
+  rationale          String?
+  alternativeOptions String?
+  consensus          Boolean  @default(true)
+  dissent            String? // If not unanimous
+  documentedBy       String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([conferenceDate])
+  @@map("cpc_conferences")
+  @@schema("medical")
+}
+
+model TreatmentManagement {
+  id            String @id @default(cuid())
+  patientId     String
+  treatmentType String // "Surgery", "Chemotherapy", "Radiotherapy", "Targeted Therapy", "Immunotherapy"
+
+  // Surgery fields
+  surgeryType          String? // "Limb Salvage", "Amputation", "Wide Excision", "Curettage", "Biopsy"
+  reconstructionMethod String?
+  surgicalMargin       String? // "Wide", "Marginal", "Intralesional", "Contaminated"
+  marginDistance       Float? // in mm
+  amputationLevel      String?
+
+  // Chemotherapy fields
+  chemotherapyProtocol String?
+  numberOfCycles       Int?
+  cyclesCompleted      Int?
+
+  // Radiotherapy fields
+  radiotherapyDose   Float? // in Gy
+  numberOfFractions  Int?
+  fractionsCompleted Int?
+
+  // Common fields
+  startDate     DateTime?
+  endDate       DateTime?
+  status        String // "Planned", "Ongoing", "Completed", "Discontinued"
+  response      String? // "Complete", "Partial", "Stable", "Progressive"
+  huvosGrade    String? // I, II, III, IV (chemo response for osteosarcoma)
+  complications String?
+  adverseEvents String?
+  notes         String?
+  performedBy   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([treatmentType])
+  @@index([status])
+  @@map("treatment_management")
+  @@schema("medical")
+}
+
+// ========== SPRINT 2: DATA ENTRY & QUALITY ASSURANCE MODELS ==========
+
+// Story 2.5: Complex Case Review
+model CaseReview {
+  id                 String             @id @default(cuid())
+  patientId          String
+  caseType           String // UNUSUAL_PRESENTATION, RARE_DIAGNOSIS, COMPLEX_COMORBIDITY, etc.
+  complexity         String             @default("STANDARD") // SIMPLE, STANDARD, MODERATE, COMPLEX, HIGHLY_COMPLEX
+  flagReason         String
+  description        String
+  clinicalData       Json // relevant clinical data snapshot
+  diagnosisIds       String[]           @default([])
+  findings           Json?
+  recommendedActions Json?
+  specialty          String? // ONCOLOGY, HEMATOLOGY, SURGICAL_ONCOLOGY, etc.
+  priority           String             @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT, CRITICAL
+  status             String             @default("PENDING") // PENDING, IN_REVIEW, ASSIGNED, IN_PROGRESS, COMPLETED, ESCALATED, CANCELLED, ON_HOLD
+  flaggedBy          String
+  flaggedAt          DateTime           @default(now())
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  reviewNotes        String?
+  outcome            String? // RESOLVED, REQUIRES_ACTION, ESCALATED, DEFERRED, NO_ACTION_NEEDED, TRAINING_OPPORTUNITY
+  resolution         String?
+  similarCases       Json? // similar case matches
+  dueDate            DateTime?
+  completedAt        DateTime?
+  tags               String[]           @default([])
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  assignments        ReviewAssignment[]
+  comments           ReviewComment[]
+
+  @@index([patientId])
+  @@index([caseType])
+  @@index([status])
+  @@index([specialty])
+  @@index([flaggedAt])
+  @@map("case_reviews")
+  @@schema("medical")
+}
+
+model ReviewAssignment {
+  id           String     @id @default(cuid())
+  caseReviewId String
+  assignedTo   String
+  assignedBy   String
+  specialty    String? // MedicalSpecialty
+  role         String?
+  status       String     @default("ASSIGNED") // ASSIGNED, ACCEPTED, IN_PROGRESS, COMPLETED, DECLINED, REASSIGNED
+  priority     String     @default("MEDIUM") // ReviewPriority
+  dueDate      DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  notes        String?
+  timeSpent    Int? // minutes
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  caseReview   CaseReview @relation(fields: [caseReviewId], references: [id], onDelete: Cascade)
+
+  @@index([caseReviewId])
+  @@index([assignedTo])
+  @@index([status])
+  @@map("review_assignments")
+  @@schema("medical")
+}
+
+model ReviewComment {
+  id           String          @id @default(cuid())
+  caseReviewId String
+  parentId     String? // for threaded comments
+  userId       String
+  comment      String
+  commentType  String          @default("GENERAL") // GENERAL, QUESTION, CONCERN, SUGGESTION, APPROVAL, REJECTION, CLARIFICATION, FOLLOW_UP
+  isInternal   Boolean         @default(false)
+  mentions     String[]        @default([])
+  attachments  Json?
+  isEdited     Boolean         @default(false)
+  editedAt     DateTime?
+  isDeleted    Boolean         @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  caseReview   CaseReview      @relation(fields: [caseReviewId], references: [id], onDelete: Cascade)
+  parent       ReviewComment?  @relation("CommentThread", fields: [parentId], references: [id])
+  replies      ReviewComment[] @relation("CommentThread")
+
+  @@index([caseReviewId])
+  @@index([parentId])
+  @@index([userId])
+  @@map("review_comments")
+  @@schema("medical")
+}
+
+// Story 2.8: Peer Review Validation
+model PeerReview {
+  id              String              @id @default(cuid())
+  entityType      String // PATIENT_RECORD, DIAGNOSIS, TREATMENT_PLAN, MEDICAL_RECORD, etc.
+  entityId        String
+  reviewType      String              @default("QUALITY_CHECK") // QUALITY_CHECK, DATA_VALIDATION, CLINICAL_REVIEW, etc.
+  requestedBy     String
+  requestedAt     DateTime            @default(now())
+  assignedTo      String?
+  assignedAt      DateTime?
+  status          String              @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, APPROVED, REJECTED, CANCELLED
+  priority        String              @default("MEDIUM") // ReviewPriority
+  dueDate         DateTime?
+  title           String
+  description     String?
+  context         Json? // entity data snapshot
+  checklist       Json? // review checklist items
+  findings        Json? // review findings
+  score           Float? // quality score 0-100
+  recommendation  String? // APPROVE, APPROVE_WITH_CHANGES, MINOR_REVISION, MAJOR_REVISION, REJECT, ESCALATE, NEEDS_DISCUSSION
+  requiresChanges Boolean             @default(false)
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  completedAt     DateTime?
+  timeSpent       Int? // minutes
+  tags            String[]            @default([])
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  comments        PeerReviewComment[]
+  recognitions    ReviewRecognition[]
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([requestedAt])
+  @@map("peer_reviews")
+  @@schema("medical")
+}
+
+model PeerReviewComment {
+  id            String              @id @default(cuid())
+  peerReviewId  String
+  parentId      String? // for threaded comments
+  userId        String
+  comment       String
+  commentType   String              @default("GENERAL") // CommentType
+  severity      String              @default("INFO") // INFO, LOW, MEDIUM, HIGH, CRITICAL
+  lineReference String? // reference to specific data field
+  suggestion    String?
+  isResolved    Boolean             @default(false)
+  resolvedBy    String?
+  resolvedAt    DateTime?
+  isInternal    Boolean             @default(false)
+  mentions      String[]            @default([])
+  attachments   Json?
+  isEdited      Boolean             @default(false)
+  editedAt      DateTime?
+  isDeleted     Boolean             @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  peerReview    PeerReview          @relation(fields: [peerReviewId], references: [id], onDelete: Cascade)
+  parent        PeerReviewComment?  @relation("PeerCommentThread", fields: [parentId], references: [id])
+  replies       PeerReviewComment[] @relation("PeerCommentThread")
+
+  @@index([peerReviewId])
+  @@index([parentId])
+  @@index([userId])
+  @@map("peer_review_comments")
+  @@schema("medical")
+}
+
+model ReviewRecognition {
+  id              String     @id @default(cuid())
+  peerReviewId    String
+  reviewerId      String
+  recognitionType String // EXCELLENT_REVIEW, THOROUGH_ANALYSIS, QUICK_TURNAROUND, etc.
+  awardedBy       String
+  title           String
+  description     String?
+  points          Int        @default(0)
+  badge           String?
+  isPublic        Boolean    @default(true)
+  awardedAt       DateTime   @default(now())
+  peerReview      PeerReview @relation(fields: [peerReviewId], references: [id], onDelete: Cascade)
+
+  @@index([peerReviewId])
+  @@index([reviewerId])
+  @@map("review_recognitions")
+  @@schema("medical")
+}
+
+// ========== INTEGRATION & EXTERNAL SYSTEMS ==========
+
+// External System Integration (for HL7, FHIR, DICOM, EMR systems)
+model ExternalSystem {
+  id             String    @id @default(cuid())
+  name           String
+  type           String // hl7, fhir, dicom, emr, lims, pacs, ris
+  vendor         String?
+  version        String?
+  description    String?
+  endpoint       String
+  protocol       String? // tcp, http, https, mllp
+  port           Int?
+  authentication Json? // credentials and auth config
+  configuration  Json? // system-specific settings
+  dataMapping    Json? // field mappings
+  isActive       Boolean   @default(true)
+  status         String    @default("inactive") // active, inactive, error, maintenance
+  lastSync       DateTime?
+  lastSyncStatus String? // success, error, partial
+  nextSync       DateTime?
+  syncFrequency  String? // cron expression
+  errorCount     Int       @default(0)
+  lastError      String?
+  lastErrorAt    DateTime?
+  successCount   Int       @default(0)
+  failureCount   Int       @default(0)
+  timeout        Int       @default(30000) // milliseconds
+  retryPolicy    Json?
+  rateLimit      Json?
+  statistics     Json? // performance metrics
+  centerId       String?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([centerId])
+  @@map("external_systems")
+  @@schema("system")
+}
+
+// DICOM Medical Imaging
+model DicomImage {
+  id                  String    @id @default(cuid())
+  patientId           String
+  patientName         String?
+  studyInstanceUID    String
+  seriesInstanceUID   String
+  sopInstanceUID      String    @unique
+  modality            String // CT, MRI, X-RAY, US, CR, DR, MG, PT, NM
+  studyDate           DateTime?
+  studyTime           String?
+  studyDescription    String?
+  seriesDescription   String?
+  seriesNumber        String?
+  instanceNumber      String?
+  bodyPart            String?
+  viewPosition        String?
+  imageType           String[]  @default([])
+  rows                Int?
+  columns             Int?
+  bitsAllocated       Int?
+  pixelSpacing        String?
+  sliceThickness      Float?
+  acquisitionDate     DateTime?
+  institutionName     String?
+  referringPhysician  String?
+  performingPhysician String?
+  imagePath           String // file storage path
+  thumbnailPath       String?
+  fileSize            BigInt?
+  transferSyntax      String?
+  metadata            Json? // full DICOM tags
+  processingStatus    String    @default("received") // received, processing, processed, error
+  processingError     String?
+  isArchived          Boolean   @default(false)
+  archivedAt          DateTime?
+  tags                String[]  @default([])
+  centerId            String?
+  uploadedBy          String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([patientId])
+  @@index([studyInstanceUID])
+  @@index([seriesInstanceUID])
+  @@index([modality])
+  @@index([studyDate])
+  @@map("dicom_images")
+  @@schema("medical")
+}
+
+// Research Data Export (for research module)
+model ResearchDataExport {
+  id               String    @id @default(cuid())
+  requestId        String // ResearchRequest ID
+  requestedBy      String // User ID
+  exportFormat     String // CSV, XLSX, JSON, XML, SPSS, STATA, R
+  exportType       String? // full, partial, deidentified, aggregate
+  status           String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED
+  progress         Float     @default(0) // 0-100
+  dataCount        Int? // number of records exported
+  fileSize         BigInt? // bytes
+  filePath         String? // storage path
+  fileName         String?
+  downloadUrl      String?
+  checksum         String? // file integrity check
+  encryption       Boolean   @default(false)
+  encryptionKey    String?
+  compression      Boolean   @default(true)
+  deidentified     Boolean   @default(true)
+  dataFields       Json? // list of exported fields
+  filters          Json? // applied filters
+  transformations  Json? // data transformations applied
+  qualityMetrics   Json? // data quality stats
+  exportDate       DateTime  @default(now())
+  completedDate    DateTime?
+  expiresAt        DateTime? // download expiration
+  downloadCount    Int       @default(0)
+  lastDownloadedAt DateTime?
+  errorMessage     String?
+  errorDetails     Json?
+  auditLog         Json? // export audit trail
+  notes            String?
+  centerId         String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([requestId])
+  @@index([requestedBy])
+  @@index([status])
+  @@index([exportDate])
+  @@index([centerId])
+  @@map("research_data_exports")
+  @@schema("medical")
+}
+
+// ========== MUSCULOSKELETAL TUMOR CLINICAL DATA MODELS ==========
+// Comprehensive clinical data models for 10-section tumor registry form
+// Based on GAP_ANALYSIS_AND_TRANSFORMATION_PLAN.md
+// Schema: "medical" for clinical data
+
+// Section 3: Clinical Presentation
+model ClinicalPresentation {
+  id                      String    @id @default(cuid())
+  patientId               String    @unique
+  karnofskyScore          Int? // 0-100, Karnofsky Performance Score
+  painScale               Int? // 0-10, Visual Analog Scale
+  bmi                     Decimal?  @db.Decimal(5, 2)
+  chiefComplaint          String?   @db.Text
+  comorbidities           String?   @db.Text
+  cancerHistory           String?   @db.Text
+  familyCancerHistory     String?   @db.Text
+  physicalExamination     Json? // Structured physical exam findings
+  symptomDuration         Int? // Duration in months
+  presentingSymptoms      Json? // pain, swelling, mass, pathologicalFracture, functionalImpairment
+  tumorSizeAtPresentation Decimal?  @db.Decimal(6, 2) // in cm
+  onsetDate               DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([karnofskyScore])
+  @@map("clinical_presentations")
+  @@schema("medical")
+}
+
+// Section 3: Clinical Photo Upload
+model ClinicalPhoto {
+  id                 String   @id @default(cuid())
+  patientId          String
+  fileUrl            String
+  fileName           String
+  fileSize           Int? // in bytes
+  mimeType           String?
+  anatomicalLocation String? // e.g., "Right femur", "Left shoulder"
+  viewType           String? // e.g., "Anterior", "Posterior", "Lateral"
+  description        String?  @db.Text
+  uploadDate         DateTime @default(now())
+  uploadedBy         String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([uploadDate])
+  @@index([updatedAt])
+  @@map("clinical_photos")
+  @@schema("medical")
+}
+
+// Section 4: Laboratory Results (Tumor-Specific Markers)
+model LaboratoryResult_Extended {
+  id           String   @id @default(cuid())
+  patientId    String
+  testDate     DateTime
+  alp          Decimal? @db.Decimal(10, 2) // Alkaline Phosphatase (U/L)
+  ldh          Decimal? @db.Decimal(10, 2) // Lactate Dehydrogenase (U/L)
+  calcium      Decimal? @db.Decimal(6, 2) // Calcium (mg/dL)
+  phosphate    Decimal? @db.Decimal(6, 2) // Phosphate (mg/dL)
+  tumorMarkers Json? // Additional tumor markers as key-value pairs
+  hemoglobin   Decimal? @db.Decimal(5, 2) // g/dL
+  albumin      Decimal? @db.Decimal(5, 2) // g/dL
+  esr          Int? // Erythrocyte Sedimentation Rate (mm/hr)
+  crp          Decimal? @db.Decimal(8, 2) // C-Reactive Protein (mg/L)
+  notes        String?  @db.Text
+  orderedBy    String?
+  performedBy  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([testDate])
+  @@map("laboratory_results_extended")
+  @@schema("medical")
+}
+
+// Section 4: Radiology Findings
+model RadiologyFinding {
+  id                       String            @id @default(cuid())
+  patientId                String
+  modalityType             RadiologyModality
+  studyDate                DateTime
+  findings                 String            @db.Text
+  impression               String?           @db.Text
+  imageUrls                String[]          @default([])
+  reportDate               DateTime
+  reportedBy               String?
+  tumorSize                Decimal?          @db.Decimal(6, 2) // Largest dimension in cm
+  tumorVolume              Decimal?          @db.Decimal(10, 2) // in cm³
+  corticalBreakthrough     Boolean?
+  softTissueExtension      Boolean?
+  neurovascularInvolvement Boolean?
+  skipLesions              Boolean?
+  pathologicalFracture     Boolean?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([modalityType])
+  @@index([studyDate])
+  @@map("radiology_findings")
+  @@schema("medical")
+}
+
+// Section 4: Mirrel Score (Pathological Fracture Risk)
+model MirrelScore {
+  id             String           @id @default(cuid())
+  patientId      String
+  siteScore      Int // 1-3 points (Upper limb=1, Lower limb=2, Peritrochanteric=3)
+  painScore      Int // 1-3 points (Mild=1, Moderate=2, Functional=3)
+  lesionType     MirrelLesionType // Blastic=1, Mixed=2, Lytic=3
+  sizeScore      Int // 1-3 points (<1/3=1, 1/3-2/3=2, >2/3=3)
+  totalScore     Int // 3-12 points (sum of all components)
+  fractureRisk   FractureRisk // LOW (≤7), MODERATE (8-10), HIGH (≥11)
+  assessmentDate DateTime
+  assessedBy     String?
+  notes          String?          @db.Text
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([fractureRisk])
+  @@index([assessmentDate])
+  @@map("mirrel_scores")
+  @@schema("medical")
+}
+
+// Section 4: Pathology Report (Enhanced)
+model PathologyReport_Extended {
+  id                  String              @id @default(cuid())
+  patientId           String
+  reportType          PathologyReportType
+  biopsyDate          DateTime?
+  reportDate          DateTime
+  grossDescription    String?             @db.Text
+  microscopicFindings String?             @db.Text
+  diagnosis           String              @db.Text
+  ihcMarkers          Json? // Immunohistochemistry markers
+  molecularMarkers    Json? // Molecular/genetic markers
+  tumorGrade          TumorGrade?
+  mitosisCount        Int? // per 10 HPF
+  necrosisPercentage  Decimal?            @db.Decimal(5, 2) // 0-100%
+  tumorSize           Decimal?            @db.Decimal(6, 2) // in cm
+  margins             String?
+  pathologistName     String?
+  pathologyLab        String?
+  specimenType        String?
+  notes               String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([reportType])
+  @@index([reportDate])
+  @@map("pathology_reports_extended")
+  @@schema("medical")
+}
+
+// Section 4: HUVOS Grade (Chemotherapy Response for Osteosarcoma)
+model HuvosGrade {
+  id                      String         @id @default(cuid())
+  patientId               String
+  grade                   HuvosGradeType
+  tumorNecrosisPercentage Decimal        @db.Decimal(5, 2) // 0-100%
+  viableTumorPercentage   Decimal?       @db.Decimal(5, 2) // 0-100%
+  assessmentDate          DateTime
+  specimenType            String? // "Post-neoadjuvant surgical specimen"
+  assessedBy              String?
+  notes                   String?        @db.Text
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([grade])
+  @@index([assessmentDate])
+  @@map("huvos_grades")
+  @@schema("medical")
+}
+
+// Section 6: Staging Data (Enneking & AJCC)
+model StagingData {
+  id                    String         @id @default(cuid())
+  patientId             String         @unique
+  ennekingStage         EnnekingStage?
+  ajccStage             AjccStage?
+  tumorGrade            TumorGrade?
+  tumorSize             Decimal?       @db.Decimal(6, 2) // Largest dimension in cm
+  tumorDepth            TumorDepth?
+  compartmentStatus     String? // "Intracompartmental" or "Extracompartmental"
+  metastasisAtDiagnosis Boolean        @default(false)
+  metastasisSites       String[] // e.g., ["Lung", "Bone"]
+  regionalLymphNodes    Boolean        @default(false)
+  tumorLocation         String? // Anatomical location
+  stagingDate           DateTime?
+  stagedBy              String?
+  notes                 String?        @db.Text
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([ennekingStage])
+  @@index([ajccStage])
+  @@map("staging_data")
+  @@schema("medical")
+}
+
+// Section 7: CPC Record (Cancer Patient Conference) - Enhanced
+model CpcRecord {
+  id                   String   @id @default(cuid())
+  patientId            String
+  cpcDate              DateTime
+  attendingConsultants String[] // Names/roles of attending physicians
+  presentation         String?  @db.Text
+  treatmentDecision    String   @db.Text
+  treatmentIntent      String? // "Curative", "Palliative", "Supportive"
+  recommendationType   String? // "Surgery", "Chemotherapy", "Radiotherapy", "Combination"
+  rationale            String?  @db.Text
+  alternativeOptions   String?  @db.Text
+  consensus            Boolean  @default(true)
+  dissent              String?  @db.Text
+  notes                String?  @db.Text
+  documentedBy         String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([cpcDate])
+  @@map("cpc_records")
+  @@schema("medical")
+}
+
+// Section 8: Chemotherapy Record
+model ChemotherapyRecord {
+  id                String             @id @default(cuid())
+  patientId         String
+  timing            ChemotherapyTiming
+  regimen           String // e.g., "MAP", "HDMTX", "Doxorubicin + Cisplatin"
+  cycles            Int // Total planned cycles
+  cyclesCompleted   Int                @default(0)
+  startDate         DateTime
+  endDate           DateTime?
+  response          String?            @db.Text // Response assessment
+  complications     String?            @db.Text
+  adverseEvents     Json? // Structured AE data
+  doseModifications Json? // Dose adjustments
+  performedBy       String?
+  notes             String?            @db.Text
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([timing])
+  @@index([startDate])
+  @@map("chemotherapy_records")
+  @@schema("medical")
+}
+
+// Section 8: Surgical Record (CRITICAL - Limb Salvage vs Ablation)
+model SurgicalRecord {
+  id                   String         @id @default(cuid())
+  patientId            String
+  surgeryDate          DateTime
+  surgeryType          SurgeryType // LIMB_SALVAGE or LIMB_ABLATION
+  surgicalProcedure    String // Detailed procedure name
+  surgicalMargin       SurgicalMargin
+  marginDistance       Decimal?       @db.Decimal(6, 2) // in mm
+  reconstructionMethod String? // e.g., "Megaprosthesis", "Bone graft", "Soft tissue flap"
+  amputationLevel      String? // If LIMB_ABLATION
+  operativeDuration    Int? // in minutes
+  bloodLoss            Decimal?       @db.Decimal(8, 2) // in ml
+  complications        String?        @db.Text
+  adverseEvents        String?        @db.Text
+  surgeonName          String?
+  assistantSurgeons    String[] // Names of assisting surgeons
+  anesthesiaType       String?
+  notes                String?        @db.Text
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([surgeryType])
+  @@index([surgicalMargin])
+  @@index([surgeryDate])
+  @@map("surgical_records")
+  @@schema("medical")
+}
+
+// Section 8: Radiotherapy Record
+model RadiotherapyRecord {
+  id                  String             @id @default(cuid())
+  patientId           String
+  timing              RadiotherapyTiming
+  totalDose           Decimal            @db.Decimal(7, 2) // in Gy
+  fractions           Int
+  fractionsCompleted  Int                @default(0)
+  dosePerFraction     Decimal?           @db.Decimal(6, 2) // in Gy
+  technique           String? // e.g., "IMRT", "3D-CRT", "Brachytherapy"
+  targetVolume        String? // e.g., "Primary tumor bed", "Whole limb"
+  startDate           DateTime
+  endDate             DateTime?
+  complications       String?            @db.Text
+  adverseEvents       Json?
+  radiationOncologist String?
+  notes               String?            @db.Text
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([timing])
+  @@index([startDate])
+  @@map("radiotherapy_records")
+  @@schema("medical")
+}
+
+// Section 9: Follow-Up Visit (Enhanced for 14-visit structure)
+model FollowUpVisit_Enhanced {
+  id               String            @id @default(cuid())
+  patientId        String
+  visitNumber      Int // 1-14
+  visitType        FollowUpVisitType
+  scheduledDate    DateTime
+  actualDate       DateTime?
+  status           FollowUpStatus
+  clinicalStatus   String? // "NED", "AWD", "DOD", "DOC"
+  karnofskyScore   Int? // 0-100
+  painScale        Int? // 0-10
+  functionalStatus String?           @db.Text
+  imagingPerformed String[] // e.g., ["X-ray", "CT", "MRI"]
+  imagingFindings  String?           @db.Text
+  labResults       String?           @db.Text
+  currentTreatment String?           @db.Text
+  complications    String?           @db.Text
+  nextVisitDate    DateTime?
+  completedBy      String?
+  notes            String?           @db.Text
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  patient              Patient                @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  mstsScores           MstsScore_Enhanced[]
+  recurrenceTracking   RecurrenceTracking[]
+  complicationTracking ComplicationTracking[]
+
+  @@unique([patientId, visitNumber])
+  @@index([patientId])
+  @@index([visitType])
+  @@index([status])
+  @@index([scheduledDate])
+  @@map("follow_up_visits_enhanced")
+  @@schema("medical")
+}
+
+// Section 9: MSTS Score (Musculoskeletal Tumor Society Score)
+model MstsScore_Enhanced {
+  id                  String   @id @default(cuid())
+  patientId           String
+  followUpVisitId     String?
+  pain                Int // 0-5 points
+  function            Int // 0-5 points
+  emotionalAcceptance Int // 0-5 points
+  handPositioning     Int // 0-5 points (upper extremity)
+  manualDexterity     Int // 0-5 points (upper extremity)
+  liftingAbility      Int // 0-5 points (upper extremity)
+  supports            Int? // 0-5 points (lower extremity)
+  walking             Int? // 0-5 points (lower extremity)
+  gait                Int? // 0-5 points (lower extremity)
+  totalScore          Int // 0-30 points (sum of 6 domains)
+  extremityType       String? // "Upper" or "Lower"
+  assessmentDate      DateTime
+  assessedBy          String?
+  notes               String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  patient       Patient                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  followUpVisit FollowUpVisit_Enhanced? @relation(fields: [followUpVisitId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([followUpVisitId])
+  @@index([assessmentDate])
+  @@map("msts_scores_enhanced")
+  @@schema("medical")
+}
+
+// Section 9: Recurrence Tracking
+model RecurrenceTracking {
+  id               String         @id @default(cuid())
+  patientId        String
+  followUpVisitId  String?
+  recurrenceType   RecurrenceType
+  detectionDate    DateTime
+  location         String
+  diagnosticMethod String? // e.g., "Imaging", "Biopsy", "Clinical examination"
+  treatment        String?        @db.Text
+  outcome          String?        @db.Text
+  notes            String?        @db.Text
+  documentedBy     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  patient       Patient                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  followUpVisit FollowUpVisit_Enhanced? @relation(fields: [followUpVisitId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([followUpVisitId])
+  @@index([recurrenceType])
+  @@index([detectionDate])
+  @@map("recurrence_tracking")
+  @@schema("medical")
+}
+
+// Section 9: Complication Tracking
+model ComplicationTracking {
+  id               String               @id @default(cuid())
+  patientId        String
+  followUpVisitId  String?
+  complicationType String
+  severity         ComplicationSeverity
+  onsetDate        DateTime
+  description      String               @db.Text
+  management       String?              @db.Text
+  resolution       String? // "Resolved", "Ongoing", "Worsened"
+  resolutionDate   DateTime?
+  notes            String?              @db.Text
+  documentedBy     String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  patient       Patient                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  followUpVisit FollowUpVisit_Enhanced? @relation(fields: [followUpVisitId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([followUpVisitId])
+  @@index([severity])
+  @@index([onsetDate])
+  @@map("complication_tracking")
+  @@schema("medical")
+}
+
+// ========== ENUMS FOR MUSCULOSKELETAL TUMOR MODELS ==========
+
+enum RadiologyModality {
+  XRAY
+  MRI
+  CT
+  BONE_SCAN
+  PET_CT
+  ULTRASOUND
+  ANGIOGRAPHY
+
+  @@schema("medical")
+}
+
+enum MirrelLesionType {
+  BLASTIC // Score: 1
+  MIXED // Score: 2
+  LYTIC // Score: 3
+
+  @@schema("medical")
+}
+
+enum FractureRisk {
+  LOW // Mirrel score ≤7
+  MODERATE // Mirrel score 8-10
+  HIGH // Mirrel score ≥11
+
+  @@schema("medical")
+}
+
+enum PathologyReportType {
+  FNAB // Fine Needle Aspiration Biopsy
+  CORE_BIOPSY // Core Needle Biopsy
+  OPEN_BIOPSY // Open/Incisional Biopsy
+  IHK // Immunohistochemistry
+  EXCISIONAL // Excisional Biopsy
+  FROZEN_SECTION
+
+  @@schema("medical")
+}
+
+enum TumorGrade {
+  BENIGN
+  GRADE_1 // Low grade
+  GRADE_2 // Intermediate grade
+  GRADE_3 // High grade
+  GRADE_X // Cannot be assessed
+
+  @@schema("medical")
+}
+
+enum HuvosGradeType {
+  GRADE_I // Little or no necrosis (0-49%)
+  GRADE_II // 50-89% necrosis
+  GRADE_III // 90-99% necrosis
+  GRADE_IV // 100% necrosis (good response)
+
+  @@schema("medical")
+}
+
+enum EnnekingStage {
+  IA // Low grade, intracompartmental, no metastasis
+  IB // Low grade, extracompartmental, no metastasis
+  IIA // High grade, intracompartmental, no metastasis
+  IIB // High grade, extracompartmental, no metastasis
+  III // Any grade, any compartment, with metastasis
+
+  @@schema("medical")
+}
+
+enum AjccStage {
+  IA
+  IB
+  IIA
+  IIB
+  III
+  IVA // Distant metastasis
+  IVB // Multiple distant metastases
+
+  @@schema("medical")
+}
+
+enum TumorDepth {
+  SUPERFICIAL // Above fascia
+  DEEP // Below fascia
+
+  @@schema("medical")
+}
+
+enum ChemotherapyTiming {
+  NEO_ADJUVANT // Before surgery
+  ADJUVANT // After surgery
+  PALLIATIVE
+  CONCURRENT // With radiotherapy
+
+  @@schema("medical")
+}
+
+enum SurgeryType {
+  LIMB_SALVAGE // Limb-sparing surgery
+  LIMB_ABLATION // Amputation/Disarticulation
+
+  @@schema("medical")
+}
+
+enum SurgicalMargin {
+  WIDE_R0 // Wide margin, no residual tumor
+  MARGINAL_R0 // Marginal margin, no residual tumor
+  R1 // Microscopic residual tumor
+  R2 // Macroscopic residual tumor
+  INTRALESIONAL // Tumor violation
+
+  @@schema("medical")
+}
+
+enum RadiotherapyTiming {
+  NEO_ADJUVANT // Before surgery
+  ADJUVANT // After surgery
+  PALLIATIVE
+  DEFINITIVE // Primary treatment
+
+  @@schema("medical")
+}
+
+enum FollowUpVisitType {
+  YEAR_1_2_Q3M // Year 1-2: Every 3 months (Visits 1-8)
+  YEAR_3_5_Q6M // Year 3-5: Every 6 months (Visits 9-14)
+  UNSCHEDULED
+  AD_HOC
+
+  @@schema("medical")
+}
+
+enum FollowUpStatus {
+  SCHEDULED
+  COMPLETED
+  MISSED
+  CANCELLED
+  RESCHEDULED
+
+  @@schema("medical")
+}
+
+enum RecurrenceType {
+  LOCAL // Local recurrence at primary site
+  DISTANT_METASTASIS // Distant metastatic disease
+  REGIONAL // Regional lymph node recurrence
+
+  @@schema("medical")
+}
+
+enum ComplicationSeverity {
+  MILD
+  MODERATE
+  SEVERE
+  LIFE_THREATENING
+
+  @@schema("medical")
+}

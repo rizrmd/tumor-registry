@@ -1,0 +1,35 @@
+node_modules/
+.env
+backend/dist
+backend/dist_user
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.pid
+*.js.map
+
+# Temporary server files
+analytics-server.js
+api-server.js
+proxy-server.js
+mock-server.js
+
+# Next.js
+.next/
+out/
+
+# Development
+.DS_Store
+
+# Documentation assets (generated files and screenshots)
+docs/assets/screenshots/*.png
+docs/testing/*.html
+docs/testing/*.md
+
+# Desktop
+desktop/data/
+desktop/bin/
+desktop/runner
