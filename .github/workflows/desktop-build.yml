@@ -101,10 +101,11 @@ jobs:
 
       - name: Build Desktop App
         working-directory: desktop
+        shell: bash
         run: |
           mkdir -p frontend/dist
           cp -r ../frontend/out/* frontend/dist/
-          wails build -platform ${{ matrix.platform }}
+          wails build -platform ${{ matrix.platform }} -skipfrontend
 
       - name: Rename Binaries
         shell: bash
