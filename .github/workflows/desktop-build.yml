@@ -43,6 +43,11 @@ jobs:
             frontend/package-lock.json
             backend/package-lock.json
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -70,9 +75,9 @@ jobs:
       - name: Build Backend
         working-directory: backend
         run: |
-          npm ci || npm install
-          npx prisma generate
-          npm run build
+          bun install
+          bunx prisma generate
+          bun run build
 
       - name: Setup Sidecar Binaries (Postgres)
         working-directory: desktop/scripts
