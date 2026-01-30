@@ -34,24 +34,10 @@ func (m *Manager) Init() error {
 	}
 
 	// Kill existing processes on our ports
-	m.cleanupPort(54321) // Postgres
-	m.cleanupPort(3001)  // Backend
+	CleanupPort(54321) // Postgres
+	CleanupPort(3001)  // Backend
 
 	return nil
-}
-
-func (m *Manager) cleanupPort(port int) {
-	// Cross-platform port cleanup (mostly for macOS/Linux)
-	args := []string{"-i", fmt.Sprintf(":%d", port), "-t"}
-	cmd := exec.Command("lsof", args...)
-	out, err := cmd.Output()
-	if err == nil && len(out) > 0 {
-		fmt.Printf("⚠️  Port %d is busy, killing existing process...\n", port)
-		killCmd := exec.Command("xargs", "kill", "-9")
-		killCmd.Stdin = os.NewFile(uintptr(syscall.Stdin), "/dev/stdin") // Not quite right for pipe
-		// Simpler way:
-		exec.Command("sh", "-c", fmt.Sprintf("lsof -i :%d -t | xargs kill -9", port)).Run()
-	}
 }
 
 func (m *Manager) StartPostgres() error {
@@ -75,7 +61,6 @@ func (m *Manager) StartPostgres() error {
 	}
 
 	// Start Postgres
-	// Use isolated socket directory to avoid /tmp conflicts
 	port := "54321"
 	
 	// Automatic cleanup of stale pid and socket lock files
@@ -85,7 +70,6 @@ func (m *Manager) StartPostgres() error {
 		os.Remove(pidFile)
 	}
 	
-	// Also cleanup socket lock files in the data directory (since we use -k m.DataDir)
 	socketLock := filepath.Join(m.DataDir, ".s.PGSQL.54321.lock")
 	if _, err := os.Stat(socketLock); err == nil {
 		fmt.Println("⚠️  Found stale socket lock, attempting cleanup...")
@@ -97,8 +81,9 @@ func (m *Manager) StartPostgres() error {
 	cmd := exec.Command(postgresBin, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	// Use process group so we can kill all children later
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	
+	// Set process group for platform-specific cleanup
+	SetProcessGroup(cmd)
 	
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start postgres: %w", err)
@@ -128,21 +113,13 @@ func (m *Manager) StartPostgres() error {
 }
 
 func (m *Manager) StartBackend() error {
-	// Assume backend dist is at ../backend/dist/main.js (dev) or ./backend/main.js (prod)
-	// We need to determine where we are.
-	// For Wails dev, we are in ./desktop.
-	
-	backendScript := "../backend/dist_user/main.js" // Based on package.json main
+	backendScript := "../backend/dist_user/main.js"
 	if _, err := os.Stat(backendScript); os.IsNotExist(err) {
-		// Check prod location
 		backendScript = filepath.Join(m.BinDir, "backend", "main.js")
 	}
 
-	// Determine Node binary (use system node or bundled)
-	nodeBin := "node" // Assume system node for now
-	
-	// Dynamic Port for Backend
-	m.BackendPort = "3001" // Or random
+	nodeBin := "node"
+	m.BackendPort = "3001"
 	
 	localDbUrl := "postgresql://postgres@127.0.0.1:54321/postgres"
 	args := []string{backendScript}
@@ -151,7 +128,7 @@ func (m *Manager) StartBackend() error {
 	cmd.Env = os.Environ()
 	remoteDbUrl := os.Getenv("REMOTE_DATABASE_URL")
 	if remoteDbUrl == "" {
-		remoteDbUrl = localDbUrl // Fallback to local for dev
+		remoteDbUrl = localDbUrl
 	}
 
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PORT=%s", m.BackendPort))
@@ -159,7 +136,6 @@ func (m *Manager) StartBackend() error {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("REMOTE_DATABASE_URL=%s", remoteDbUrl))
 	cmd.Env = append(cmd.Env, "NODE_ENV=production")
 	
-	// Storage Paths
 	uploadsDir := filepath.Join(m.DataDir, "uploads")
 	cmd.Env = append(cmd.Env, fmt.Sprintf("CLINICAL_PHOTOS_DIR=%s", filepath.Join(uploadsDir, "clinical-photos")))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("MEDICAL_IMAGING_DIR=%s", filepath.Join(uploadsDir, "medical-imaging")))
@@ -167,7 +143,9 @@ func (m *Manager) StartBackend() error {
 	
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	
+	// Set process group for platform-specific cleanup
+	SetProcessGroup(cmd)
 	
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start backend: %w", err)
@@ -180,20 +158,15 @@ func (m *Manager) StartBackend() error {
 func (m *Manager) StopAll() {
 	if m.backendCmd != nil && m.backendCmd.Process != nil {
 		fmt.Println("Stopping Backend...")
-		pgid, err := syscall.Getpgid(m.backendCmd.Process.Pid)
-		if err == nil {
-			syscall.Kill(-pgid, syscall.SIGKILL) // Fast kill for node
-		}
+		// Use cross-platform kill
+		KillProcessGroup(m.backendCmd, syscall.SIGKILL)
 		m.backendCmd.Wait()
 	}
 
 	if m.postgresCmd != nil && m.postgresCmd.Process != nil {
 		fmt.Println("Stopping Postgres...")
-		pgid, err := syscall.Getpgid(m.postgresCmd.Process.Pid)
-		if err == nil {
-			// Send SIGTERM (Smart Shutdown)
-			syscall.Kill(-pgid, syscall.SIGTERM)
-		}
+		// Send SIGTERM (Smart Shutdown)
+		KillProcessGroup(m.postgresCmd, syscall.SIGTERM)
 
 		// Wait with timeout
 		done := make(chan error, 1)
@@ -206,18 +179,14 @@ func (m *Manager) StopAll() {
 			fmt.Println("🐘 Postgres stopped cleanly.")
 		case <-time.After(5 * time.Second):
 			fmt.Println("⚠️  Postgres shutdown timed out, forcing fast shutdown...")
-			if err == nil {
-				syscall.Kill(-pgid, syscall.SIGQUIT) // SIGQUIT is "Fast Shutdown" in Postgres
-			}
-			// Small extra wait for SIGQUIT
+			KillProcessGroup(m.postgresCmd, syscall.SIGQUIT) // SIGQUIT is "Fast Shutdown" in Postgres
+			
 			select {
 			case <-done:
 				fmt.Println("🐘 Postgres stopped after fast shutdown.")
 			case <-time.After(2 * time.Second):
 				fmt.Println("❌ Postgres still running, sending SIGKILL...")
-				if err == nil {
-					syscall.Kill(-pgid, syscall.SIGKILL)
-				}
+				KillProcessGroup(m.postgresCmd, syscall.SIGKILL)
 			}
 		}
 	}
