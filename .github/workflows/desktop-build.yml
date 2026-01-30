@@ -21,7 +21,7 @@ jobs:
           - os: windows-latest
             platform: windows/amd64
             artifact_name: tumor-registry-windows
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             platform: linux/amd64
             artifact_name: tumor-registry-linux
 
@@ -50,21 +50,24 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Install Linux Dependencies
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
 
       - name: Build Frontend
         working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
         run: |
-          npm install
+          npm ci || npm install
           npm run build
 
       - name: Build Backend
         working-directory: backend
         run: |
-          npm install
+          npm ci || npm install
+          npx prisma generate
           npm run build
 
       - name: Setup Sidecar Binaries (Postgres)
@@ -77,6 +80,11 @@ jobs:
         run: |
           mkdir -p bin/backend
           cp -r backend/dist_user/* bin/backend/
+          # Ensure package.json is also copied so it can be run
+          cp backend/package.json bin/backend/
+          # We might need production node_modules, but for now we assume system node carries the weight
+          # or we just copy the whole backend if needed.
+          # For a real sidecar, we should probably bundle everything.
 
       - name: Build Desktop App
         working-directory: desktop
@@ -89,14 +97,21 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts
+          # Copy sidecar bin directory to build output
+          cp -r bin/ desktop/build/bin/
+          
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            mv desktop/build/bin/*.exe artifacts/tumor-registry-windows.exe
+            cd desktop/build/bin/
+            7z a ../../../artifacts/tumor-registry-windows.zip .
+            cd ../../../
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             cd desktop/build/bin/
             zip -r ../../../artifacts/tumor-registry-macos.zip .
             cd ../../../
           else
-            mv desktop/build/bin/* artifacts/tumor-registry-linux
+            cd desktop/build/bin/
+            tar -czf ../../../artifacts/tumor-registry-linux.tar.gz .
+            cd ../../../
           fi
 
       - name: Upload Artifact
@@ -125,8 +140,10 @@ jobs:
         with:
           files: |
             artifacts/tumor-registry-macos/tumor-registry-macos.zip
-            artifacts/tumor-registry-windows/tumor-registry-windows.exe
-            artifacts/tumor-registry-linux/tumor-registry-linux
+            artifacts/tumor-registry-windows/tumor-registry-windows.zip
+            artifacts/tumor-registry-linux/tumor-registry-linux.tar.gz
           draft: false
           prerelease: false
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
