@@ -244,11 +244,7 @@ export function UpdateNotification({ onDownloadUpdate, onDismiss }: UpdateNotifi
                             {/* Progress Bar */}
                             <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
                                 <div
-                                    className={`h-3 rounded-full transition-all duration-300 ${
-                                        stage === 'error' ? 'bg-red-500' :
-                                        stage === 'complete' ? 'bg-emerald-500' :
-                                        'bg-blue-500'
-                                    }`}
+                                    className="h-3 rounded-full transition-all duration-300 bg-blue-500"
                                     style={{ width: `${progress}%` }}
                                 />
                             </div>
@@ -256,7 +252,7 @@ export function UpdateNotification({ onDownloadUpdate, onDismiss }: UpdateNotifi
                             {/* Stage Indicator */}
                             <div className="space-y-2 mb-4">
                                 <div className={`flex items-center justify-center text-sm ${stage === 'backing-up' ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}>
-                                    <div className={`w-2 h-2 rounded-full mr-2 ${stage === 'complete' ? 'bg-emerald-500' : stage === 'backing-up' ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                                    <div className={`w-2 h-2 rounded-full mr-2 ${stage === 'backing-up' ? 'bg-blue-500' : 'bg-gray-300'}`} />
                                     Backing up data
                                 </div>
                                 <div className={`flex items-center justify-center text-sm ${stage === 'downloading' ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}>
