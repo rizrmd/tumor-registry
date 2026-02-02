@@ -125,14 +125,12 @@ func (m *Manager) StartBackend() error {
 	
 	cmd := exec.Command(nodeBin, args...)
 	cmd.Env = os.Environ()
-	remoteDbUrl := os.Getenv("REMOTE_DATABASE_URL")
-	if remoteDbUrl == "" {
-		remoteDbUrl = localDbUrl
-	}
 
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PORT=%s", m.BackendPort))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("DATABASE_URL=%s", localDbUrl))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("REMOTE_DATABASE_URL=%s", remoteDbUrl))
+	// Note: REMOTE_DATABASE_URL is no longer set here
+	// Remote DB config is fetched from central server at runtime
+	// Configure CENTRAL_SERVER_URL and USER_JWT_TOKEN instead
 	cmd.Env = append(cmd.Env, "NODE_ENV=production")
 	
 	uploadsDir := filepath.Join(m.DataDir, "uploads")

@@ -546,3 +546,4 @@ enum RecognitionType {
   @@map("recognition_types")
   @@schema("medical")
 }
+

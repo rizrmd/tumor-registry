@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { OfflineQueueService } from './offline-queue.service';
+import { FileSyncService } from './file-sync.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt.guard';
 import { SyncOfflineDataDto } from './dto/sync-offline-data.dto';
 import { ResolveConflictDto } from './dto/resolve-conflict.dto';
@@ -22,7 +23,10 @@ import { ResolveConflictDto } from './dto/resolve-conflict.dto';
 @Controller('offline-queue')
 @UseGuards(JwtAuthGuard)
 export class OfflineQueueController {
-  constructor(private readonly offlineQueueService: OfflineQueueService) { }
+  constructor(
+    private readonly offlineQueueService: OfflineQueueService,
+    private readonly fileSyncService: FileSyncService,
+  ) { }
 
   @Post('sync')
   @ApiOperation({ summary: 'Queue offline data for synchronization' })
@@ -79,5 +83,46 @@ export class OfflineQueueController {
   ) {
     const userId = req.user.userId;
     return await this.offlineQueueService.resolveConflict(id, resolveDto, userId);
+  }
+
+  // ==================== FILE SYNC ENDPOINTS ====================
+
+  @Get('files/status')
+  @ApiOperation({ summary: 'Get file sync status and statistics' })
+  @ApiResponse({ status: 200, description: 'File sync statistics retrieved' })
+  async getFileSyncStatus() {
+    return this.fileSyncService.getFileSyncStats();
+  }
+
+  @Post('files/sync')
+  @ApiOperation({ summary: 'Trigger file synchronization' })
+  @ApiResponse({ status: 200, description: 'File sync triggered' })
+  async syncFiles() {
+    return await this.fileSyncService.processPendingFileSyncs();
+  }
+
+  @Get('files/pending')
+  @ApiOperation({ summary: 'Get pending file sync jobs' })
+  @ApiResponse({ status: 200, description: 'Pending file sync jobs retrieved' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async getPendingFiles(@Query('limit') limit?: string) {
+    const jobs = this.fileSyncService.getPendingJobs(limit ? parseInt(limit) : 100);
+    return { total: jobs.length, jobs };
+  }
+
+  @Post('full-sync')
+  @ApiOperation({ summary: 'Run full sync including data and files' })
+  @ApiResponse({ status: 200, description: 'Full sync completed' })
+  async runFullSync(@Req() req: any) {
+    const userId = req.user.userId;
+    const result = await this.offlineQueueService.runFullSync();
+    return result;
+  }
+
+  @Get('full-sync-status')
+  @ApiOperation({ summary: 'Get detailed full sync status including progress' })
+  @ApiResponse({ status: 200, description: 'Full sync status retrieved' })
+  async getFullSyncStatus() {
+    return await this.fileSyncService.getSyncStatus();
   }
 }

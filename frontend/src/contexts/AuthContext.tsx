@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import authService, { User, LoginCredentials } from '@/services/auth.service';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
 
@@ -13,6 +13,7 @@ interface AuthContextType {
   logout: () => void;
   refreshToken: () => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
+  checkPasswordVersion: () => Promise<boolean>;
 }
 
 interface RegisterData {
@@ -38,29 +39,99 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Storage keys
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
+const PASSWORD_VERSION_KEY = 'passwordVersion';
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const syncCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Enable automatic token refresh for long-running sessions
   useTokenRefresh();
+
+  // Logout function
+  const logout = useCallback(() => {
+    authService.logout();
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem(PASSWORD_VERSION_KEY);
+  }, []);
+
+  // Check password version against server
+  const checkPasswordVersion = useCallback(async (): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) return false;
+
+      const storedVersion = localStorage.getItem(PASSWORD_VERSION_KEY);
+      if (!storedVersion) return true; // No version stored, assume ok
+
+      // Try to get current user profile from server
+      const userData = await authService.getProfile();
+      
+      // Get the updatedAt timestamp from user data
+      const currentVersion = userData.updatedAt ? new Date(userData.updatedAt).getTime() : null;
+      const storedVersionNum = parseInt(storedVersion, 10);
+
+      // If server version is different from stored version, password changed
+      if (currentVersion && currentVersion !== storedVersionNum) {
+        console.warn('[Auth] Password version mismatch - password changed on server');
+        logout();
+        return false;
+      }
+
+      return true;
+    } catch (error: any) {
+      // If offline (network error), allow access
+      if (error.message?.includes('Network Error') || error.message?.includes('timeout')) {
+        console.log('[Auth] Offline mode - skipping password version check');
+        return true;
+      }
+      
+      // If unauthorized (401), password definitely changed
+      if (error.response?.status === 401) {
+        console.warn('[Auth] Token invalid - password may have changed');
+        logout();
+        return false;
+      }
+
+      console.error('[Auth] Error checking password version:', error);
+      return true; // Allow on error to prevent lockout
+    }
+  }, [logout]);
 
   // Check for existing session on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(TOKEN_KEY);
         if (token) {
           try {
             // Try to verify token and get user data using authService
             const userData = await authService.getProfile();
             setUser(userData);
             setIsAuthenticated(true);
-          } catch (apiError) {
+            
+            // Store password version (updatedAt timestamp)
+            if (userData.updatedAt) {
+              localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
+            }
+          } catch (apiError: any) {
+            // Check if it's a password change error
+            if (apiError.response?.status === 401 && 
+                apiError.response?.data?.message?.includes('Password changed')) {
+              console.warn('[Auth] Password changed on server - forcing logout');
+              logout();
+              return;
+            }
+            
             // API call failed, fall back to localStorage user (for demo/offline mode)
-            console.warn('API not available, using cached user:', apiError);
-            const cachedUser = localStorage.getItem('user');
+            console.warn('[Auth] API not available, using cached user:', apiError);
+            const cachedUser = localStorage.getItem(USER_KEY);
             if (cachedUser) {
               try {
                 const parsedUser = JSON.parse(cachedUser);
@@ -68,12 +139,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setIsAuthenticated(true);
               } catch (parseError) {
                 // Invalid cached data, clear everything
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
+                logout();
               }
             } else {
               // No cached user, remove token
-              localStorage.removeItem('token');
+              logout();
             }
           }
         } else {
@@ -81,7 +151,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
+        console.error('[Auth] Auth check failed:', error);
         setUser(null);
         setIsAuthenticated(false);
       } finally {
@@ -90,7 +160,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     checkAuth();
-  }, []);
+  }, [logout]);
+
+  // Periodic password version check when online
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Check password version every 2 minutes when online
+    const checkInterval = setInterval(() => {
+      if (navigator.onLine) {
+        checkPasswordVersion();
+      }
+    }, 2 * 60 * 1000); // 2 minutes
+
+    syncCheckIntervalRef.current = checkInterval;
+
+    // Also check when coming back online
+    const handleOnline = () => {
+      console.log('[Auth] Connection restored - checking password version');
+      checkPasswordVersion();
+    };
+
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      clearInterval(checkInterval);
+      window.removeEventListener('online', handleOnline);
+      syncCheckIntervalRef.current = null;
+    };
+  }, [isAuthenticated, checkPasswordVersion]);
 
   const login = async (email: string, password: string, mfaCode?: string) => {
     setIsLoading(true);
@@ -98,11 +196,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Use authService to login
       const loginData = await authService.login({ email, password });
 
-      // Set user from login response (cast to User type as login response has subset of User fields)
+      // Set user from login response
       setUser(loginData.user as User);
       setIsAuthenticated(true);
+      
+      // Store password version (updatedAt timestamp)
+      const userData = await authService.getProfile();
+      if (userData.updatedAt) {
+        localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
+      }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[Auth] Login error:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -114,20 +218,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Use authService to register (when implemented)
       // For now, this is a placeholder
-      console.log('Registration successful:', userData);
+      console.log('[Auth] Registration successful:', userData);
       // TODO: Implement register endpoint in authService
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('[Auth] Registration error:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const logout = () => {
-    authService.logout();
-    setUser(null);
-    setIsAuthenticated(false);
   };
 
   const refreshToken = async () => {
@@ -137,8 +235,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const userData = await authService.getProfile();
       setUser(userData);
       setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Token refresh error:', error);
+      
+      // Update password version
+      if (userData.updatedAt) {
+        localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
+      }
+    } catch (error: any) {
+      console.error('[Auth] Token refresh error:', error);
+      
+      // If password changed, error will be 401 with specific message
+      if (error.response?.status === 401 && 
+          error.response?.data?.message?.includes('Password changed')) {
+        console.warn('[Auth] Password changed - forcing logout');
+      }
+      
       logout();
       throw error;
     }
@@ -147,10 +257,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const verifyEmail = async (token: string) => {
     try {
       // TODO: Implement email verification endpoint in authService
-      console.log('Email verification:', token);
+      console.log('[Auth] Email verification:', token);
       // Return void as per interface
     } catch (error) {
-      console.error('Email verification error:', error);
+      console.error('[Auth] Email verification error:', error);
       throw error;
     }
   };
@@ -164,6 +274,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     refreshToken,
     verifyEmail,
+    checkPasswordVersion,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

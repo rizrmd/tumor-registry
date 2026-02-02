@@ -322,12 +322,14 @@ export class AuthService {
     const userRole = await this.usersService.getUserRole(user.id);
     const userPermissions = await this.usersService.getUserPermissions(user.id);
 
+    // Include passwordVersion (updatedAt timestamp) in token for password change detection
     const payload = {
       sub: user.id,
       email: user.email,
       role: userRole,
       permissions: userPermissions,
       centerId: user.centerId,
+      passwordVersion: user.updatedAt.getTime(), // Timestamp for password change detection
     };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -335,7 +337,11 @@ export class AuthService {
     });
 
     const refreshToken = this.jwtService.sign(
-      { sub: user.id, email: user.email },
+      { 
+        sub: user.id, 
+        email: user.email,
+        passwordVersion: user.updatedAt.getTime(),
+      },
       {
         secret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
         expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
@@ -346,6 +352,30 @@ export class AuthService {
     await this.storeRefreshToken(user.id, refreshToken);
 
     return { accessToken, refreshToken };
+  }
+
+  /**
+   * Validate token against current user state
+   * Checks if password has changed since token was issued
+   */
+  async validateToken(token: string): Promise<any> {
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.usersService.findById(payload.sub);
+      
+      if (!user || !user.isActive) {
+        throw new UnauthorizedException('User not found or inactive');
+      }
+
+      // Check if password has changed since token was issued
+      if (payload.passwordVersion && payload.passwordVersion !== user.updatedAt.getTime()) {
+        throw new UnauthorizedException('Password changed, please login again');
+      }
+
+      return payload;
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
+    }
   }
 
   private async storeRefreshToken(userId: string, refreshToken: string) {

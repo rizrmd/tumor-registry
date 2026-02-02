@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { SyncProvider } from '@/contexts/SyncContext';
+import { UpdateNotification } from '@/components/UpdateNotification';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -32,6 +33,7 @@ export default function RootLayout({
           <AuthProvider>
             <SyncProvider>
               {children}
+              <UpdateNotification />
             </SyncProvider>
           </AuthProvider>
         </QueryProvider>

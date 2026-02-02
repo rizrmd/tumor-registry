@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useSync } from '@/contexts/SyncContext';
+import { useSync, SyncPhase } from '@/contexts/SyncContext';
 
 export function SyncIndicator() {
-    const { statistics, isSyncing, lastSyncedAt, error, triggerSync } = useSync();
+    const { statistics, fullSyncStatus, isSyncing, syncProgress, lastSyncedAt, error, triggerFullSync } = useSync();
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -60,6 +60,28 @@ export function SyncIndicator() {
         );
     }
 
+    // Get phase label
+    const getPhaseLabel = (phase: SyncPhase): string => {
+        switch (phase) {
+            case 'idle': return 'Idle';
+            case 'push': return 'Uploading data...';
+            case 'pull': return 'Downloading data...';
+            case 'files': return 'Syncing files...';
+            case 'complete': return 'Complete';
+            case 'error': return 'Error';
+            default: return 'Unknown';
+        }
+    };
+
+    // Format file size
+    const formatBytes = (bytes: number): string => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+    };
+
     return (
         <div className="relative" ref={containerRef}>
             <button
@@ -75,7 +97,7 @@ export function SyncIndicator() {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
                     <div className="p-4 border-b border-gray-50 bg-gray-50/50">
                         <h3 className="text-sm font-semibold text-gray-900">Sync Details</h3>
                         {lastSyncedAt && (
@@ -85,35 +107,108 @@ export function SyncIndicator() {
                         )}
                     </div>
 
-                    <div className="p-4 space-y-3">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Synced</p>
-                                <p className="text-xl font-bold text-emerald-600">{statistics.synced}</p>
+                    <div className="p-4 space-y-4">
+                        {/* Sync Progress Section */}
+                        {isSyncing && (
+                            <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-semibold text-blue-700">
+                                        {getPhaseLabel(syncProgress.phase)}
+                                    </span>
+                                    <span className="text-xs font-medium text-blue-600">
+                                        {syncProgress.phaseProgress}%
+                                    </span>
+                                </div>
+                                {/* Progress Bar */}
+                                <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                                    <div
+                                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${syncProgress.phaseProgress}%` }}
+                                    />
+                                </div>
+                                {/* Current file info */}
+                                {syncProgress.currentFile && (
+                                    <p className="text-xs text-blue-600 truncate">
+                                        {syncProgress.currentFile.split('/').pop()}
+                                    </p>
+                                )}
+                                {/* Stats */}
+                                <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                                    <div>
+                                        <span className="text-blue-500">Data Pushed:</span>
+                                        <span className="font-semibold text-blue-700 ml-1">{syncProgress.dataPushed}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-blue-500">Data Pulled:</span>
+                                        <span className="font-semibold text-blue-700 ml-1">{syncProgress.dataPulled}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-blue-500">Files:</span>
+                                        <span className="font-semibold text-blue-700 ml-1">{syncProgress.filesSynced}/{syncProgress.totalFiles}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
-                                <p className="text-xl font-bold text-yellow-600">{statistics.pending}</p>
-                            </div>
-                            <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Conflicts</p>
-                                <p className="text-xl font-bold text-orange-600">{statistics.conflict}</p>
-                            </div>
-                            <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Failed</p>
-                                <p className="text-xl font-bold text-red-600">{statistics.failed}</p>
+                        )}
+
+                        {/* Data Sync Stats */}
+                        <div>
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Data Sync</h4>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Synced</p>
+                                    <p className="text-xl font-bold text-emerald-600">{statistics.synced}</p>
+                                </div>
+                                <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
+                                    <p className="text-xl font-bold text-yellow-600">{statistics.pending}</p>
+                                </div>
+                                <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Conflicts</p>
+                                    <p className="text-xl font-bold text-orange-600">{statistics.conflict}</p>
+                                </div>
+                                <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Failed</p>
+                                    <p className="text-xl font-bold text-red-600">{statistics.failed}</p>
+                                </div>
                             </div>
                         </div>
 
+                        {/* File Sync Stats */}
+                        {fullSyncStatus?.fileSync && (
+                            <div>
+                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">File Sync</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
+                                        <p className="text-xl font-bold text-yellow-600">{fullSyncStatus.fileSync.pending}</p>
+                                    </div>
+                                    <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">In Progress</p>
+                                        <p className="text-xl font-bold text-blue-600">{fullSyncStatus.fileSync.inProgress}</p>
+                                    </div>
+                                    <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Completed</p>
+                                        <p className="text-xl font-bold text-emerald-600">{fullSyncStatus.fileSync.completed}</p>
+                                    </div>
+                                    <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Size</p>
+                                        <p className="text-sm font-bold text-gray-700">{formatBytes(fullSyncStatus.fileSync.totalSize)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Error Display */}
                         {error && (
                             <div className="p-2.5 rounded-lg bg-red-50 border border-red-100 text-xs text-red-600">
                                 {error}
                             </div>
                         )}
 
+                        {/* Sync Button */}
                         <button
                             onClick={() => {
-                                triggerSync();
+                                triggerFullSync();
                                 setIsOpen(false);
                             }}
                             disabled={isSyncing}
@@ -132,7 +227,7 @@ export function SyncIndicator() {
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                     </svg>
-                                    <span>Sync Now</span>
+                                    <span>Sync Now (Data + Files)</span>
                                 </>
                             )}
                         </button>

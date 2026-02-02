@@ -485,4 +485,71 @@ export class CentersService {
       throw error;
     }
   }
+
+  /**
+   * Get remote database configuration for a center (for desktop sync)
+   * Returns null if no remote DB is configured
+   */
+  async getRemoteDbConfig(centerId: string): Promise<{
+    url: string | null;
+    apiKey: string | null;
+  } | null> {
+    try {
+      const center = await this.prisma.center.findUnique({
+        where: { id: centerId },
+        select: {
+          id: true,
+          remoteDbUrl: true,
+          remoteDbApiKey: true,
+        },
+      });
+
+      if (!center || !center.remoteDbUrl) {
+        return null;
+      }
+
+      return {
+        url: center.remoteDbUrl,
+        apiKey: center.remoteDbApiKey,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting remote DB config for center ${centerId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update remote database configuration for a center
+   */
+  async updateRemoteDbConfig(
+    centerId: string,
+    config: {
+      remoteDbUrl?: string | null;
+      remoteDbApiKey?: string | null;
+    },
+  ): Promise<Center> {
+    try {
+      const center = await this.prisma.center.findUnique({
+        where: { id: centerId },
+      });
+
+      if (!center) {
+        throw new NotFoundException(`Center with ID ${centerId} not found`);
+      }
+
+      const updatedCenter = await this.prisma.center.update({
+        where: { id: centerId },
+        data: {
+          ...(config.remoteDbUrl !== undefined && { remoteDbUrl: config.remoteDbUrl }),
+          ...(config.remoteDbApiKey !== undefined && { remoteDbApiKey: config.remoteDbApiKey }),
+        },
+      });
+
+      this.logger.log(`Remote DB config updated for center: ${center.name}`);
+      return updatedCenter;
+    } catch (error) {
+      this.logger.error(`Error updating remote DB config for center ${centerId}`, error);
+      throw error;
+    }
+  }
 }

@@ -11,6 +11,8 @@ import {
   HttpStatus,
   HttpCode,
   ParseUUIDPipe,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CentersService } from './centers.service';
@@ -18,6 +20,7 @@ import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { RequirePermissions } from '@/auth/decorators/permissions.decorator';
 import { AuditLog } from '@/common/decorators/audit-log.decorator';
+import { JwtPayload } from '@/auth/interfaces/jwt-payload.interface';
 
 @ApiTags('Centers')
 @Controller('centers')
@@ -31,6 +34,40 @@ export class CentersController {
   async findAll(@Query('includeInactive') includeInactive?: string) {
     const include = includeInactive === 'true';
     return await this.centersService.findAll(include);
+  }
+
+  /**
+   * Get remote database configuration for the authenticated user's center
+   * Used by desktop app to configure remote sync
+   */
+  @Get('my/remote-db-config')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get remote database config for current user center (Desktop)' })
+  @ApiResponse({ status: 200, description: 'Remote DB config retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'User has no center assigned' })
+  @ApiResponse({ status: 404, description: 'No remote DB config found for center' })
+  async getMyRemoteDbConfig(@Req() req: { user: JwtPayload }) {
+    const centerId = req.user.centerId;
+    
+    if (!centerId) {
+      throw new ForbiddenException('User has no center assigned');
+    }
+
+    const config = await this.centersService.getRemoteDbConfig(centerId);
+    
+    if (!config) {
+      return {
+        enabled: false,
+        message: 'No remote database configured for this center',
+      };
+    }
+
+    return {
+      enabled: true,
+      url: config.url,
+      apiKey: config.apiKey,
+    };
   }
 
   @Get('statistics')
@@ -145,5 +182,26 @@ export class CentersController {
   @AuditLog('DELETE', 'center')
   async delete(@Param('id', ParseUUIDPipe) id: string) {
     await this.centersService.delete(id);
+  }
+
+  /**
+   * Admin endpoint to update remote database configuration for a center
+   */
+  @Put(':id/remote-db-config')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiOperation({ summary: 'Update remote database config for a center (Admin)' })
+  @ApiParam({ name: 'id', description: 'Center ID' })
+  @ApiResponse({ status: 200, description: 'Remote DB config updated successfully' })
+  @ApiResponse({ status: 404, description: 'Center not found' })
+  @RequirePermissions('CENTERS_UPDATE')
+  @AuditLog('UPDATE', 'center_remote_config')
+  async updateRemoteDbConfig(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() configDto: {
+      remoteDbUrl?: string | null;
+      remoteDbApiKey?: string | null;
+    },
+  ) {
+    return await this.centersService.updateRemoteDbConfig(id, configDto);
   }
 }
