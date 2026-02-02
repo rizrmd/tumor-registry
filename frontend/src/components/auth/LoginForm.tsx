@@ -246,14 +246,7 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
             </button>
           </div>
 
-          <div className="text-center">
-            <span className="text-sm text-gray-600">
-              Belum punya akun?{' '}
-              <a href="/register" className="font-medium text-emerald-600 hover:text-emerald-500">
-                Daftar sekarang
-              </a>
-            </span>
-          </div>
+          {/* Registration disabled - admin-only account creation */}
         </form>
       </div>
     </div>

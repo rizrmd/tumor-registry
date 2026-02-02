@@ -14,11 +14,8 @@ export default function SimpleHomePage() {
               </span>
             </div>
             <nav className="flex space-x-8">
-              <Link href="/login" className="text-green-600 hover:text-green-700 px-3 py-2 rounded-md text-sm font-medium">
+              <Link href="/login" className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-md text-sm font-medium">
                 Login
-              </Link>
-              <Link href="/register" className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-md text-sm font-medium">
-                Register
               </Link>
             </nav>
           </div>
@@ -38,10 +35,10 @@ export default function SimpleHomePage() {
             </p>
             <div className="mt-10 flex justify-center gap-4">
               <Link
-                href="/register"
+                href="/login"
                 className="bg-green-600 text-white px-8 py-3 rounded-lg text-base font-medium hover:bg-green-700 transition-colors"
               >
-                Get Started
+                Login to System
               </Link>
               <Link
                 href="/about"

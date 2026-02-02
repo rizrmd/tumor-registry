@@ -27,7 +27,9 @@ export class AuthController {
 
   @Post('register')
   async register(@Body(ValidationPipe) registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+    // Public registration is disabled - admin-only account creation
+    throw new Error('Public registration is disabled. Please contact your center administrator or national registry admin for account creation.');
+    // return this.authService.register(registerDto);
   }
 
   @Post('login')
