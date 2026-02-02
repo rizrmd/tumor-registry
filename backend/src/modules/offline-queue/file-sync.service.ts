@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '@/common/database/prisma.service';
 import { RemotePrismaService } from '@/database/remote-prisma.service';
 import * as fs from 'fs';
@@ -57,10 +58,15 @@ export class FileSyncService {
 
   constructor(
     private prisma: PrismaService,
-    private remotePrisma: RemotePrismaService,
+    private remotePrismaService: RemotePrismaService,
   ) {
     this.uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
     this.ensureUploadDirExists();
+  }
+
+  // Getter to cast RemotePrismaService to PrismaClient for type compatibility
+  private get remotePrisma(): PrismaClient {
+    return this.remotePrismaService as unknown as PrismaClient;
   }
 
   private ensureUploadDirExists() {
@@ -207,7 +213,7 @@ export class FileSyncService {
 
     try {
       // Check if remote is available
-      if (!(await this.remotePrisma.checkConnection())) {
+      if (!(await this.remotePrismaService.checkConnection())) {
         this.logger.log('Remote unavailable - skipping download queue');
         return 0;
       }
@@ -294,7 +300,7 @@ export class FileSyncService {
     }
 
     // Check if remote is available
-    if (!(await this.remotePrisma.checkConnection())) {
+    if (!(await this.remotePrismaService.checkConnection())) {
       this.logger.log('Remote unavailable - skipping file sync');
       return results;
     }
@@ -441,8 +447,8 @@ export class FileSyncService {
     const writer = fs.createWriteStream(job.filePath);
     response.data.pipe(writer);
 
-    await new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
+    await new Promise<void>((resolve, reject) => {
+      writer.on('finish', () => resolve());
       writer.on('error', reject);
     });
 
@@ -533,7 +539,7 @@ export class FileSyncService {
    * Get current sync status for frontend
    */
   async getSyncStatus(): Promise<SyncStats> {
-    const isOnline = await this.remotePrisma.checkConnection();
+    const isOnline = await this.remotePrismaService.checkConnection();
     
     const dataStats = await this.prisma.offlineDataQueue.groupBy({
       by: ['status'],
