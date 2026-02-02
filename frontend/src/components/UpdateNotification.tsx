@@ -37,16 +37,40 @@ export function UpdateNotification({ onDownloadUpdate, onDismiss }: UpdateNotifi
     const [error, setError] = useState<string>('');
 
     useEffect(() => {
-        // Get current app version on mount
-        GetAppVersion?.().then(setCurrentVersion).catch(console.error);
+        // Check for updates only if in desktop mode
+        // In web mode, these functions will return immediately with null/default values
+        let mounted = true;
 
-        // Check for cached update info
-        GetCachedUpdateInfo?.().then((info: UpdateInfo) => {
-            if (info?.updateAvailable) {
-                setUpdateInfo(info);
-                setIsVisible(true);
+        const checkUpdates = async () => {
+            try {
+                // Get current app version
+                const version = await GetAppVersion();
+                if (!mounted) return;
+                
+                if (version && version !== 'web') {
+                    setCurrentVersion(version);
+                }
+
+                // Check for cached update info
+                const info = await GetCachedUpdateInfo();
+                if (!mounted) return;
+
+                if (info?.updateAvailable) {
+                    setUpdateInfo(info);
+                    setIsVisible(true);
+                }
+            } catch (err) {
+                // Silently ignore errors in web mode
+                if (!mounted) return;
+                console.log('[UpdateNotification] Update check skipped (not in desktop mode or error)');
             }
-        }).catch(console.error);
+        };
+
+        checkUpdates();
+
+        return () => {
+            mounted = false;
+        };
     }, [GetAppVersion, GetCachedUpdateInfo]);
 
     const handleCheckForUpdates = async () => {

@@ -1,14 +1,40 @@
 #!/bin/bash
 set -e
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
 # Configuration
 PG_VERSION="15.10.0"
-TARGET_DIR=$(pwd)/../bin
-TMP_DIR=$(pwd)/tmp_pg
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TARGET_DIR="$SCRIPT_DIR/../bin"
+TMP_DIR="$SCRIPT_DIR/tmp_pg"
 OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH_TYPE=$(uname -m)
 
-echo "🛠  Setting up sidecar binaries..."
+# Print functions
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+echo "🛠  Setting up PostgreSQL binaries..."
+echo ""
 
 # Determine Platform for Maven
 case "$OS_TYPE" in
@@ -39,7 +65,7 @@ case "$OS_TYPE" in
         OS_TYPE="windows"
         ;;
     *)
-        echo "❌ Unsupported OS: $OS_TYPE"
+        print_error "Unsupported OS: $OS_TYPE"
         exit 1
         ;;
 esac
@@ -49,33 +75,98 @@ URL="https://repo1.maven.org/maven2/io/zonky/test/postgres/${MAVEN_ARTIFACT}/${P
 
 echo "📥 OS: $OS_TYPE, ARCH: $ARCH_TYPE"
 echo "📥 Artifact: $MAVEN_ARTIFACT"
-echo "📥 Downloading PostgreSQL $PG_VERSION artifact..."
+echo "📥 PostgreSQL Version: $PG_VERSION"
+echo "📥 Target Directory: $TARGET_DIR"
+echo ""
 
-rm -rf "$TARGET_DIR"
+# Check if already exists
+if [[ "$OS_TYPE" == "windows" ]]; then
+    if [ -f "$TARGET_DIR/bin/postgres.exe" ] && [ -f "$TARGET_DIR/bin/initdb.exe" ]; then
+        print_success "PostgreSQL binaries already exist"
+        exit 0
+    fi
+else
+    if [ -f "$TARGET_DIR/bin/postgres" ] && [ -f "$TARGET_DIR/bin/initdb" ]; then
+        print_success "PostgreSQL binaries already exist"
+        exit 0
+    fi
+fi
+
+# Clean up any previous temp directory
+if [ -d "$TMP_DIR" ]; then
+    print_status "Cleaning up previous temp directory..."
+    rm -rf "$TMP_DIR"
+fi
+
+# Create directories
+print_status "Creating directories..."
 mkdir -p "$TARGET_DIR"
 mkdir -p "$TMP_DIR"
 
 # Download using curl
-curl -L "$URL" -o "$TMP_DIR/pg_artifact.jar"
+print_status "Downloading PostgreSQL $PG_VERSION artifact..."
+print_status "URL: $URL"
 
-echo "📦 Extracting $INTERNAL_FILE from JAR..."
-unzip -o "$TMP_DIR/pg_artifact.jar" "$INTERNAL_FILE" -d "$TMP_DIR"
+if ! command -v curl &> /dev/null; then
+    print_error "curl is not installed. Please install curl."
+    exit 1
+fi
 
-echo "📦 Extracting full structure into bin/..."
-tar -xJf "$TMP_DIR/$INTERNAL_FILE" -C "$TARGET_DIR"
+if ! curl -L --fail --progress-bar "$URL" -o "$TMP_DIR/pg_artifact.jar"; then
+    print_error "Failed to download PostgreSQL artifact"
+    rm -rf "$TMP_DIR"
+    exit 1
+fi
+
+print_success "Download complete"
+
+# Extract from JAR
+print_status "Extracting $INTERNAL_FILE from JAR..."
+if ! unzip -o "$TMP_DIR/pg_artifact.jar" "$INTERNAL_FILE" -d "$TMP_DIR"; then
+    print_error "Failed to extract $INTERNAL_FILE from JAR"
+    rm -rf "$TMP_DIR"
+    exit 1
+fi
+
+# Extract PostgreSQL binaries
+print_status "Extracting PostgreSQL binaries..."
+if ! tar -xJf "$TMP_DIR/$INTERNAL_FILE" -C "$TARGET_DIR"; then
+    print_error "Failed to extract PostgreSQL binaries"
+    rm -rf "$TMP_DIR"
+    exit 1
+fi
 
 # Cleanup
+print_status "Cleaning up temporary files..."
 rm -rf "$TMP_DIR"
 
-echo "🔒 Setting permissions..."
+# Set permissions
+print_status "Setting permissions..."
 if [[ "$OS_TYPE" != "windows" ]]; then
     chmod -R +x "$TARGET_DIR/bin/"
 fi
 
-echo "✅ Success! Full PostgreSQL structure is ready in $TARGET_DIR"
-echo "👉 Binaries are in $TARGET_DIR/bin/"
+# Verify installation
+print_status "Verifying installation..."
 if [[ "$OS_TYPE" == "windows" ]]; then
+    if [ ! -f "$TARGET_DIR/bin/postgres.exe" ] || [ ! -f "$TARGET_DIR/bin/initdb.exe" ]; then
+        print_error "PostgreSQL binaries not found after extraction"
+        exit 1
+    fi
+    print_success "PostgreSQL binaries verified"
+    echo ""
+    echo "📦 Installed binaries:"
     ls -lh "$TARGET_DIR/bin/postgres.exe" "$TARGET_DIR/bin/initdb.exe"
 else
+    if [ ! -f "$TARGET_DIR/bin/postgres" ] || [ ! -f "$TARGET_DIR/bin/initdb" ]; then
+        print_error "PostgreSQL binaries not found after extraction"
+        exit 1
+    fi
+    print_success "PostgreSQL binaries verified"
+    echo ""
+    echo "📦 Installed binaries:"
     ls -lh "$TARGET_DIR/bin/postgres" "$TARGET_DIR/bin/initdb"
 fi
+
+echo ""
+print_success "PostgreSQL $PG_VERSION is ready in $TARGET_DIR"

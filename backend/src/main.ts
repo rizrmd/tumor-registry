@@ -41,14 +41,45 @@ async function bootstrap() {
     },
   });
 
+  // CORS configuration - allow web and Wails desktop origins
+  const isDev = configService.get<string>('NODE_ENV') !== 'production';
+  const corsOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'https://localhost:3000',
+    'https://localhost:3001',
+    // Wails desktop app origins
+    'wails://wails.localhost:34115',
+    'wails://wails.localhost',
+    'wails.localhost',
+    'https://wails.localhost',
+    'wails://localhost',
+    'file://',
+    null, // Allow file:// origins (desktop apps)
+    configService.get<string>('FRONTEND_URL'),
+  ].filter(Boolean);
+
   await app.register(cors, {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'http://localhost:3003',
-      configService.get<string>('FRONTEND_URL'),
-    ].filter(Boolean),
+    origin: (origin: string | null, cb: (err: Error | null, allow: boolean) => void) => {
+      // Allow requests with no origin or "null" string (file:// desktop apps)
+      if (!origin || origin === 'null') {
+        cb(null, true);
+        return;
+      }
+      // Check against allowed origins
+      const allowed = corsOrigins.some((allowed: string | null) => {
+        if (!allowed) return false;
+        return origin === allowed || origin.startsWith(allowed) || origin.includes('localhost');
+      });
+      // In dev mode, allow all localhost origins
+      if (isDev && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+        cb(null, true);
+        return;
+      }
+      cb(null, allowed);
+    },
     credentials: true,
   });
 

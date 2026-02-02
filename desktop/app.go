@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -114,23 +115,36 @@ func (a *App) startup(ctx context.Context) {
 	a.loadSavedToken(baseDir)
 
 	a.Manager = process.NewManager(baseDir)
-	if err := a.Manager.Init(); err != nil {
-		fmt.Printf("Error initializing manager: %v\n", err)
-	}
 
-	go func() {
-		if err := a.Manager.StartPostgres(); err != nil {
-			fmt.Printf("Error starting postgres: %v\n", err)
+	// Check if services are already running FIRST (before Init() which calls CleanupPort)
+	servicesAlreadyRunning := a.checkServicesRunning()
+
+	if !servicesAlreadyRunning {
+		// Only call Init() (which includes CleanupPort) if services aren't running
+		if err := a.Manager.Init(); err != nil {
+			fmt.Printf("Error initializing manager: %v\n", err)
 		}
-		// Start backend - token will be passed when available
-		if err := a.Manager.StartBackend(); err != nil {
-			fmt.Printf("Error starting backend: %v\n", err)
-		}
-		// If we have a token, update the backend env
+
+		go func() {
+			if err := a.Manager.StartPostgres(); err != nil {
+				fmt.Printf("Error starting postgres: %v\n", err)
+			}
+			// Start backend - token will be passed when available
+			if err := a.Manager.StartBackend(); err != nil {
+				fmt.Printf("Error starting backend: %v\n", err)
+			}
+			// If we have a token, update the backend env
+			if a.jwtToken != "" {
+				a.updateBackendToken()
+			}
+		}()
+	} else {
+		fmt.Println("✅ Services already running, skipping start (dev mode)")
+		// Services are already running, just update token if we have one
 		if a.jwtToken != "" {
-			a.updateBackendToken()
+			go a.updateBackendToken()
 		}
-	}()
+	}
 
 	// Start background update checker
 	go a.backgroundUpdateChecker()
@@ -418,6 +432,25 @@ func (a *App) backgroundUpdateChecker() {
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
+}
+
+// checkServicesRunning checks if PostgreSQL and Backend are already running
+func (a *App) checkServicesRunning() bool {
+	// Try to connect to PostgreSQL
+	pgConn, err := net.DialTimeout("tcp", "127.0.0.1:54321", 1*time.Second)
+	pgRunning := err == nil
+	if pgConn != nil {
+		pgConn.Close()
+	}
+
+	// Try to connect to Backend
+	backendConn, err := net.DialTimeout("tcp", "127.0.0.1:3001", 1*time.Second)
+	backendRunning := err == nil
+	if backendConn != nil {
+		backendConn.Close()
+	}
+
+	return pgRunning && backendRunning
 }
 
 // ==================== BACKUP FUNCTIONALITY ====================

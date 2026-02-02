@@ -1,7 +1,10 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+// Use relative path for Next.js proxy, or direct URL if specified
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim() !== ''
+  ? process.env.NEXT_PUBLIC_API_URL
+  : '/api/v1'; // Use Next.js proxy rewrite
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({

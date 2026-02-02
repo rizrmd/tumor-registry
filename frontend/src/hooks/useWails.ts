@@ -6,30 +6,40 @@ import { useCallback, useEffect, useState } from 'react';
 declare global {
   interface Window {
     // @ts-ignore - Wails bindings are added at runtime
+    go?: {
+      main?: {
+        App?: {
+          GetAppVersion: () => Promise<string>;
+          CheckForUpdates: () => Promise<any>;
+          GetCachedUpdateInfo: () => Promise<any>;
+          CreateBackup: () => Promise<any>;
+          ListBackups: () => Promise<any[]>;
+          RestoreBackup: (backupPath: string) => Promise<void>;
+          DeleteBackup: (backupPath: string) => Promise<void>;
+          PerformUpdate: (downloadUrl: string, createBackup: boolean, progressCallback: (message: string) => void) => Promise<void>;
+          ImportDataFromPath: (sourcePath: string, progressCallback: (message: string) => void) => Promise<void>;
+          Login: (email: string, password: string) => Promise<any>;
+          Logout: () => Promise<void>;
+          GetAuthStatus: () => Promise<any>;
+          Greet: (name: string) => Promise<string>;
+          GetCentralServerUrl: () => Promise<string>;
+        };
+      };
+    };
+    // @ts-ignore - Also maintain window.wails for backward compatibility
     wails?: {
-        // App methods
         GetAppVersion: () => Promise<string>;
         CheckForUpdates: () => Promise<UpdateInfo>;
         GetCachedUpdateInfo: () => Promise<UpdateInfo>;
-
-        // Backup methods
         CreateBackup: () => Promise<BackupInfo>;
         ListBackups: () => Promise<BackupInfo[]>;
         RestoreBackup: (backupPath: string) => Promise<void>;
         DeleteBackup: (backupPath: string) => Promise<void>;
-
-        // Update methods
         PerformUpdate: (downloadUrl: string, createBackup: boolean, progressCallback: (message: string) => void) => Promise<void>;
-
-        // Data migration
         ImportDataFromPath: (sourcePath: string, progressCallback: (message: string) => void) => Promise<void>;
-
-        // Auth methods
         Login: (email: string, password: string) => Promise<LoginResult>;
         Logout: () => Promise<void>;
         GetAuthStatus: () => Promise<AuthStatus>;
-
-        // Other app methods
         Greet: (name: string) => Promise<string>;
         GetCentralServerUrl: () => Promise<string>;
     };
@@ -72,6 +82,15 @@ export interface AuthStatus {
 }
 
 /**
+ * Get the Wails app bindings if available
+ * Returns null if not running in Wails desktop environment
+ */
+function getWailsApp(): any {
+    if (typeof window === 'undefined') return null;
+    return (window as any).go?.main?.App || (window as any).wails || null;
+}
+
+/**
  * Hook to interact with Wails desktop app bindings
  * Returns null methods if not running in desktop environment
  */
@@ -79,19 +98,50 @@ export function useWails() {
     const [isWailsAvailable, setIsWailsAvailable] = useState(false);
 
     useEffect(() => {
-        // Check if Wails is available
-        setIsWailsAvailable(!!window.wails);
+        // Check if Wails is available (with polling for initial load)
+        const checkWails = () => {
+            const wails = getWailsApp();
+            if (wails) {
+                setIsWailsAvailable(true);
+                return true;
+            }
+            return false;
+        };
+
+        if (checkWails()) return;
+
+        // Poll for Wails availability
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds
+        const interval = setInterval(() => {
+            attempts++;
+            if (checkWails() || attempts >= maxAttempts) {
+                clearInterval(interval);
+                if (attempts >= maxAttempts) {
+                    console.log('[useWails] Running in web mode (Wails not detected)');
+                }
+            }
+        }, 100);
+
+        return () => clearInterval(interval);
     }, []);
 
     const GetAppVersion = useCallback(async (): Promise<string> => {
-        if (!window.wails) return 'web';
-        return await window.wails.GetAppVersion();
+        const wails = getWailsApp();
+        if (!wails) return 'web';
+        try {
+            return await wails.GetAppVersion();
+        } catch (error) {
+            console.error('Failed to get app version:', error);
+            return 'web';
+        }
     }, []);
 
     const CheckForUpdates = useCallback(async (): Promise<UpdateInfo | null> => {
-        if (!window.wails) return null;
+        const wails = getWailsApp();
+        if (!wails) return null;
         try {
-            return await window.wails.CheckForUpdates();
+            return await wails.CheckForUpdates();
         } catch (error) {
             console.error('Failed to check for updates:', error);
             return null;
@@ -99,9 +149,10 @@ export function useWails() {
     }, []);
 
     const GetCachedUpdateInfo = useCallback(async (): Promise<UpdateInfo | null> => {
-        if (!window.wails) return null;
+        const wails = getWailsApp();
+        if (!wails) return null;
         try {
-            return await window.wails.GetCachedUpdateInfo();
+            return await wails.GetCachedUpdateInfo();
         } catch (error) {
             console.error('Failed to get cached update info:', error);
             return null;
@@ -109,9 +160,10 @@ export function useWails() {
     }, []);
 
     const CreateBackup = useCallback(async (): Promise<BackupInfo | null> => {
-        if (!window.wails) return null;
+        const wails = getWailsApp();
+        if (!wails) return null;
         try {
-            return await window.wails.CreateBackup();
+            return await wails.CreateBackup();
         } catch (error) {
             console.error('Failed to create backup:', error);
             throw error;
@@ -119,9 +171,10 @@ export function useWails() {
     }, []);
 
     const ListBackups = useCallback(async (): Promise<BackupInfo[] | null> => {
-        if (!window.wails) return null;
+        const wails = getWailsApp();
+        if (!wails) return null;
         try {
-            return await window.wails.ListBackups();
+            return await wails.ListBackups();
         } catch (error) {
             console.error('Failed to list backups:', error);
             return null;
@@ -129,9 +182,10 @@ export function useWails() {
     }, []);
 
     const RestoreBackup = useCallback(async (backupPath: string): Promise<void> => {
-        if (!window.wails) return;
+        const wails = getWailsApp();
+        if (!wails) return;
         try {
-            await window.wails.RestoreBackup(backupPath);
+            await wails.RestoreBackup(backupPath);
         } catch (error) {
             console.error('Failed to restore backup:', error);
             throw error;
@@ -139,9 +193,10 @@ export function useWails() {
     }, []);
 
     const DeleteBackup = useCallback(async (backupPath: string): Promise<void> => {
-        if (!window.wails) return;
+        const wails = getWailsApp();
+        if (!wails) return;
         try {
-            await window.wails.DeleteBackup(backupPath);
+            await wails.DeleteBackup(backupPath);
         } catch (error) {
             console.error('Failed to delete backup:', error);
             throw error;
@@ -153,9 +208,10 @@ export function useWails() {
         createBackup: boolean,
         progressCallback: (message: string) => void
     ): Promise<void> => {
-        if (!window.wails) return;
+        const wails = getWailsApp();
+        if (!wails) return;
         try {
-            await window.wails.PerformUpdate(downloadUrl, createBackup, progressCallback);
+            await wails.PerformUpdate(downloadUrl, createBackup, progressCallback);
         } catch (error) {
             console.error('Failed to perform update:', error);
             throw error;
@@ -166,9 +222,10 @@ export function useWails() {
         sourcePath: string,
         progressCallback: (message: string) => void
     ): Promise<void> => {
-        if (!window.wails) return;
+        const wails = getWailsApp();
+        if (!wails) return;
         try {
-            await window.wails.ImportDataFromPath(sourcePath, progressCallback);
+            await wails.ImportDataFromPath(sourcePath, progressCallback);
         } catch (error) {
             console.error('Failed to import data:', error);
             throw error;
@@ -176,9 +233,10 @@ export function useWails() {
     }, []);
 
     const Login = useCallback(async (email: string, password: string): Promise<LoginResult | null> => {
-        if (!window.wails) return null;
+        const wails = getWailsApp();
+        if (!wails) return null;
         try {
-            return await window.wails.Login(email, password);
+            return await wails.Login(email, password);
         } catch (error) {
             console.error('Login failed:', error);
             return null;
@@ -186,18 +244,20 @@ export function useWails() {
     }, []);
 
     const Logout = useCallback(async (): Promise<void> => {
-        if (!window.wails) return;
+        const wails = getWailsApp();
+        if (!wails) return;
         try {
-            await window.wails.Logout();
+            await wails.Logout();
         } catch (error) {
             console.error('Logout failed:', error);
         }
     }, []);
 
     const GetAuthStatus = useCallback(async (): Promise<AuthStatus | null> => {
-        if (!window.wails) return null;
+        const wails = getWailsApp();
+        if (!wails) return null;
         try {
-            return await window.wails.GetAuthStatus();
+            return await wails.GetAuthStatus();
         } catch (error) {
             console.error('Failed to get auth status:', error);
             return null;
@@ -205,9 +265,10 @@ export function useWails() {
     }, []);
 
     const GetCentralServerUrl = useCallback(async (): Promise<string> => {
-        if (!window.wails) return '';
+        const wails = getWailsApp();
+        if (!wails) return '';
         try {
-            return await window.wails.GetCentralServerUrl();
+            return await wails.GetCentralServerUrl();
         } catch (error) {
             console.error('Failed to get central server URL:', error);
             return '';

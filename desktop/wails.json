@@ -3,7 +3,7 @@
   "name": "INAMSOS",
   "outputfilename": "INAMSOS",
   "frontend:install": "npm install --prefix ../frontend",
-  "frontend:build": "node scripts/sync-frontend.js",
+  "frontend:build": "node ../scripts/sync-frontend.js",
   "frontend:dev:watcher": "npm run dev --prefix ../frontend",
   "frontend:dev:serverUrl": "http://localhost:3000",
   "author": {

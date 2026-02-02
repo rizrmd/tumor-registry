@@ -20,7 +20,14 @@ export class RemotePrismaService implements OnModuleDestroy {
         if (prop in target || typeof prop === 'symbol') {
           return (target as any)[prop];
         }
-        
+
+        // Allow Promise-like and NestJS lifecycle checks to pass through without error
+        // These are checked by NestJS/NestJS DI during initialization
+        const specialProps = ['then', 'catch', 'finally', 'onModuleInit', 'onModuleDestroy', 'onApplicationBootstrap', 'onApplicationShutdown'];
+        if (specialProps.includes(prop as string)) {
+          return undefined;
+        }
+
         // Otherwise, proxy to the PrismaClient
         const client = target.getClientOrNull();
         if (client) {
@@ -30,7 +37,7 @@ export class RemotePrismaService implements OnModuleDestroy {
           }
           return value;
         }
-        
+
         // Return a dummy function that throws if called when not initialized
         return (...args: any[]) => {
           throw new Error(

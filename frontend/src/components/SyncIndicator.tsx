@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { useSync, SyncPhase } from '@/contexts/SyncContext';
 
 export function SyncIndicator() {
@@ -162,14 +163,22 @@ export function SyncIndicator() {
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
                                     <p className="text-xl font-bold text-yellow-600">{statistics.pending}</p>
                                 </div>
-                                <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Conflicts</p>
+                                <Link 
+                                    href="/sync/conflicts"
+                                    className="p-2.5 rounded-lg bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors cursor-pointer block"
+                                    onClick={() => setIsOpen(false)}
+                                >
+                                    <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Conflicts</p>
                                     <p className="text-xl font-bold text-orange-600">{statistics.conflict}</p>
-                                </div>
-                                <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Failed</p>
+                                </Link>
+                                <Link 
+                                    href="/sync/conflicts"
+                                    className="p-2.5 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer block"
+                                    onClick={() => setIsOpen(false)}
+                                >
+                                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Failed</p>
                                     <p className="text-xl font-bold text-red-600">{statistics.failed}</p>
-                                </div>
+                                </Link>
                             </div>
                         </div>
 
@@ -234,13 +243,13 @@ export function SyncIndicator() {
                     </div>
 
                     <div className="p-3 bg-gray-50/50 border-t border-gray-50">
-                        <a
-                            href="/settings"
+                        <Link
+                            href="/sync/conflicts"
                             className="text-xs text-emerald-600 font-medium hover:text-emerald-700 block text-center"
                             onClick={() => setIsOpen(false)}
                         >
-                            Advanced Sync Settings
-                        </a>
+                            Manage Sync Conflicts & Issues
+                        </Link>
                     </div>
                 </div>
             )}

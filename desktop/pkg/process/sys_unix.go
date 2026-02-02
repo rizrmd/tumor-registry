@@ -41,7 +41,6 @@ func KillProcessGroup(cmd *exec.Cmd, sig Signal) error {
 }
 
 func CleanupPort(port int) {
-	fmt.Printf("⚠️  Checking port %d...\n", port)
 	// Use sh -c for unix pipes
-	exec.Command("sh", "-c", fmt.Sprintf("lsof -i :%d -t | xargs kill -9", port)).Run()
+	exec.Command("sh", "-c", fmt.Sprintf("lsof -i :%d -t | xargs kill -9 2>/dev/null", port)).Run()
 }
