@@ -1,17 +1,20 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"desktop/pkg/process"
-	"path/filepath"
-	"os"
-	"net/http"
 	"io"
-	"time"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"sync"
+	"time"
+	"desktop/pkg/process"
 )
 
 const (
@@ -56,6 +59,29 @@ type VersionCheckResponse struct {
 		Changelog       []string  `json:"changelog"`
 		Message         string    `json:"message,omitempty"`
 	} `json:"data"`
+}
+
+// BackupInfo represents information about a backup
+type BackupInfo struct {
+	BackupPath string `json:"backupPath"`
+	Timestamp  string `json:"timestamp"`
+	Version    string `json:"version"`
+	Size       int64  `json:"size"`
+}
+
+// BackupProgress represents progress during backup operation
+type BackupProgress struct {
+	Stage     string  `json:"stage"` // "database", "files", "compressing", "complete"
+	Progress  float64 `json:"progress"`
+	Message   string  `json:"message"`
+	BackupPath string `json:"backupPath,omitempty"`
+}
+
+// UpdateProgress represents progress during update operation
+type UpdateProgress struct {
+	Stage    string  `json:"stage"` // "downloading", "backup", "installing", "complete"
+	Progress float64 `json:"progress"`
+	Message  string  `json:"message"`
 }
 
 // NewApp creates a new App application struct
@@ -393,3 +419,534 @@ func (a *App) backgroundUpdateChecker() {
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
+
+// ==================== BACKUP FUNCTIONALITY ====================
+
+// CreateBackup creates a backup of the application data
+func (a *App) CreateBackup() (*BackupInfo, error) {
+	if a.Manager == nil {
+		return nil, fmt.Errorf("manager not initialized")
+	}
+
+	timestamp := time.Now().Format("20060102-150405")
+	backupFileName := fmt.Sprintf("inamsos-backup-%s.zip", timestamp)
+	backupDir := filepath.Join(a.Manager.DataDir, "backups")
+
+	// Create backups directory
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create backup directory: %w", err)
+	}
+
+	backupPath := filepath.Join(backupDir, backupFileName)
+
+	fmt.Printf("Creating backup at: %s\n", backupPath)
+
+	// Create zip file
+	zipFile, err := os.Create(backupPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create backup file: %w", err)
+	}
+	defer zipFile.Close()
+
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	// Walk the data directory and add files to zip
+	err = filepath.Walk(a.Manager.DataDir, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the backup directory itself
+		if info.IsDir() && filepath.Base(filePath) == "backups" {
+			return filepath.SkipDir
+		}
+
+		// Get relative path
+		relPath, err := filepath.Rel(a.Manager.DataDir, filePath)
+		if err != nil {
+			return err
+		}
+
+		// Create zip header
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		header.Name = relPath
+		header.Method = zip.Deflate
+
+		// Create writer in zip
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+
+		// If directory, just create the entry
+		if info.IsDir() {
+			return nil
+		}
+
+		// Copy file content
+		file, err := os.Open(filePath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		_, err = io.Copy(writer, file)
+		return err
+	})
+
+	if err != nil {
+		os.Remove(backupPath)
+		return nil, fmt.Errorf("failed to create backup: %w", err)
+	}
+
+	// Get file size
+	info, _ := os.Stat(backupPath)
+
+	return &BackupInfo{
+		BackupPath: backupPath,
+		Timestamp:  timestamp,
+		Version:    AppVersion,
+		Size:       info.Size(),
+	}, nil
+}
+
+// ListBackups returns list of available backups
+func (a *App) ListBackups() ([]BackupInfo, error) {
+	if a.Manager == nil {
+		return nil, fmt.Errorf("manager not initialized")
+	}
+
+	backupDir := filepath.Join(a.Manager.DataDir, "backups")
+	files, err := os.ReadDir(backupDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []BackupInfo{}, nil
+		}
+		return nil, err
+	}
+
+	var backups []BackupInfo
+	for _, file := range files {
+		if filepath.Ext(file.Name()) != ".zip" {
+			continue
+		}
+
+		filePath := filepath.Join(backupDir, file.Name())
+		info, err := file.Info()
+		if err != nil {
+			continue
+		}
+
+		backups = append(backups, BackupInfo{
+			BackupPath: filePath,
+			Timestamp:  info.ModTime().Format("20060102-150405"),
+			Version:    AppVersion,
+			Size:       info.Size(),
+		})
+	}
+
+	// Sort by timestamp (newest first)
+	// Reverse sort
+	for i, j := 0, len(backups)-1; i < j; i, j = i+1, j-1 {
+		backups[i], backups[j] = backups[j], backups[i]
+	}
+
+	return backups, nil
+}
+
+// RestoreBackup restores data from a backup file
+func (a *App) RestoreBackup(backupPath string) error {
+	if a.Manager == nil {
+		return fmt.Errorf("manager not initialized")
+	}
+
+	// Stop services
+	a.Manager.StopAll()
+
+	// Open zip file
+	zipReader, err := zip.OpenReader(backupPath)
+	if err != nil {
+		return fmt.Errorf("failed to open backup: %w", err)
+	}
+	defer zipReader.Close()
+
+	// Extract files
+	for _, file := range zipReader.File {
+		filePath := filepath.Join(a.Manager.DataDir, file.Name)
+
+		// Create directory if needed
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(filePath, 0755)
+			continue
+		}
+
+		// Create parent directory
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
+		}
+
+		// Extract file
+		srcFile, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("failed to open file in zip: %w", err)
+		}
+		defer srcFile.Close()
+
+		dstFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+		if err != nil {
+			return fmt.Errorf("failed to create file: %w", err)
+		}
+
+		_, err = io.Copy(dstFile, srcFile)
+		dstFile.Close()
+		if err != nil {
+			return fmt.Errorf("failed to extract file: %w", err)
+		}
+	}
+
+	// Restart services
+	go func() {
+		if err := a.Manager.StartPostgres(); err != nil {
+			fmt.Printf("Error starting postgres after restore: %v\n", err)
+		}
+		if err := a.Manager.StartBackend(); err != nil {
+			fmt.Printf("Error starting backend after restore: %v\n", err)
+		}
+	}()
+
+	return nil
+}
+
+// DeleteBackup deletes a backup file
+func (a *App) DeleteBackup(backupPath string) error {
+	return os.Remove(backupPath)
+}
+
+// ==================== UPDATE FUNCTIONALITY ====================
+
+// DownloadUpdate downloads the update to a temporary location
+func (a *App) DownloadUpdate(downloadUrl string, progressCallback func(string)) (string, error) {
+	tmpDir := os.TempDir()
+	extension := ".zip"
+
+	// Determine extension based on platform
+	switch runtime.GOOS {
+	case "darwin":
+		extension = ".dmg"
+	case "windows":
+		extension = ".exe"
+	case "linux":
+		extension = ".AppImage"
+	}
+
+	tmpFile := filepath.Join(tmpDir, fmt.Sprintf("inamsos-update-%s%s", time.Now().Format("20060102-150405"), extension))
+
+	if progressCallback != nil {
+		progressCallback("Starting download...")
+	}
+
+	// Download file
+	resp, err := http.Get(downloadUrl)
+	if err != nil {
+		return "", fmt.Errorf("failed to download update: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("download failed with status: %d", resp.StatusCode)
+	}
+
+	// Create file
+	out, err := os.Create(tmpFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %w", err)
+	}
+	defer out.Close()
+
+	// Track progress
+	totalSize := resp.ContentLength
+	var downloaded int64
+
+	// Copy with progress tracking
+	buffer := make([]byte, 32*1024)
+	for {
+		n, err := resp.Body.Read(buffer)
+		if n > 0 {
+			wrote, _ := out.Write(buffer[:n])
+			downloaded += int64(wrote)
+
+			if progressCallback != nil && totalSize > 0 {
+				progress := float64(downloaded) / float64(totalSize) * 100
+				progressCallback(fmt.Sprintf("Downloading: %.1f%%", progress))
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("download error: %w", err)
+		}
+	}
+
+	if progressCallback != nil {
+		progressCallback("Download complete")
+	}
+
+	return tmpFile, nil
+}
+
+// InstallUpdate installs the downloaded update
+func (a *App) InstallUpdate(updateFilePath string, backupPath string, progressCallback func(string)) error {
+	if progressCallback != nil {
+		progressCallback("Preparing installation...")
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	exeDir := filepath.Dir(exePath)
+
+	switch runtime.GOOS {
+	case "darwin":
+		return a.installUpdateMacOS(updateFilePath, exeDir, progressCallback)
+	case "windows":
+		return a.installUpdateWindows(updateFilePath, exeDir, progressCallback)
+	case "linux":
+		return a.installUpdateLinux(updateFilePath, exeDir, progressCallback)
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+}
+
+// installUpdateMacOS handles update installation on macOS
+func (a *App) installUpdateMacOS(updateFilePath string, _exeDir string, progressCallback func(string)) error {
+	if progressCallback != nil {
+		progressCallback("Opening installer...")
+	}
+
+	// Open the DMG file
+	cmd := exec.Command("open", updateFilePath)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to open DMG: %w", err)
+	}
+
+	if progressCallback != nil {
+		progressCallback("Please follow the installation instructions in the DMG")
+	}
+
+	return nil
+}
+
+// installUpdateWindows handles update installation on Windows
+func (a *App) installUpdateWindows(updateFilePath string, exeDir string, progressCallback func(string)) error {
+	if progressCallback != nil {
+		progressCallback("Launching installer...")
+	}
+
+	// Launch the installer
+	cmd := exec.Command(updateFilePath)
+	cmd.Dir = exeDir
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to launch installer: %w", err)
+	}
+
+	if progressCallback != nil {
+		progressCallback("Installer launched")
+	}
+
+	return nil
+}
+
+// installUpdateLinux handles update installation on Linux
+func (a *App) installUpdateLinux(updateFilePath string, exeDir string, progressCallback func(string)) error {
+	if progressCallback != nil {
+		progressCallback("Making AppImage executable...")
+	}
+
+	// Make AppImage executable
+	if err := os.Chmod(updateFilePath, 0755); err != nil {
+		return fmt.Errorf("failed to make AppImage executable: %w", err)
+	}
+
+	if progressCallback != nil {
+		progressCallback("Launching new version...")
+	}
+
+	// Launch the new AppImage
+	cmd := exec.Command(updateFilePath)
+	cmd.Dir = exeDir
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to launch AppImage: %w", err)
+	}
+
+	return nil
+}
+
+// PerformUpdate performs the complete update process with backup
+func (a *App) PerformUpdate(downloadUrl string, createBackup bool, progressCallback func(string)) error {
+	if progressCallback != nil {
+		progressCallback("Starting update process...")
+	}
+
+	// Step 1: Create backup if requested
+	var backupPath string
+	if createBackup {
+		if progressCallback != nil {
+			progressCallback("Creating backup...")
+		}
+
+		backupInfo, err := a.CreateBackup()
+		if err != nil {
+			return fmt.Errorf("backup failed: %w", err)
+		}
+		backupPath = backupInfo.BackupPath
+
+		if progressCallback != nil {
+			progressCallback(fmt.Sprintf("Backup created: %s", backupPath))
+		}
+	}
+
+	// Step 2: Download update
+	downloadPath, err := a.DownloadUpdate(downloadUrl, progressCallback)
+	if err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+
+	// Step 3: Install update
+	if progressCallback != nil {
+		progressCallback("Installing update...")
+	}
+
+	if err := a.InstallUpdate(downloadPath, backupPath, progressCallback); err != nil {
+		return fmt.Errorf("installation failed: %w", err)
+	}
+
+	if progressCallback != nil {
+		progressCallback("Update complete!")
+	}
+
+	return nil
+}
+
+// ==================== DATA MIGRATION ====================
+
+// ImportDataFromPath imports data from a previous installation
+func (a *App) ImportDataFromPath(sourcePath string, progressCallback func(string)) error {
+	if a.Manager == nil {
+		return fmt.Errorf("manager not initialized")
+	}
+
+	if progressCallback != nil {
+		progressCallback("Checking source path...")
+	}
+
+	// Check if source exists
+	if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
+		return fmt.Errorf("source path does not exist: %s", sourcePath)
+	}
+
+	// Check if source has data directory
+	sourceDataDir := filepath.Join(sourcePath, "data")
+	if _, err := os.Stat(sourceDataDir); os.IsNotExist(err) {
+		// Maybe the sourcePath IS the data directory
+		sourceDataDir = sourcePath
+	}
+
+	if progressCallback != nil {
+		progressCallback("Stopping services...")
+	}
+
+	// Stop services
+	a.Manager.StopAll()
+
+	if progressCallback != nil {
+		progressCallback("Migrating data...")
+	}
+
+	// Copy data files
+	err := filepath.Walk(sourceDataDir, func(sourcePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Calculate relative path
+		relPath, err := filepath.Rel(sourceDataDir, sourcePath)
+		if err != nil {
+			return err
+		}
+
+		destPath := filepath.Join(a.Manager.DataDir, relPath)
+
+		// Create directory
+		if info.IsDir() {
+			return os.MkdirAll(destPath, info.Mode())
+		}
+
+		// Copy file
+		return copyFile(sourcePath, destPath)
+	})
+
+	if err != nil {
+		go a.restartServices()
+		return fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	if progressCallback != nil {
+		progressCallback("Restarting services...")
+	}
+
+	// Restart services
+	a.restartServices()
+
+	if progressCallback != nil {
+		progressCallback("Migration complete!")
+	}
+
+	return nil
+}
+
+// restartServices restarts the backend services
+func (a *App) restartServices() {
+	if err := a.Manager.StartPostgres(); err != nil {
+		fmt.Printf("Error starting postgres: %v\n", err)
+	}
+	if err := a.Manager.StartBackend(); err != nil {
+		fmt.Printf("Error starting backend: %v\n", err)
+	}
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	// Copy file contents
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	// Copy file mode
+	sourceInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(dst, sourceInfo.Mode())
+}
+

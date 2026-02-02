@@ -12,6 +12,18 @@ declare global {
         CheckForUpdates: () => Promise<UpdateInfo>;
         GetCachedUpdateInfo: () => Promise<UpdateInfo>;
 
+        // Backup methods
+        CreateBackup: () => Promise<BackupInfo>;
+        ListBackups: () => Promise<BackupInfo[]>;
+        RestoreBackup: (backupPath: string) => Promise<void>;
+        DeleteBackup: (backupPath: string) => Promise<void>;
+
+        // Update methods
+        PerformUpdate: (downloadUrl: string, createBackup: boolean, progressCallback: (message: string) => void) => Promise<void>;
+
+        // Data migration
+        ImportDataFromPath: (sourcePath: string, progressCallback: (message: string) => void) => Promise<void>;
+
         // Auth methods
         Login: (email: string, password: string) => Promise<LoginResult>;
         Logout: () => Promise<void>;
@@ -33,6 +45,13 @@ export interface UpdateInfo {
     releaseDate: string;
     changelog: string[];
     message?: string;
+}
+
+export interface BackupInfo {
+    backupPath: string;
+    timestamp: string;
+    version: string;
+    size: number;
 }
 
 export interface LoginResult {
@@ -89,6 +108,73 @@ export function useWails() {
         }
     }, []);
 
+    const CreateBackup = useCallback(async (): Promise<BackupInfo | null> => {
+        if (!window.wails) return null;
+        try {
+            return await window.wails.CreateBackup();
+        } catch (error) {
+            console.error('Failed to create backup:', error);
+            throw error;
+        }
+    }, []);
+
+    const ListBackups = useCallback(async (): Promise<BackupInfo[] | null> => {
+        if (!window.wails) return null;
+        try {
+            return await window.wails.ListBackups();
+        } catch (error) {
+            console.error('Failed to list backups:', error);
+            return null;
+        }
+    }, []);
+
+    const RestoreBackup = useCallback(async (backupPath: string): Promise<void> => {
+        if (!window.wails) return;
+        try {
+            await window.wails.RestoreBackup(backupPath);
+        } catch (error) {
+            console.error('Failed to restore backup:', error);
+            throw error;
+        }
+    }, []);
+
+    const DeleteBackup = useCallback(async (backupPath: string): Promise<void> => {
+        if (!window.wails) return;
+        try {
+            await window.wails.DeleteBackup(backupPath);
+        } catch (error) {
+            console.error('Failed to delete backup:', error);
+            throw error;
+        }
+    }, []);
+
+    const PerformUpdate = useCallback(async (
+        downloadUrl: string,
+        createBackup: boolean,
+        progressCallback: (message: string) => void
+    ): Promise<void> => {
+        if (!window.wails) return;
+        try {
+            await window.wails.PerformUpdate(downloadUrl, createBackup, progressCallback);
+        } catch (error) {
+            console.error('Failed to perform update:', error);
+            throw error;
+        }
+    }, []);
+
+    const ImportDataFromPath = useCallback(async (
+        sourcePath: string,
+        progressCallback: (message: string) => void
+    ): Promise<void> => {
+        if (!window.wails) return;
+        try {
+            await window.wails.ImportDataFromPath(sourcePath, progressCallback);
+        } catch (error) {
+            console.error('Failed to import data:', error);
+            throw error;
+        }
+    }, []);
+
     const Login = useCallback(async (email: string, password: string): Promise<LoginResult | null> => {
         if (!window.wails) return null;
         try {
@@ -133,6 +219,12 @@ export function useWails() {
         GetAppVersion,
         CheckForUpdates,
         GetCachedUpdateInfo,
+        CreateBackup,
+        ListBackups,
+        RestoreBackup,
+        DeleteBackup,
+        PerformUpdate,
+        ImportDataFromPath,
         Login,
         Logout,
         GetAuthStatus,
