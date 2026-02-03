@@ -65,7 +65,7 @@ jobs:
 
       - name: Build Wails app
         working-directory: ./desktop
-        run: wails build -skipfrontend
+        run: wails build -clean
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
