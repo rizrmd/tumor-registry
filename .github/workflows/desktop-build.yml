@@ -2,162 +2,89 @@ name: Build Desktop Binaries
 
 on:
   push:
-    branches: [ main ]
     tags:
       - 'v*'
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.event.after || github.sha }}
-  cancel-in-progress: true
+permissions:
+  contents: write
 
 jobs:
   build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            platform: darwin/universal
-            artifact_name: tumor-registry-macos
-          - os: windows-latest
-            platform: windows/amd64
-            artifact_name: tumor-registry-windows
           - os: ubuntu-22.04
             platform: linux/amd64
-            artifact_name: tumor-registry-linux
-
-    runs-on: ${{ matrix.os }}
+            name: tumor-registry-linux
+          - os: macos-latest
+            platform: darwin/universal
+            name: tumor-registry-macos
+          - os: windows-latest
+            platform: windows/amd64
+            name: tumor-registry-windows
 
     steps:
-      - name: Delay branch build
-        if: github.event_name == 'push' && github.ref_type == 'branch'
-        run: sleep 20
-
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: |
-            frontend/package-lock.json
-            backend/package-lock.json
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
           cache: true
-          cache-dependency-path: desktop/go.sum
 
-      - name: Install Wails CLI
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Install Linux Dependencies
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm install
 
-      - name: Build Frontend
-        working-directory: frontend
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:3001
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Build backend
+        working-directory: ./backend
         run: |
-          npm ci || npm install
+          npm install
           npm run build
 
-      - name: Build Backend
-        working-directory: backend
-        run: |
-          bun install
-          bunx prisma generate
-          bun run build
+      - name: Build Wails app
+        working-directory: ./desktop
+        run: wails build
 
-      - name: Setup Sidecar Binaries (Postgres)
-        working-directory: desktop/scripts
-        shell: bash
-        run: ./setup-binaries.sh
-
-      - name: Prepare Backend Sidecar
-        shell: bash
-        run: |
-          mkdir -p bin/backend
-          cp -r backend/dist_user/* bin/backend/
-          # Ensure package.json is also copied so it can be run
-          cp backend/package.json bin/backend/
-          # We might need production node_modules, but for now we assume system node carries the weight
-          # or we just copy the whole backend if needed.
-          # For a real sidecar, we should probably bundle everything.
-
-      - name: Build Desktop App
-        working-directory: desktop
-        shell: bash
-        run: |
-          mkdir -p frontend/dist
-          cp -r ../frontend/out/* frontend/dist/
-          wails build -platform ${{ matrix.platform }} -s
-
-      - name: Rename Binaries
-        shell: bash
-        run: |
-          mkdir -p artifacts
-          # Copy sidecar bin directory to build output
-          cp -r bin/ desktop/build/bin/
-          
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cd desktop/build/bin/
-            7z a ../../../artifacts/tumor-registry-windows.zip .
-            cd ../../../
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            cd desktop/build/bin/
-            zip -r ../../../artifacts/tumor-registry-macos.zip .
-            cd ../../../
-          else
-            cd desktop/build/bin/
-            tar -czf ../../../artifacts/tumor-registry-linux.tar.gz .
-            cd ../../../
-          fi
-
-      - name: Upload Artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: artifacts/*
+          name: ${{ matrix.name }}
+          path: desktop/build/bin/*
+          retention-days: 30
 
   release:
+    name: Create Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/')
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Display structure of downloaded artifacts
-        run: ls -R artifacts
-
-      - name: Create Release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            artifacts/tumor-registry-macos/tumor-registry-macos.zip
-            artifacts/tumor-registry-windows/tumor-registry-windows.zip
-            artifacts/tumor-registry-linux/tumor-registry-linux.tar.gz
-          draft: false
-          prerelease: false
+          files: artifacts/**/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
