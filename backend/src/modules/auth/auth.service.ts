@@ -334,18 +334,18 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: process.env.JWT_EXPIRES_IN || '15m',
-    });
+    } as any);
 
     const refreshToken = this.jwtService.sign(
-      { 
-        sub: user.id, 
+      {
+        sub: user.id,
         email: user.email,
         passwordVersion: user.updatedAt.getTime(),
       },
       {
         secret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
         expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-      }
+      } as any
     );
 
     // Store refresh token in database
