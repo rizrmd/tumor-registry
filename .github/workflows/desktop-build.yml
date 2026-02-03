@@ -58,9 +58,12 @@ jobs:
           npm install
           npm run build
 
+      - name: Sync frontend to desktop
+        run: node scripts/sync-frontend.js
+
       - name: Build Wails app
         working-directory: ./desktop
-        run: wails build
+        run: wails build -skipfrontend
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
