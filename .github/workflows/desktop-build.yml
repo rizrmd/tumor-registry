@@ -51,6 +51,8 @@ jobs:
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
+        env:
+          NEXT_PUBLIC_STATIC_EXPORT: "true"
 
       - name: Build backend
         working-directory: ./backend
