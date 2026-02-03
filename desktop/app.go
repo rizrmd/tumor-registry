@@ -1,8 +1,10 @@
 package main
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -1016,8 +1018,10 @@ func (a *App) PerformSetup(progressCallback func(*SetupProgress)) error {
 		return fmt.Errorf("manager not initialized")
 	}
 
-	// Create binaries directory
-	binDir := filepath.Join(a.Manager.DataDir, "bin")
+	// Create binaries directory structure that process manager expects
+	// Process Manager looks for: ~/.inamsos-desktop/bin/bin/postgres
+	binBaseDir := filepath.Join(a.Manager.DataDir, "bin")
+	binDir := filepath.Join(binBaseDir, "bin") // This is where Manager.BinDir points
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
@@ -1025,7 +1029,7 @@ func (a *App) PerformSetup(progressCallback func(*SetupProgress)) error {
 	var wg sync.WaitGroup
 	errors := make(chan error, 2)
 	bunPath := ""
-	postgresPath := ""
+	postgresDownloaded := false
 
 	// Step 1: Download binaries in parallel
 	progressCallback(&SetupProgress{Stage: "checking", Progress: 0, Message: "Checking requirements..."})
@@ -1036,7 +1040,8 @@ func (a *App) PerformSetup(progressCallback func(*SetupProgress)) error {
 	go func() {
 		defer wg.Done()
 		progressCallback(&SetupProgress{Stage: "downloading-bun", Progress: 10, Message: "Downloading Bun runtime..."})
-		path, err := a.downloadBun(binDir, progressCallback)
+		// Download bun to binBaseDir (not binDir to avoid nesting)
+		path, err := a.downloadBun(binBaseDir, progressCallback)
 		if err != nil {
 			errors <- fmt.Errorf("failed to download Bun: %w", err)
 			return
@@ -1048,12 +1053,12 @@ func (a *App) PerformSetup(progressCallback func(*SetupProgress)) error {
 	go func() {
 		defer wg.Done()
 		progressCallback(&SetupProgress{Stage: "downloading-postgres", Progress: 20, Message: "Downloading PostgreSQL..."})
-		path, err := a.downloadPostgreSQL(binDir, progressCallback)
-		if err != nil {
+		// Download PostgreSQL binaries to binDir where process manager expects them
+		if err := a.downloadPostgreSQL(binDir, progressCallback); err != nil {
 			errors <- fmt.Errorf("failed to download PostgreSQL: %w", err)
 			return
 		}
-		postgresPath = path
+		postgresDownloaded = true
 	}()
 
 	wg.Wait()
@@ -1070,6 +1075,10 @@ func (a *App) PerformSetup(progressCallback func(*SetupProgress)) error {
 		return fmt.Errorf("Bun download failed")
 	}
 
+	if !postgresDownloaded {
+		return fmt.Errorf("PostgreSQL download failed")
+	}
+
 	// Step 2: Install dependencies with Bun (after Bun is ready)
 	progressCallback(&SetupProgress{Stage: "installing-deps", Progress: 50, Message: "Installing dependencies (this may take a minute)..."})
 	if err := a.installDependencies(bunPath, progressCallback); err != nil {
@@ -1078,7 +1087,7 @@ func (a *App) PerformSetup(progressCallback func(*SetupProgress)) error {
 
 	// Step 3: Initialize database
 	progressCallback(&SetupProgress{Stage: "initializing-db", Progress: 80, Message: "Initializing database..."})
-	if err := a.initializeDatabase(bunPath, postgresPath, progressCallback); err != nil {
+	if err := a.initializeDatabase(bunPath, progressCallback); err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
@@ -1159,14 +1168,134 @@ func (a *App) downloadBun(binDir string, progressCallback func(*SetupProgress)) 
 	return bunExe, nil
 }
 
-// downloadPostgreSQL downloads PostgreSQL binaries
-func (a *App) downloadPostgreSQL(binDir string, progressCallback func(*SetupProgress)) (string, error) {
-	// For now, use SQLite as a simpler alternative
-	// PostgreSQL can be added later if needed
-	progressCallback(&SetupProgress{Stage: "downloading-postgres", Progress: 30, Message: "Using embedded database..."})
+// downloadPostgreSQL downloads PostgreSQL binaries to the specified directory
+// Downloads and extracts directly to binDir where process manager expects them
+func (a *App) downloadPostgreSQL(binDir string, progressCallback func(*SetupProgress)) error {
+	// Determine platform-specific URL
+	// Using theseus-rs/postgresql-binaries GitHub release
+	version := "18.1.0"
+	var url string
+	var archiveName string
 
-	// Return empty path to indicate we're using SQLite
-	return "", nil
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS
+		if runtime.GOARCH == "arm64" {
+			archiveName = fmt.Sprintf("postgresql-%s-aarch64-apple-darwin.tar.gz", version)
+		} else {
+			archiveName = fmt.Sprintf("postgresql-%s-x86_64-apple-darwin.tar.gz", version)
+		}
+	case "linux":
+		archiveName = fmt.Sprintf("postgresql-%s-x86_64-unknown-linux-gnu.tar.gz", version)
+	case "windows":
+		// Use .zip for Windows
+		archiveName = fmt.Sprintf("postgresql-%s-x86_64-pc-windows-msvc.zip", version)
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	url = fmt.Sprintf("https://github.com/theseus-rs/postgresql-binaries/releases/download/%s/%s", version, archiveName)
+
+	// Download to temp location first
+	tempDir := os.TempDir()
+	archivePath := filepath.Join(tempDir, archiveName)
+
+	if err := a.downloadFile(url, archivePath, func(p float64) {
+		if progressCallback != nil {
+			progressCallback(&SetupProgress{Stage: "downloading-postgres", Progress: 20 + p*0.08, Message: fmt.Sprintf("Downloading PostgreSQL: %.0f%%", p)})
+		}
+	}); err != nil {
+		return fmt.Errorf("failed to download PostgreSQL: %w", err)
+	}
+
+	progressCallback(&SetupProgress{Stage: "downloading-postgres", Progress: 28, Message: "Extracting PostgreSQL..."})
+
+	// Extract to temp directory first
+	tempExtractDir := filepath.Join(tempDir, "postgres-extract")
+	if err := os.MkdirAll(tempExtractDir, 0755); err != nil {
+		return err
+	}
+
+	// Extract based on file type
+	if filepath.Ext(archivePath) == ".zip" {
+		if err := a.unzipArchive(archivePath, tempExtractDir); err != nil {
+			return fmt.Errorf("failed to extract PostgreSQL: %w", err)
+		}
+	} else {
+		// tar.gz extraction
+		if err := a.untarGz(archivePath, tempExtractDir); err != nil {
+			return fmt.Errorf("failed to extract PostgreSQL: %w", err)
+		}
+	}
+
+	// Clean up archive
+	os.Remove(archivePath)
+
+	// Find the bin directory within extracted content and copy binaries
+	// The postgresql binaries are usually in a subdirectory like postgresql-18.1.0/bin/
+	entries, _ := os.ReadDir(tempExtractDir)
+	var pgBinDir string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			subBin := filepath.Join(tempExtractDir, entry.Name(), "bin")
+			if _, err := os.Stat(subBin); err == nil {
+				pgBinDir = subBin
+				break
+			}
+		}
+	}
+
+	if pgBinDir == "" {
+		return fmt.Errorf("could not find PostgreSQL binaries in extracted archive")
+	}
+
+	// Copy binaries to target binDir
+	binaries, err := os.ReadDir(pgBinDir)
+	if err != nil {
+		return fmt.Errorf("failed to read PostgreSQL bin directory: %w", err)
+	}
+
+	for _, binary := range binaries {
+		srcPath := filepath.Join(pgBinDir, binary.Name())
+		dstPath := filepath.Join(binDir, binary.Name())
+
+		srcFile, err := os.Open(srcPath)
+		if err != nil {
+			continue
+		}
+		defer srcFile.Close()
+
+		dstFile, err := os.OpenFile(dstPath, os.O_CREATE|os.O_WRONLY, 0755)
+		if err != nil {
+			srcFile.Close()
+			continue
+		}
+		defer dstFile.Close()
+
+		_, err = io.Copy(dstFile, srcFile)
+		if err != nil {
+			srcFile.Close()
+			dstFile.Close()
+			continue
+		}
+	}
+
+	// Clean up temp extract directory
+	os.RemoveAll(tempExtractDir)
+
+	// Make executables executable on Unix
+	if runtime.GOOS != "windows" {
+		files, _ := os.ReadDir(binDir)
+		for _, f := range files {
+			if !f.IsDir() {
+				os.Chmod(filepath.Join(binDir, f.Name()), 0755)
+			}
+		}
+	}
+
+	progressCallback(&SetupProgress{Stage: "downloading-postgres", Progress: 30, Message: "PostgreSQL downloaded"})
+
+	return nil
 }
 
 // installDependencies runs bun install in the backend directory
@@ -1204,7 +1333,7 @@ func (a *App) installDependencies(bunPath string, progressCallback func(*SetupPr
 }
 
 // initializeDatabase runs database migrations
-func (a *App) initializeDatabase(bunPath string, postgresPath string, progressCallback func(*SetupProgress)) error {
+func (a *App) initializeDatabase(bunPath string, progressCallback func(*SetupProgress)) error {
 	backendDir := filepath.Join(a.getEmbeddedResourcesDir(), "backend")
 
 	// Run migrations (using deploy for production)
@@ -1305,6 +1434,76 @@ func (a *App) unzipArchive(archivePath string, destDir string) error {
 
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// untarGz extracts a tar.gz archive
+func (a *App) untarGz(archivePath string, destDir string) error {
+	// Open the tar.gz file
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Create gzip reader
+	gzReader, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	defer gzReader.Close()
+
+	// Create tar reader
+	tarReader := tar.NewReader(gzReader)
+
+	// Iterate through the files in the archive
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		// Construct the full path
+		targetPath := filepath.Join(destDir, header.Name)
+
+		// Check the file type
+		switch header.Typeflag {
+		case tar.TypeDir:
+			// Create directory
+			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			// Create file
+			// Ensure parent directory exists
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				return err
+			}
+
+			// Create the file
+			outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
+			if err != nil {
+				return err
+			}
+
+			// Copy the file content
+			_, err = io.Copy(outFile, tarReader)
+			outFile.Close()
+			if err != nil {
+				return err
+			}
+		case tar.TypeSymlink:
+			// Create symbolic link
+			if err := os.Symlink(header.Linkname, targetPath); err != nil {
+				// Skip symlinks on Windows or if creation fails
+				continue
+			}
 		}
 	}
 
