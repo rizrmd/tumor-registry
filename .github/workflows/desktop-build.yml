@@ -73,6 +73,12 @@ jobs:
         working-directory: ./desktop
         run: wails build -clean
 
+      - name: Sign macOS app (ad-hoc)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep --sign - desktop/build/bin/INAMSOS.app
+          codesign --verify --verbose desktop/build/bin/INAMSOS.app
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
