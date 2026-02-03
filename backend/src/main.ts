@@ -56,6 +56,8 @@ async function bootstrap() {
     'wails.localhost',
     'https://wails.localhost',
     'wails://localhost',
+    'app://wails',
+    'wails://',
     'file://',
     null, // Allow file:// origins (desktop apps)
     configService.get<string>('FRONTEND_URL'),
