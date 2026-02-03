@@ -13,14 +13,14 @@ export class TokenService {
   generateAccessToken(payload: JwtPayload): string {
     return this.nestJwtService.sign(payload, {
       secret: this.configService.get<string>('jwt.secret'),
-      expiresIn: this.configService.get<string>('jwt.expiresIn'),
+      expiresIn: this.configService.get<string>('jwt.expiresIn') as string | number,
     });
   }
 
   generateRefreshToken(payload: JwtPayload): string {
     return this.nestJwtService.sign(payload, {
       secret: this.configService.get<string>('jwt.refreshSecret'),
-      expiresIn: this.configService.get<string>('jwt.refreshExpiresIn'),
+      expiresIn: this.configService.get<string>('jwt.refreshExpiresIn') as string | number,
     });
   }
 
