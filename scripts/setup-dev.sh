@@ -11,13 +11,8 @@ echo "========================================"
 # Check prerequisites
 echo "📋 Checking prerequisites..."
 
-if ! command -v node &> /dev/null; then
-    echo "❌ Node.js is not installed. Please install Node.js 18+"
-    exit 1
-fi
-
-if ! command -v npm &> /dev/null; then
-    echo "❌ npm is not installed. Please install npm"
+if ! command -v bun &> /dev/null; then
+    echo "❌ Bun is not installed. Please install Bun from https://bun.sh"
     exit 1
 fi
 
@@ -93,7 +88,7 @@ fi
 echo ""
 echo "📦 Installing backend dependencies..."
 cd backend
-npm install
+bun install
 
 # Create logs directory
 mkdir -p logs
@@ -101,7 +96,7 @@ mkdir -p logs
 # Generate Prisma client if needed
 if [ -f prisma/schema.prisma ]; then
     echo "🗄️ Generating Prisma client..."
-    npx prisma generate
+    bun run db:generate
 fi
 
 cd ..
@@ -110,7 +105,7 @@ cd ..
 echo ""
 echo "📦 Installing frontend dependencies..."
 cd frontend
-npm install
+bun install
 cd ..
 
 # Start Docker containers
@@ -128,7 +123,7 @@ echo ""
 echo "🗄️ Running database migrations..."
 cd backend
 if [ -f package.json ] && grep -q "db:migrate" package.json; then
-    npm run db:migrate
+    bun run db:migrate
 else
     echo "⚠️  Database migration command not found. Please run migrations manually."
 fi
@@ -136,7 +131,7 @@ fi
 # Seed database if needed
 if [ -f package.json ] && grep -q "db:seed" package.json; then
     echo "🌱 Seeding database..."
-    npm run db:seed
+    bun run db:seed
 else
     echo "⚠️  Database seeding command not found. Please seed data manually."
 fi
@@ -156,19 +151,19 @@ echo "🔍 Running pre-commit checks..."
 # Backend linting
 echo "Linting backend..."
 cd backend
-npm run lint -- --fix || exit 1
+bun run lint -- --fix || exit 1
 cd ..
 
 # Frontend linting
 echo "Linting frontend..."
 cd frontend
-npm run lint -- --fix || exit 1
+bun run lint -- --fix || exit 1
 cd ..
 
 # Backend tests
 echo "Running backend tests..."
 cd backend
-npm run test || exit 1
+bun run test || exit 1
 cd ..
 
 echo "✅ Pre-commit checks passed!"
@@ -196,13 +191,13 @@ docker compose up -d
 # Start backend
 echo "Starting backend..."
 cd backend
-npm run dev &
+bun run dev &
 BACKEND_PID=$!
 
 # Start frontend
 echo "Starting frontend..."
 cd ../frontend
-npm run dev &
+bun run dev &
 FRONTEND_PID=$!
 
 echo ""
@@ -240,14 +235,14 @@ echo "🧪 Running all tests..."
 # Backend tests
 echo "Running backend tests..."
 cd backend
-npm run test
+bun run test
 BACKEND_EXIT_CODE=$?
 cd ..
 
 # Frontend tests
 echo "Running frontend tests..."
 cd frontend
-npm run test
+bun run test
 FRONTEND_EXIT_CODE=$?
 cd ..
 

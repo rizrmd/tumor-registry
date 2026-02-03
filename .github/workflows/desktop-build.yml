@@ -36,10 +36,10 @@ jobs:
           go-version: '1.23'
           cache: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '20'
+          bun-version: latest
 
       - name: Setup Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
@@ -52,19 +52,19 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: ./frontend
-        run: npm install
+        run: bun install
 
       - name: Build frontend
         working-directory: ./frontend
-        run: npm run build
+        run: bun run build
         env:
           NEXT_PUBLIC_STATIC_EXPORT: "true"
 
       - name: Build backend
         working-directory: ./backend
         run: |
-          npm install
-          npm run build
+          bun install
+          bun run build
 
       - name: Copy backend source to desktop resources
         run: |
@@ -74,7 +74,7 @@ jobs:
           echo "Backend source copied to desktop/resources/backend"
 
       - name: Sync frontend to desktop
-        run: node scripts/sync-frontend.js
+        run: bun scripts/sync-frontend.js
 
       - name: Build Wails app
         working-directory: ./desktop

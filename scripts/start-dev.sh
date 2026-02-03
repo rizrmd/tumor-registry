@@ -73,12 +73,12 @@ setup_backend() {
     # Install dependencies if node_modules doesn't exist
     if [ ! -d "node_modules" ]; then
         print_status "Installing backend dependencies..."
-        npm install
+        bun install
     fi
 
     # Try to build (will skip if there are permission issues)
     print_status "Attempting to build backend..."
-    if npm run build 2>/dev/null; then
+    if bun run build 2>/dev/null; then
         print_success "Backend built successfully"
     else
         print_warning "Backend build failed (likely due to dist folder permissions)"
@@ -123,7 +123,7 @@ start_backend() {
     print_status "Starting backend development server..."
     cd backend
     export NODE_ENV=development
-    npm run start:dev &
+    bun run start:dev &
     BACKEND_PID=$!
     echo $BACKEND_PID > ../.backend.pid
     cd ..
@@ -135,7 +135,7 @@ start_frontend() {
     print_status "Starting frontend development server..."
     cd frontend
     export NODE_ENV=development
-    npm run dev &
+    bun run dev &
     FRONTEND_PID=$!
     echo $FRONTEND_PID > ../.frontend.pid
     cd ..
