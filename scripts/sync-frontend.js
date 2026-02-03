@@ -9,7 +9,24 @@
 const fs = require('fs');
 const path = require('path');
 
-const sourceDir = path.resolve(__dirname, '../frontend/dist');
+// Check for both 'out' (static export) and 'dist' (custom build) directories
+const sourceOutDir = path.resolve(__dirname, '../frontend/out');
+const sourceDistDir = path.resolve(__dirname, '../frontend/dist');
+
+// Determine which source directory to use
+let sourceDir;
+if (fs.existsSync(sourceOutDir)) {
+  sourceDir = sourceOutDir;
+  console.log('Using frontend/out directory (static export)');
+} else if (fs.existsSync(sourceDistDir)) {
+  sourceDir = sourceDistDir;
+  console.log('Using frontend/dist directory (custom build)');
+} else {
+  console.error('Error: Neither frontend/out nor frontend/dist found!');
+  console.error('Please build the frontend first: cd frontend && npm run build');
+  process.exit(1);
+}
+
 const targetDir = path.resolve(__dirname, '../desktop/frontend/dist');
 const outDir = path.resolve(__dirname, '../desktop/frontend/out');
 
@@ -48,7 +65,8 @@ if (fs.existsSync(sourceDir)) {
 
   console.log('Frontend synced successfully!');
 } else {
-  console.error(`Error: Source directory ${sourceDir} not found!`);
+  console.error(`Error: Source directory not found!`);
+  console.error('Checked: frontend/out, frontend/dist');
   console.error('Please build the frontend first: cd frontend && npm run build');
   process.exit(1);
 }
