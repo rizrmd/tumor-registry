@@ -66,28 +66,6 @@ jobs:
           npm install
           npm run build
 
-      - name: Download Node.js binary
-        run: |
-          mkdir -p desktop/resources/node
-          cd desktop/resources/node
-          NODE_VERSION="20.11.0"
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            ARCH="darwin-arm64"
-            if [ "$(uname -m)" = "x86_64" ]; then
-              ARCH="darwin-x64"
-            fi
-          elif [ "$RUNNER_OS" = "Windows" ]; then
-            ARCH="win-x64"
-          else
-            ARCH="linux-x64"
-          fi
-          echo "Downloading Node.js $NODE_VERSION for $ARCH"
-          curl -fsSLO https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-$ARCH.tar.xz
-          tar -xzf node-v$NODE_VERSION-$ARCH.tar.xz
-          mv node-v$NODE_VERSION-$ARCH $ARCH
-          rm node-v$NODE_VERSION-$ARCH.tar.xz
-          echo "Node.js binary downloaded to $(pwd)/$ARCH/bin/node"
-
       - name: Copy backend source to desktop resources
         run: |
           mkdir -p desktop/resources/backend

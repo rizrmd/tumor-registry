@@ -33,3 +33,6 @@ docs/testing/*.md
 desktop/data/
 desktop/bin/
 desktop/runner
+
+# TypeScript build info
+*.tsbuildinfo

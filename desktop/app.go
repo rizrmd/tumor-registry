@@ -90,6 +90,14 @@ type UpdateProgress struct {
 	Message  string  `json:"message"`
 }
 
+// SetupProgress represents progress during first-run setup
+type SetupProgress struct {
+	Stage    string  `json:"stage"` // "checking", "downloading-bun", "downloading-postgres", "installing-deps", "initializing-db", "complete"
+	Progress float64 `json:"progress"` // 0-100
+	Message  string  `json:"message"`
+	Error    string  `json:"error,omitempty"`
+}
+
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
@@ -986,5 +994,337 @@ func copyFile(src, dst string) error {
 	}
 
 	return os.Chmod(dst, sourceInfo.Mode())
+}
+
+// ==================== FIRST-RUN SETUP ====================
+
+// IsFirstRun checks if this is the first run of the application
+func (a *App) IsFirstRun() bool {
+	if a.Manager == nil {
+		return true
+	}
+
+	// Check if setup marker file exists
+	setupMarker := filepath.Join(a.Manager.DataDir, ".setup-complete")
+	_, err := os.Stat(setupMarker)
+	return os.IsNotExist(err)
+}
+
+// PerformSetup executes the first-run setup process
+func (a *App) PerformSetup(progressCallback func(*SetupProgress)) error {
+	if a.Manager == nil {
+		return fmt.Errorf("manager not initialized")
+	}
+
+	// Create binaries directory
+	binDir := filepath.Join(a.Manager.DataDir, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
+	}
+
+	var wg sync.WaitGroup
+	errors := make(chan error, 2)
+	bunPath := ""
+	postgresPath := ""
+
+	// Step 1: Download binaries in parallel
+	progressCallback(&SetupProgress{Stage: "checking", Progress: 0, Message: "Checking requirements..."})
+
+	wg.Add(2)
+
+	// Download Bun
+	go func() {
+		defer wg.Done()
+		progressCallback(&SetupProgress{Stage: "downloading-bun", Progress: 10, Message: "Downloading Bun runtime..."})
+		path, err := a.downloadBun(binDir, progressCallback)
+		if err != nil {
+			errors <- fmt.Errorf("failed to download Bun: %w", err)
+			return
+		}
+		bunPath = path
+	}()
+
+	// Download PostgreSQL
+	go func() {
+		defer wg.Done()
+		progressCallback(&SetupProgress{Stage: "downloading-postgres", Progress: 20, Message: "Downloading PostgreSQL..."})
+		path, err := a.downloadPostgreSQL(binDir, progressCallback)
+		if err != nil {
+			errors <- fmt.Errorf("failed to download PostgreSQL: %w", err)
+			return
+		}
+		postgresPath = path
+	}()
+
+	wg.Wait()
+	close(errors)
+
+	// Check for download errors
+	for err := range errors {
+		if err != nil {
+			return err
+		}
+	}
+
+	if bunPath == "" {
+		return fmt.Errorf("Bun download failed")
+	}
+
+	// Step 2: Install dependencies with Bun (after Bun is ready)
+	progressCallback(&SetupProgress{Stage: "installing-deps", Progress: 50, Message: "Installing dependencies (this may take a minute)..."})
+	if err := a.installDependencies(bunPath, progressCallback); err != nil {
+		return fmt.Errorf("failed to install dependencies: %w", err)
+	}
+
+	// Step 3: Initialize database
+	progressCallback(&SetupProgress{Stage: "initializing-db", Progress: 80, Message: "Initializing database..."})
+	if err := a.initializeDatabase(bunPath, postgresPath, progressCallback); err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+
+	// Mark setup as complete
+	setupMarker := filepath.Join(a.Manager.DataDir, ".setup-complete")
+	if err := os.WriteFile(setupMarker, []byte(time.Now().Format(time.RFC3339)), 0644); err != nil {
+		return fmt.Errorf("failed to write setup marker: %w", err)
+	}
+
+	progressCallback(&SetupProgress{Stage: "complete", Progress: 100, Message: "Setup complete!"})
+
+	return nil
+}
+
+// downloadBun downloads the Bun runtime
+func (a *App) downloadBun(binDir string, progressCallback func(*SetupProgress)) (string, error) {
+	// Determine platform-specific URL
+	var url string
+	var archiveName string
+
+	switch runtime.GOOS {
+	case "darwin":
+		if runtime.GOARCH == "arm64" {
+			url = "https://github.com/oven-sh/bun/releases/latest/download/bun-darwin-aarch64.zip"
+			archiveName = "bun-darwin-aarch64.zip"
+		} else {
+			url = "https://github.com/oven-sh/bun/releases/latest/download/bun-darwin-x64.zip"
+			archiveName = "bun-darwin-x64.zip"
+		}
+	case "linux":
+		url = "https://github.com/oven-sh/bun/releases/latest/download/bun-linux-x64.zip"
+		archiveName = "bun-linux-x64.zip"
+	case "windows":
+		url = "https://github.com/oven-sh/bun/releases/latest/download/bun-windows-x64.zip"
+		archiveName = "bun-windows-x64.zip"
+	default:
+		return "", fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	// Download
+	archivePath := filepath.Join(binDir, archiveName)
+	if err := a.downloadFile(url, archivePath, func(p float64) {
+		if progressCallback != nil {
+			progressCallback(&SetupProgress{Stage: "downloading-bun", Progress: 10 + p*0.1, Message: fmt.Sprintf("Downloading Bun: %.0f%%", p)})
+		}
+	}); err != nil {
+		return "", err
+	}
+
+	// Extract
+	bunDir := filepath.Join(binDir, "bun")
+	if err := os.MkdirAll(bunDir, 0755); err != nil {
+		return "", err
+	}
+
+	if err := a.unzipArchive(archivePath, bunDir); err != nil {
+		return "", fmt.Errorf("failed to extract Bun: %w", err)
+	}
+
+	// Clean up archive
+	os.Remove(archivePath)
+
+	// Return path to bun executable
+	bunExe := filepath.Join(bunDir, "bun.exe")
+	if runtime.GOOS != "windows" {
+		bunExe = filepath.Join(bunDir, "bun")
+	}
+
+	if _, err := os.Stat(bunExe); err != nil {
+		return "", fmt.Errorf("bun executable not found at %s", bunExe)
+	}
+
+	// Make executable on Unix
+	if runtime.GOOS != "windows" {
+		os.Chmod(bunExe, 0755)
+	}
+
+	return bunExe, nil
+}
+
+// downloadPostgreSQL downloads PostgreSQL binaries
+func (a *App) downloadPostgreSQL(binDir string, progressCallback func(*SetupProgress)) (string, error) {
+	// For now, use SQLite as a simpler alternative
+	// PostgreSQL can be added later if needed
+	progressCallback(&SetupProgress{Stage: "downloading-postgres", Progress: 30, Message: "Using embedded database..."})
+
+	// Return empty path to indicate we're using SQLite
+	return "", nil
+}
+
+// installDependencies runs bun install in the backend directory
+func (a *App) installDependencies(bunPath string, progressCallback func(*SetupProgress)) error {
+	// Get the embedded backend directory
+	backendDir := filepath.Join(a.getEmbeddedResourcesDir(), "backend")
+
+	if _, err := os.Stat(backendDir); os.IsNotExist(err) {
+		return fmt.Errorf("backend directory not found: %s", backendDir)
+	}
+
+	// Run bun install
+	cmd := exec.Command(bunPath, "install")
+	cmd.Dir = backendDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("bun install failed: %w", err)
+	}
+
+	// Run prisma generate
+	cmd = exec.Command(bunPath, "run", "db:generate")
+	cmd.Dir = backendDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("prisma generate failed: %w", err)
+	}
+
+	progressCallback(&SetupProgress{Stage: "installing-deps", Progress: 70, Message: "Dependencies installed"})
+
+	return nil
+}
+
+// initializeDatabase runs database migrations
+func (a *App) initializeDatabase(bunPath string, postgresPath string, progressCallback func(*SetupProgress)) error {
+	backendDir := filepath.Join(a.getEmbeddedResourcesDir(), "backend")
+
+	// Run migrations (using deploy for production)
+	cmd := exec.Command(bunPath, "run", "db:migrate", "deploy")
+	cmd.Dir = backendDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("database migration failed: %w", err)
+	}
+
+	progressCallback(&SetupProgress{Stage: "initializing-db", Progress: 90, Message: "Database initialized"})
+
+	return nil
+}
+
+// downloadFile downloads a file with progress tracking
+func (a *App) downloadFile(url string, destPath string, progressCallback func(float64)) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("download failed with status: %d", resp.StatusCode)
+	}
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer out.Close()
+
+	totalSize := resp.ContentLength
+	var downloaded int64
+
+	buffer := make([]byte, 32*1024)
+	for {
+		n, err := resp.Body.Read(buffer)
+		if n > 0 {
+			wrote, _ := out.Write(buffer[:n])
+			downloaded += int64(wrote)
+
+			if progressCallback != nil && totalSize > 0 {
+				progress := float64(downloaded) / float64(totalSize) * 100
+				progressCallback(progress)
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("download error: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// unzipArchive extracts a zip archive
+func (a *App) unzipArchive(archivePath string, destDir string) error {
+	r, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		path := filepath.Join(destDir, f.Name)
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+			continue
+		}
+
+		// Create directory for file
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return err
+		}
+
+		// Extract file
+		outFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			return err
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			outFile.Close()
+			return err
+		}
+
+		_, err = io.Copy(outFile, rc)
+		rc.Close()
+		outFile.Close()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// getEmbeddedResourcesDir returns the path to embedded resources
+func (a *App) getEmbeddedResourcesDir() string {
+	// In development, use the actual resources directory
+	// In production, Wails will bundle the resources
+	exe, _ := os.Executable()
+	exeDir := filepath.Dir(exe)
+
+	// Check if resources exist next to executable
+	resourcesDir := filepath.Join(exeDir, "backend")
+	if _, err := os.Stat(resourcesDir); err == nil {
+		return resourcesDir
+	}
+
+	// Fallback to current directory
+	return "."
 }
 

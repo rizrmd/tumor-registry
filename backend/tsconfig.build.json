@@ -17,7 +17,12 @@
     "src/modules/case-review.disabled",
     "src/modules/cancer-registry.disabled",
     "src/modules/integration.disabled",
-    "src/modules/predictive-analytics.disabled"
+    "src/modules/predictive-analytics.disabled",
+    "src/modules/research.disabled",
+    "src/integration.disabled",
+    "src/modules/reports.disabled",
+    "src/modules/research-impact.disabled",
+    "src/modules/analytics.disabled"
   ],
   "compilerOptions": {
     "outDir": "./dist_user",
