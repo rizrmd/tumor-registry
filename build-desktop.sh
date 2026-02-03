@@ -181,7 +181,7 @@ build_backend() {
     # Install dependencies if needed
     if [ ! -d "node_modules" ] || [ "$CLEAN_BUILD" = true ]; then
         print_status "Installing backend dependencies..."
-        npm install
+        bun install
     fi
 
     # Clean previous build
@@ -196,7 +196,7 @@ build_backend() {
 
     # Build backend
     print_status "Building backend for production..."
-    npm run build
+    bun run build
     
     if [ ! -d "dist" ]; then
         print_error "Backend build failed - dist directory not found"
@@ -239,7 +239,7 @@ setup_frontend() {
     # Install dependencies if needed
     if [ ! -d "node_modules" ] || [ "$CLEAN_BUILD" = true ]; then
         print_status "Installing frontend dependencies..."
-        npm install
+        bun install
     fi
 
     cd ..

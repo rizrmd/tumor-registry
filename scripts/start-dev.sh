@@ -103,12 +103,12 @@ setup_frontend() {
     # Install dependencies if node_modules doesn't exist
     if [ ! -d "node_modules" ]; then
         print_status "Installing frontend dependencies..."
-        npm install
+        bun install
     fi
 
     # Try to build (will skip if there are missing components)
     print_status "Attempting to build frontend..."
-    if npm run build 2>/dev/null; then
+    if bun run build 2>/dev/null; then
         print_success "Frontend built successfully"
     else
         print_warning "Frontend build failed (likely due to missing components)"

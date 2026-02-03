@@ -2,7 +2,7 @@
 # Multi-stage build with security optimizations
 
 # Build stage
-FROM node:18-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 
 # Set build arguments
 ARG NODE_ENV=production
@@ -33,22 +33,23 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY bun.lock* ./
 COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN bun install --frozen-lockfile && bun pm cache rm
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN bunx prisma generate
 
 # Copy source code
 COPY . .
 
 # Build application
-RUN npm run build
+RUN bun run build
 
 # Production stage
-FROM node:18-alpine AS production
+FROM oven/bun:1-alpine AS production
 
 # Set runtime arguments
 ARG NODE_ENV=production
@@ -114,10 +115,10 @@ USER nodejs
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start application
-CMD ["node", "dist/main.js"]
+CMD ["bun", "dist/main.js"]
 
 # Security scanning layer
-FROM node:18-alpine AS security
+FROM oven/bun:1-alpine AS security
 
 # Install security scanning tools
 RUN apk add --no-cache \

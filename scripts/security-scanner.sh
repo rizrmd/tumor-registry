@@ -637,7 +637,7 @@ ENVIRONMENT VARIABLES:
 
 REQUIREMENTS:
     - Docker and Docker Compose
-    - Node.js and npm
+    - Bun runtime
     - trivy (for Docker image scanning)
     - semgrep (for code analysis)
     - nmap (for network scanning)
@@ -651,7 +651,7 @@ This script performs comprehensive security scanning including:
 - Infrastructure security review
 
 Install required tools:
-npm install -g semgrep
+bun install -g semgrep
 apt-get install trivy nmap openssl testssl.sh
 EOF
     exit 0

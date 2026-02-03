@@ -118,7 +118,7 @@ setup_backend() {
     sudo lsof -ti:3001 | xargs -r kill -9 2>/dev/null || true
 
     # Start development server in background
-    npm run start:dev > ../logs/backend.log 2>&1 &
+    bun run start:dev > ../logs/backend.log 2>&1 &
     BACKEND_PID=$!
 
     # Wait for backend to be ready
@@ -152,7 +152,7 @@ setup_frontend() {
     # Check if node_modules exists
     if [ ! -d "node_modules" ]; then
         log "📦 Installing frontend dependencies..."
-        npm install > ../logs/frontend-install.log 2>&1
+        bun install > ../logs/frontend-install.log 2>&1
     fi
 
     # Start frontend development server
@@ -162,7 +162,7 @@ setup_frontend() {
     sudo lsof -ti:3000 | xargs -r kill -9 2>/dev/null || true
 
     # Start development server in background
-    npm run dev > ../logs/frontend.log 2>&1 &
+    bun run dev > ../logs/frontend.log 2>&1 &
     FRONTEND_PID=$!
 
     # Wait for frontend to be ready

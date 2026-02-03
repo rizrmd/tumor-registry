@@ -120,7 +120,7 @@ run_migrations() {
     sleep 30
 
     # Run Prisma migrations
-    docker-compose -f "$DOCKER_COMPOSE_FILE" exec app npm run db:migrate
+    docker-compose -f "$DOCKER_COMPOSE_FILE" exec app bun run db:migrate
 
     print_status "Database migrations completed ✓"
 }

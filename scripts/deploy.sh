@@ -49,7 +49,7 @@ sleep 30
 
 # Run database migrations
 echo "Running database migrations..."
-docker-compose -f docker-compose.production.yml exec -T backend npx prisma migrate deploy
+docker-compose -f docker-compose.production.yml exec -T backend bunx prisma migrate deploy
 
 # Health check
 echo "Running health checks..."

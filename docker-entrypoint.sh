@@ -6,7 +6,7 @@ export PORT=3000
 export HOSTNAME="0.0.0.0"
 
 # Start Next.js standalone server in background on port 3000
-cd /app/frontend && node server.js &
+cd /app/frontend && bun server.js &
 NEXTJS_PID=$!
 
 # Wait for Next.js to start
@@ -16,10 +16,10 @@ sleep 5
 export PORT=3001
 
 # Run database migrations
-npx prisma migrate deploy
+bunx prisma migrate deploy
 
 # Start NestJS backend on port 3001
-cd /app && exec node dist/main.js
+cd /app && exec bun dist/main.js
 
 # Clean up Next.js process on exit
 trap "kill $NEXTJS_PID 2>/dev/null" EXIT

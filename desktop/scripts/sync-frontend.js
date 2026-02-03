@@ -7,7 +7,7 @@ const frontendOutDir = path.join(rootDir, 'frontend/out');
 const destDir = path.join(__dirname, '../frontend/dist');
 
 console.log('Building root frontend...');
-execSync('npm run build', { cwd: path.join(rootDir, 'frontend'), stdio: 'inherit' });
+execSync('bun run build', { cwd: path.join(rootDir, 'frontend'), stdio: 'inherit' });
 
 console.log('Syncing frontend to desktop/frontend/dist...');
 if (fs.existsSync(destDir)) {

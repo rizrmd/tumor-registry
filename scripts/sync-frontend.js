@@ -23,7 +23,7 @@ if (fs.existsSync(sourceOutDir)) {
   console.log('Using frontend/dist directory (custom build)');
 } else {
   console.error('Error: Neither frontend/out nor frontend/dist found!');
-  console.error('Please build the frontend first: cd frontend && npm run build');
+  console.error('Please build the frontend first: cd frontend && bun run build');
   process.exit(1);
 }
 
@@ -67,6 +67,6 @@ if (fs.existsSync(sourceDir)) {
 } else {
   console.error(`Error: Source directory not found!`);
   console.error('Checked: frontend/out, frontend/dist');
-  console.error('Please build the frontend first: cd frontend && npm run build');
+  console.error('Please build the frontend first: cd frontend && bun run build');
   process.exit(1);
 }

@@ -1,11 +1,11 @@
 # Production Dockerfile for INAMSOS (Unified Frontend + Backend + Nginx)
 # Multi-stage build: Frontend → Backend → Production
-# Note: Backend must be built locally first with `cd backend && npm run build`
+# Note: Backend must be built locally first with `cd backend && bun run build`
 
 # ============================================
 # Stage 1: Build Frontend (Next.js)
 # ============================================
-FROM node:18-alpine AS frontend-builder
+FROM oven/bun:1-alpine AS frontend-builder
 
 # Install build dependencies
 RUN apk add --no-cache libc6-compat
@@ -14,13 +14,14 @@ WORKDIR /frontend
 
 # Copy frontend package files
 COPY frontend/package*.json ./
+COPY frontend/bun.lock* ./
 COPY frontend/tsconfig.json ./
 
 # Install frontend dependencies
-RUN npm ci && npm cache clean --force
+RUN bun install --frozen-lockfile && bun pm cache rm
 
 # Ensure devDependencies are installed for build
-RUN npm install --include=dev
+RUN bun install --frozen-lockfile
 
 # Copy frontend source
 COPY frontend/ ./
@@ -38,12 +39,12 @@ ENV NEXT_PUBLIC_VERSION=${NEXT_PUBLIC_VERSION}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build Next.js application (NODE_ENV set only for build time)
-RUN npm run build
+RUN bun run build
 
 # ============================================
 # Stage 2: Build Backend Dependencies
 # ============================================
-FROM node:18-alpine AS backend-deps
+FROM oven/bun:1-alpine AS backend-deps
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -56,13 +57,14 @@ WORKDIR /app
 
 # Copy backend package files
 COPY backend/package*.json ./
+COPY backend/bun.lock* ./
 COPY backend/prisma ./prisma/
 
 # Install and rebuild native modules for Alpine
-RUN npm install --include=dev --legacy-peer-deps && npm cache clean --force
+RUN bun install --frozen-lockfile && bun pm cache rm
 
 # Generate Prisma client with correct binary targets
-RUN npx prisma generate --no-hints
+RUN bunx prisma generate --no-hints
 
 # Copy backend source and build
 COPY backend/tsconfig.json ./
@@ -70,12 +72,12 @@ COPY backend/nest-cli.json ./
 COPY backend/src ./src
 
 # Build backend
-RUN npm run build
+RUN bun run build
 
 # ============================================
 # Stage 3: Production Image
 # ============================================
-FROM node:18-alpine AS production
+FROM oven/bun:1-alpine AS production
 
 # Build arguments
 ARG NODE_ENV=production

@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 node:18-slim
+FROM --platform=linux/amd64 oven/bun:1-slim
 
 # Install system dependencies for Prisma
 RUN apt-get update && apt-get install -y \
@@ -16,7 +16,8 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+COPY bun.lock* ./
+RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY . .
@@ -28,4 +29,4 @@ RUN mkdir -p logs
 EXPOSE 3001
 
 # Start development server
-CMD ["npm", "run", "start:dev"]
+CMD ["bun", "run", "start:dev"]
