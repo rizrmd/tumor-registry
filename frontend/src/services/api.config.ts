@@ -1,10 +1,33 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 // API Configuration
-// Use relative path for Next.js proxy, or direct URL if specified
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim() !== ''
-  ? process.env.NEXT_PUBLIC_API_URL
-  : '/api/v1'; // Use Next.js proxy rewrite
+// Detect if running in Wails desktop environment
+function isWailsEnvironment(): boolean {
+  if (typeof window === 'undefined') return false;
+  // Check for Wails-specific window properties
+  return !!(window as any).go?.main?.App || !(window as any).wails;
+}
+
+// Determine API base URL
+function getApiBaseUrl(): string {
+  // Check if environment variable is explicitly set (for development)
+  if (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim() !== '') {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+
+  // In Wails/desktop mode, use localhost
+  if (isWailsEnvironment()) {
+    console.log('[API] Running in Wails/desktop mode, using localhost API');
+    return 'http://localhost:3001/api/v1';
+  }
+
+  // Default: use Next.js proxy rewrite (web mode)
+  return '/api/v1';
+}
+
+const API_BASE_URL = getApiBaseUrl();
+
+console.log('[API] Base URL:', API_BASE_URL);
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({

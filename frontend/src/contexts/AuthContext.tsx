@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import authService, { User, LoginCredentials } from '@/services/auth.service';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
-import { useWails } from '@/hooks/useWails';
 
 interface AuthContextType {
   user: User | null;
@@ -50,7 +49,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const syncCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const { Login: wailsLogin, isWailsAvailable } = useWails();
 
   // Enable automatic token refresh for long-running sessions
   useTokenRefresh();
@@ -195,49 +193,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string, mfaCode?: string) => {
     setIsLoading(true);
     try {
-      // Use Wails Login method if available (desktop app), otherwise use REST API
-      if (isWailsAvailable && wailsLogin) {
-        console.log('[Auth] Using Wails login method (desktop mode)');
-        const loginResult = await wailsLogin(email, password);
+      // Use authService to login (works for both web and desktop)
+      const loginData = await authService.login({ email, password });
 
-        if (!loginResult || !loginResult.success) {
-          throw new Error(loginResult?.message || 'Login failed');
-        }
+      // Set user from login response
+      setUser(loginData.user as User);
+      setIsAuthenticated(true);
 
-        // Convert Wails user format to app User format
-        const wailsUser: User = {
-          id: loginResult.user!.id,
-          email: loginResult.user!.email,
-          name: loginResult.user!.name,
-          role: loginResult.user!.role,
-          centerId: loginResult.user!.centerId,
-          centerName: undefined, // Wails doesn't provide this
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        setUser(wailsUser);
-        setIsAuthenticated(true);
-
-        // Store user data in localStorage for persistence
-        localStorage.setItem(USER_KEY, JSON.stringify(wailsUser));
-        localStorage.setItem(TOKEN_KEY, 'wails-token'); // Dummy token for Wails
-        localStorage.setItem(PASSWORD_VERSION_KEY, new Date().getTime().toString());
-      } else {
-        console.log('[Auth] Using REST API login method (web mode)');
-        // Use authService to login (web mode)
-        const loginData = await authService.login({ email, password });
-
-        // Set user from login response
-        setUser(loginData.user as User);
-        setIsAuthenticated(true);
-
-        // Store password version (updatedAt timestamp)
-        const userData = await authService.getProfile();
-        if (userData.updatedAt) {
-          localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
-        }
+      // Store password version (updatedAt timestamp)
+      const userData = await authService.getProfile();
+      if (userData.updatedAt) {
+        localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
       }
     } catch (error) {
       console.error('[Auth] Login error:', error);

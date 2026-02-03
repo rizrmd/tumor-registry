@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "dist_user",
+    "**/*spec.ts",
+    "**/*.test.ts",
+    "**/*.mock.ts",
+    "src/modules/sso.disabled",
+    "src/modules/session-management.disabled",
+    "src/modules/security-monitoring.disabled",
+    "src/modules/password-policy.disabled",
+    "src/modules/notifications.disabled",
+    "src/modules/data-provenance.disabled",
+    "src/modules/case-review.disabled",
+    "src/modules/cancer-registry.disabled",
+    "src/modules/integration.disabled",
+    "src/modules/predictive-analytics.disabled"
+  ],
+  "compilerOptions": {
+    "outDir": "./dist_user",
+    "rootDir": "./src"
+  }
+}

@@ -28,6 +28,11 @@ type App struct {
 	Manager          *process.Manager
 	centralServerUrl string
 	jwtToken         string
+	// Embedded backend fields
+	backendProcess   *exec.Cmd
+	backendPort      int
+	backendRunning   bool
+	backendMutex     sync.Mutex
 	// Update checker fields
 	updateInfo         *UpdateInfo
 	updateCheckMutex   sync.RWMutex
