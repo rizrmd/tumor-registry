@@ -204,36 +204,36 @@ export class OfflineQueueService implements OnModuleInit {
     // Wrap in timeout to ensure app is fully booted
     setTimeout(() => {
       this.logger.log('Starting background sync loop');
-      
+
       // Data sync interval (5 minutes)
       setInterval(() => {
         this.runFullSync().catch((err) =>
           this.logger.error('Background sync failed', err),
         );
       }, 1000 * 60 * 5); // 5 minutes
-      
+
       // File sync interval (10 minutes - less frequent due to bandwidth)
       setInterval(() => {
         this.syncFiles().catch((err) =>
           this.logger.error('Background file sync failed', err),
         );
       }, 1000 * 60 * 10); // 10 minutes
-      
+
     }, 5000);
   }
 
   async runFullSync() {
     this.logger.log('Starting full sync (Push + Pull + Files)');
-    
+
     // Step 1: Push local data changes to remote
     await this.syncAllPendingItems();
-    
+
     // Step 2: Pull remote data changes to local
     const dataSyncResults = await this.syncRemoteChanges();
-    
+
     // Step 3: Sync files (medical images, clinical photos, etc.)
     await this.syncFiles();
-    
+
     this.logger.log('Full sync completed');
     return { dataSync: dataSyncResults, status: 'COMPLETED' };
   }
@@ -249,15 +249,15 @@ export class OfflineQueueService implements OnModuleInit {
     this.isFileSyncing = true;
     try {
       this.logger.log('Starting file sync...');
-      
+
       // Queue new files for sync (scan all files since epoch)
       await this.fileSyncService.queueFilesForSync('medical-image', new Date(0));
       await this.fileSyncService.queueFilesForSync('clinical-photo', new Date(0));
       await this.fileSyncService.queueFilesForSync('pathology-report', new Date(0));
-      
+
       // Process pending file syncs
       const results = await this.fileSyncService.processPendingFileSyncs();
-      
+
       this.logger.log(`File sync completed: ${results.succeeded} succeeded, ${results.failed} failed`);
       return results;
     } catch (error) {
@@ -441,7 +441,7 @@ export class OfflineQueueService implements OnModuleInit {
       // VitalSign doesn't have updatedAt, use createdAt via id (ordered)
       case 'vital-sign':
         return await this.remotePrisma.vitalSign.findMany({
-          where: { 
+          where: {
             // VitalSign has no timestamp, fetch recent by id ordering
           },
           orderBy: { id: 'desc' },
@@ -926,7 +926,7 @@ export class OfflineQueueService implements OnModuleInit {
   }
 
   // ... rest of the existing methods (queueOfflineData, processQueueItem, etc.) ...
-  async queueOfflineData(syncDto: SyncOfflineDataDto, userId: string): Promise<any> {
+  async queueOfflineData(syncDto: SyncOfflineDataDto, userId: string | null): Promise<any> {
     try {
       const queueItem = await this.prisma.offlineDataQueue.create({
         data: {
@@ -957,7 +957,7 @@ export class OfflineQueueService implements OnModuleInit {
     }
   }
 
-  async processQueueItem(queueId: string, userId: string): Promise<any> {
+  async processQueueItem(queueId: string, userId: string | null): Promise<any> {
     try {
       const queueItem = await this.prisma.offlineDataQueue.findUnique({
         where: { id: queueId },
@@ -1105,7 +1105,7 @@ export class OfflineQueueService implements OnModuleInit {
     }
   }
 
-  async resolveConflict(queueId: string, resolveDto: ResolveConflictDto, userId: string): Promise<any> {
+  async resolveConflict(queueId: string, resolveDto: ResolveConflictDto, userId: string | null): Promise<any> {
     try {
       const queueItem = await this.prisma.offlineDataQueue.findUnique({
         where: { id: queueId },
@@ -1172,7 +1172,7 @@ export class OfflineQueueService implements OnModuleInit {
     }
   }
 
-  async getPendingQueue(userId: string, limit = 100): Promise<any> {
+  async getPendingQueue(userId: string | null, limit = 100): Promise<any> {
     try {
       const queueItems = await this.prisma.offlineDataQueue.findMany({
         where: {
@@ -1196,7 +1196,7 @@ export class OfflineQueueService implements OnModuleInit {
     }
   }
 
-  async getQueueStatistics(userId: string): Promise<any> {
+  async getQueueStatistics(userId: string | null): Promise<any> {
     try {
       const [pending, processing, synced, failed, conflict] = await Promise.all([
         this.prisma.offlineDataQueue.count({ where: { userId, status: 'PENDING' } }),
@@ -1225,7 +1225,7 @@ export class OfflineQueueService implements OnModuleInit {
     operation: string,
     entityId: string | null,
     data: any,
-    userId: string,
+    userId: string | null,
   ): Promise<any> {
     // Map entity types to their Prisma model names
     const entityMap: Record<string, string> = {

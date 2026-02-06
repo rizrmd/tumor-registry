@@ -4226,7 +4226,7 @@ enum SecurityEventSeverity {
 
 model OfflineDataQueue {
   id             String   @id @default(cuid())
-  userId         String
+  userId         String?
   entityType     String // patient, diagnosis, medication, etc.
   entityId       String? // null for CREATE operations
   operation      String // CREATE, UPDATE, DELETE, SYNC
@@ -4253,7 +4253,7 @@ model OfflineDataQueue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, status])
   @@index([status, priority])

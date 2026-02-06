@@ -105,7 +105,7 @@ export class MutationInterceptor implements NestInterceptor {
                         timestamp: new Date().toISOString(),
                     },
                 },
-                user?.id || 'SYSTEM',
+                user?.id || null,
             );
         } catch (error) {
             this.logger.error('Error in MutationInterceptor', error);
