@@ -57,23 +57,35 @@ export class MutationInterceptor implements NestInterceptor {
                 'patients': 'patient',
                 'diagnoses': 'diagnosis',
                 'medications': 'medication',
+                'vital-signs': 'vital-sign',
+                'laboratory-results': 'laboratory-result',
+                'radiology-results': 'radiology-result',
+                'pathology-reports': 'pathology-report',
+                'medical-records': 'medical-record',
+                'medical-imaging': 'medical-image',
                 'centers': 'center',
                 'users': 'user',
                 'clinical-photos': 'clinical-photo',
-                'medical-imaging': 'medical-imaging',
+                'staging-data': 'staging-data',
                 'musculoskeletal': 'msts-score',
+                'research-requests': 'research-request',
             };
 
             const normalizedEntityType = entityMap[parts[0]] || parts[0];
 
             // Determine operation
             let operation: OfflineOperation;
+            let payload = { ...body };
+
             switch (method) {
                 case 'POST':
                     operation = OfflineOperation.CREATE;
                     // For POST, the ID might be in the response
                     if (!entityId && response?.id) {
                         entityId = response.id;
+                    }
+                    if (entityId && !payload.id) {
+                        payload.id = entityId;
                     }
                     break;
                 case 'PUT':

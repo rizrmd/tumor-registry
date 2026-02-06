@@ -1232,8 +1232,16 @@ export class OfflineQueueService implements OnModuleInit {
       'patient': 'patient',
       'diagnosis': 'patientDiagnosis',
       'medication': 'patientMedication',
+      'vital-sign': 'vitalSign',
+      'laboratory-result': 'laboratoryResult',
+      'radiology-result': 'radiologyResult',
+      'pathology-report': 'pathologyReport',
+      'medical-record': 'medicalRecord',
+      'medical-image': 'medicalImage',
       'clinical-photo': 'clinicalPhoto',
+      'staging-data': 'stagingData',
       'msts-score': 'mstsScore',
+      'research-request': 'researchRequest',
     };
 
     const prismaModel = entityMap[entityType.toLowerCase()];
@@ -1249,12 +1257,44 @@ export class OfflineQueueService implements OnModuleInit {
         return this.handleDiagnosisOperation(this.remotePrisma, operation, entityId, data);
       case 'medication':
         return this.handleMedicationOperation(this.remotePrisma, operation, entityId, data);
+      case 'vital-sign':
+      case 'laboratory-result':
+      case 'radiology-result':
+      case 'pathology-report':
+      case 'medical-record':
+      case 'medical-image':
+      case 'staging-data':
+      case 'research-request':
+        return this.handleGenericOperation(this.remotePrisma, prismaModel, operation, entityId, data);
       case 'clinical-photo':
         return this.handleClinicalPhotoOperation(this.remotePrisma, operation, entityId, data);
       case 'msts-score':
         return this.handleMstsScoreOperation(this.remotePrisma, operation, entityId, data);
       default:
         throw new BadRequestException(`Unsupported entity type: ${entityType}`);
+    }
+  }
+
+  private async handleGenericOperation(client: any, modelName: string, operation: string, entityId: string | null, data: any): Promise<any> {
+    const model = client[modelName];
+    if (!model) throw new BadRequestException(`Model ${modelName} not found on remote client`);
+
+    switch (operation) {
+      case 'CREATE':
+        return await model.create({ data });
+      case 'UPDATE':
+        if (!entityId) throw new BadRequestException('Entity ID required for UPDATE');
+        return await model.update({ where: { id: entityId }, data });
+      case 'DELETE':
+        if (!entityId) throw new BadRequestException('Entity ID required for DELETE');
+        // Check if model has isActive for soft delete, otherwise hard delete
+        try {
+          return await model.update({ where: { id: entityId }, data: { isActive: false } });
+        } catch (e) {
+          return await model.delete({ where: { id: entityId } });
+        }
+      default:
+        throw new BadRequestException(`Unsupported operation: ${operation}`);
     }
   }
 
@@ -1344,10 +1384,26 @@ export class OfflineQueueService implements OnModuleInit {
           return await this.remotePrisma.patientDiagnosis.findUnique({ where: { id: entityId } });
         case 'medication':
           return await this.remotePrisma.patientMedication.findUnique({ where: { id: entityId } });
+        case 'vital-sign':
+          return await this.remotePrisma.vitalSign.findUnique({ where: { id: entityId } });
+        case 'laboratory-result':
+          return await this.remotePrisma.laboratoryResult.findUnique({ where: { id: entityId } });
+        case 'radiology-result':
+          return await this.remotePrisma.radiologyResult.findUnique({ where: { id: entityId } });
+        case 'pathology-report':
+          return await this.remotePrisma.pathologyReport.findUnique({ where: { id: entityId } });
+        case 'medical-record':
+          return await this.remotePrisma.medicalRecord.findUnique({ where: { id: entityId } });
+        case 'medical-image':
+          return await this.remotePrisma.medicalImage.findUnique({ where: { id: entityId } });
         case 'clinical-photo':
           return await this.remotePrisma.clinicalPhoto.findUnique({ where: { id: entityId } });
+        case 'staging-data':
+          return await this.remotePrisma.stagingData.findUnique({ where: { id: entityId } });
         case 'msts-score':
           return await this.remotePrisma.mstsScore.findUnique({ where: { id: entityId } });
+        case 'research-request':
+          return await this.remotePrisma.researchRequest.findUnique({ where: { id: entityId } });
         default:
           return null;
       }
