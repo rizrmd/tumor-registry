@@ -112,7 +112,7 @@ function AuthenticatedHome() {
                 Data Requests
               </Link>
               <Link
-                href="/_reports"
+                href="/reports"
                 className="block w-full text-center bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Reports
