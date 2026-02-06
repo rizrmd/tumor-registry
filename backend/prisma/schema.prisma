@@ -5506,3 +5506,20 @@ enum ComplicationSeverity {
 
   @@schema("medical")
 }
+
+// ========== PATHOLOGY TYPES (Reference Data) ==========
+model PathologyType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique // BONE, SOFT_TISSUE, METASTATIC
+  description String?  @db.Text
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+  @@map("pathology_types")
+  @@schema("medical")
+}
