@@ -67,7 +67,6 @@ export default function FollowUpCompliancePage() {
       setOverallCompliance(compliance);
 
       // Calculate average days late for overdue visits
-      const now = new Date();
       const overdueVisits = allVisits.filter(v => {
         const visitDate = new Date(v.scheduledDate);
         return v.status === 'scheduled' && visitDate < now;
