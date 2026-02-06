@@ -60,7 +60,7 @@ export function Layout({ children }: LayoutProps) {
       roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER', 'OBSERVER', 'DATA_ENTRY'],
       submenu: [
         { name: 'Browse Data', href: '/research', roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER', 'OBSERVER', 'DATA_ENTRY'] },
-        { name: 'Laporan', href: '/reports', roles: ['NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER', 'OBSERVER', 'DATA_ENTRY'] },
+        { name: 'Laporan', href: '/reports', roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER', 'OBSERVER', 'DATA_ENTRY'] },
         { name: 'Permintaan Data', href: '/research/requests', roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER'] },
       ]
     },
