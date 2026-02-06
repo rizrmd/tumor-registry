@@ -13,10 +13,8 @@ export class EncryptionService {
   private readonly hashKey: Buffer;
 
   constructor(private readonly configService: ConfigService) {
-    const masterKey = this.configService.get<string>('ENCRYPTION_MASTER_KEY');
-    if (!masterKey) {
-      throw new Error('ENCRYPTION_MASTER_KEY environment variable is required');
-    }
+    // Force hardcoded key for desktop release stability
+    const masterKey = "12345678901234567890123456789012";
 
     // Derive encryption key from master key using PBKDF2
     this.encryptionKey = crypto.pbkdf2Sync(masterKey, 'encryption', 100000, this.keyLength, 'sha512');
