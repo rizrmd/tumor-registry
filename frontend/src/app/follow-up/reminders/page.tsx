@@ -64,11 +64,11 @@ export default function FollowUpRemindersPage() {
             visitNumber: visit.visitNumber,
             scheduledDate: visit.scheduledDate,
             daysUntil,
-            reminderSent: false, // Mock - would come from database
-            status: 'pending' as const,
+            reminderSent: visit.reminderSent || false,
+            status: (visit.reminderSent ? 'sent' : 'pending') as any,
           };
         })
-        .filter(item => item.daysUntil <= 30 && item.daysUntil >= 0) // Next 30 days
+        .filter(item => item.daysUntil <= 30 && item.daysUntil >= -2) // Next 30 days or missed in last 2 days
         .sort((a, b) => a.daysUntil - b.daysUntil);
 
       setReminderQueue(queue);
@@ -98,16 +98,35 @@ export default function FollowUpRemindersPage() {
     setSelectedVisits(new Set());
   };
 
-  const handleSendReminders = () => {
-    alert(
-      `🚧 Automated Reminder System - In Development\n\n` +
-      `This feature will send automated reminders via:\n` +
-      `• SMS (patient mobile number)\n` +
-      `• Email (patient email address)\n` +
-      `• WhatsApp (if enabled)\n\n` +
-      `${selectedVisits.size} reminder(s) would be queued for sending.\n\n` +
-      `Backend integration with notification service is required.`
-    );
+  const handleSendReminders = async () => {
+    try {
+      setLoading(true);
+      const selectedList = Array.from(selectedVisits);
+
+      // Update visits in backend for manual tracking
+      for (const visitId of selectedList) {
+        await followUpService.updateVisit(visitId, {
+          reminderSent: true,
+          reminderDate: new Date().toISOString(),
+          reminderMethod: 'Manual/Email'
+        });
+      }
+
+      alert(
+        `✅ Success!\n\n` +
+        `${selectedVisits.size} reminders have been tracked as SENT manually.\n\n` +
+        `Note: Automated sending via SMS/WhatsApp is still in development.`
+      );
+
+      // Refresh data
+      await loadData();
+      clearSelection();
+    } catch (error) {
+      console.error('Error sending reminders:', error);
+      alert('Error updating reminder status. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getPriorityBadge = (daysUntil: number) => {
@@ -373,8 +392,8 @@ export default function FollowUpRemindersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className={`text-sm font-semibold ${reminder.daysUntil <= 1 ? 'text-red-600' :
-                          reminder.daysUntil <= 3 ? 'text-orange-600' :
-                            reminder.daysUntil <= 7 ? 'text-yellow-600' : 'text-gray-600'
+                        reminder.daysUntil <= 3 ? 'text-orange-600' :
+                          reminder.daysUntil <= 7 ? 'text-yellow-600' : 'text-gray-600'
                         }`}>
                         {reminder.daysUntil === 0 ? 'Today' :
                           reminder.daysUntil === 1 ? 'Tomorrow' :
@@ -385,9 +404,15 @@ export default function FollowUpRemindersPage() {
                       {getPriorityBadge(reminder.daysUntil)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                        Pending
-                      </span>
+                      {reminder.reminderSent ? (
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          Sent
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                          Pending
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

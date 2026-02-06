@@ -172,6 +172,7 @@ export class FollowUpsService {
         ...updateDto,
         actualDate: updateDto.actualDate ? new Date(updateDto.actualDate) : undefined,
         nextVisitDate: updateDto.nextVisitDate ? new Date(updateDto.nextVisitDate) : undefined,
+        reminderDate: updateDto.reminderDate ? new Date(updateDto.reminderDate) : undefined,
       },
     });
   }

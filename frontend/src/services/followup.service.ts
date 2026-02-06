@@ -28,6 +28,9 @@ export interface FollowUpVisit {
   complications?: string;
   nextVisitDate?: string;
   notes?: string;
+  reminderSent?: boolean;
+  reminderDate?: string;
+  reminderMethod?: string;
   createdAt: string;
   updatedAt: string;
   patient?: {
@@ -92,6 +95,9 @@ export interface UpdateFollowUpVisitDto {
   complications?: string;
   nextVisitDate?: string;
   notes?: string;
+  reminderSent?: boolean;
+  reminderDate?: string;
+  reminderMethod?: string;
 }
 
 export interface GenerateFollowUpScheduleDto {

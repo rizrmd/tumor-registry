@@ -4470,6 +4470,11 @@ model FollowUpVisit {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Reminder Tracking
+  reminderSent   Boolean?  @default(false)
+  reminderDate   DateTime?
+  reminderMethod String? // "SMS", "Email", "WhatsApp"
+
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@unique([patientId, visitNumber])

@@ -75,6 +75,15 @@ export class FollowUpVisitDto {
   @ApiPropertyOptional()
   notes?: string;
 
+  @ApiPropertyOptional()
+  reminderSent?: boolean;
+
+  @ApiPropertyOptional()
+  reminderDate?: Date;
+
+  @ApiPropertyOptional()
+  reminderMethod?: string;
+
   @ApiProperty()
   createdAt: Date;
 
@@ -210,6 +219,21 @@ export class UpdateFollowUpVisitDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  reminderSent?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  reminderDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  reminderMethod?: string;
 }
 
 export class GenerateFollowUpScheduleDto {
