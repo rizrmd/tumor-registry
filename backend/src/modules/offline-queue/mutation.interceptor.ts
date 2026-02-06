@@ -109,7 +109,7 @@ export class MutationInterceptor implements NestInterceptor {
                     entityType: normalizedEntityType,
                     entityId: entityId || undefined,
                     operation,
-                    data: body,
+                    data: payload,
                     localTimestamp: new Date().toISOString(),
                     metadata: {
                         url,
