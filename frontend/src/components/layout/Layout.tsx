@@ -57,12 +57,11 @@ export function Layout({ children }: LayoutProps) {
       name: 'Penelitian',
       href: '/research',
       icon: '🔬',
-      roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER'],
+      roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER', 'OBSERVER', 'DATA_ENTRY'],
       submenu: [
-        { name: 'Browse Data', href: '/research', roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+        { name: 'Browse Data', href: '/research', roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER', 'OBSERVER', 'DATA_ENTRY'] },
+        { name: 'Laporan', href: '/reports', roles: ['NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER', 'OBSERVER', 'DATA_ENTRY'] },
         { name: 'Permintaan Data', href: '/research/requests', roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'HEAD_OF_CENTER'] },
-        // { name: 'Kolaborasi', href: '/research/collaboration', roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
-        // { name: 'Publikasi', href: '/research/publications', roles: ['RESEARCHER', 'CENTER_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
       ]
     },
     {
