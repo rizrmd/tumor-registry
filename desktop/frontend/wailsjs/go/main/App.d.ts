@@ -24,11 +24,15 @@ export function ImportDataFromPath(arg1:string,arg2:any):Promise<void>;
 
 export function InstallUpdate(arg1:string,arg2:string,arg3:any):Promise<void>;
 
+export function IsFirstRun():Promise<boolean>;
+
 export function ListBackups():Promise<Array<main.BackupInfo>>;
 
 export function Login(arg1:string,arg2:string):Promise<main.LoginResult>;
 
 export function Logout():Promise<void>;
+
+export function PerformSetup(arg1:any):Promise<void>;
 
 export function PerformUpdate(arg1:string,arg2:boolean,arg3:any):Promise<void>;
 

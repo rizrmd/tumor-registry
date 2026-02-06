@@ -46,6 +46,10 @@ export function InstallUpdate(arg1, arg2, arg3) {
   return window['go']['main']['App']['InstallUpdate'](arg1, arg2, arg3);
 }
 
+export function IsFirstRun() {
+  return window['go']['main']['App']['IsFirstRun']();
+}
+
 export function ListBackups() {
   return window['go']['main']['App']['ListBackups']();
 }
@@ -56,6 +60,10 @@ export function Login(arg1, arg2) {
 
 export function Logout() {
   return window['go']['main']['App']['Logout']();
+}
+
+export function PerformSetup(arg1) {
+  return window['go']['main']['App']['PerformSetup'](arg1);
 }
 
 export function PerformUpdate(arg1, arg2, arg3) {
