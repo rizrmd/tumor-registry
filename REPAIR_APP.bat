@@ -1,10 +1,16 @@
 @echo off
+setlocal
 echo ===================================================
 echo   INAMSOS REPAIR UTILITY - AUTO FIX
 echo ===================================================
 echo.
 echo 1. Installing Wails Build Tool...
+echo    (If this fails, please ensure Go is installed)
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+:: Add common Go bin paths to PATH for this session
+set PATH=%PATH%;%USERPROFILE%\go\bin
+for /f "tokens=*" %%g in ('go env GOPATH') do set PATH=%PATH%;%%g\bin
 
 echo.
 echo 2. Preparing Backend...
@@ -20,7 +26,13 @@ node scripts/sync-frontend.js
 echo.
 echo 4. Building Desktop Application...
 cd desktop
-"%USERPROFILE%\go\bin\wails.exe" build
+wails build
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ⚠️ Build failed using 'wails' command.
+    echo Trying with full path...
+    "%USERPROFILE%\go\bin\wails.exe" build
+)
 cd ..
 
 echo.
@@ -43,9 +55,12 @@ pause
 echo.
 echo Running Database Migration & Seed...
 cd backend
+:: Create temp .env for migration
 echo DATABASE_URL="postgresql://postgres@127.0.0.1:54321/postgres?schema=system" > .env
 call npx prisma migrate dev --name fix_pathology_missing
 call npm run db:seed
+:: Clean up temp .env (safe because Wails injects env vars)
+del .env
 
 echo.
 echo ===================================================
