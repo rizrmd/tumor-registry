@@ -56,10 +56,14 @@ export default function FollowUpCompliancePage() {
       const allVisits = await followUpService.getAllVisits();
       setVisits(allVisits);
 
-      // Calculate overall compliance
+      // Calculate overall compliance (only for visits that should have happened by now)
+      const now = new Date();
+      const pastVisits = allVisits.filter(v =>
+        v.status === 'completed' || new Date(v.scheduledDate) <= now
+      );
       const completed = allVisits.filter(v => v.status === 'completed').length;
-      const total = allVisits.length;
-      const compliance = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const totalPast = pastVisits.length;
+      const compliance = totalPast > 0 ? Math.round((completed / totalPast) * 100) : 0;
       setOverallCompliance(compliance);
 
       // Calculate average days late for overdue visits
@@ -205,10 +209,9 @@ export default function FollowUpCompliancePage() {
           </div>
           <div className="mt-4 w-full bg-gray-200 rounded-full h-3">
             <div
-              className={`h-3 rounded-full ${
-                overallCompliance >= 90 ? 'bg-green-500' :
+              className={`h-3 rounded-full ${overallCompliance >= 90 ? 'bg-green-500' :
                 overallCompliance >= 75 ? 'bg-yellow-500' : 'bg-red-500'
-              }`}
+                }`}
               style={{ width: `${overallCompliance}%` }}
             ></div>
           </div>
@@ -297,10 +300,9 @@ export default function FollowUpCompliancePage() {
                       <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                           <div
-                            className={`h-2 rounded-full ${
-                              vc.rate >= 90 ? 'bg-green-500' :
+                            className={`h-2 rounded-full ${vc.rate >= 90 ? 'bg-green-500' :
                               vc.rate >= 75 ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}
+                              }`}
                             style={{ width: `${vc.rate}%` }}
                           ></div>
                         </div>
@@ -333,10 +335,9 @@ export default function FollowUpCompliancePage() {
             return (
               <div key={vc.visitNumber} className="flex-1 flex flex-col items-center">
                 <div
-                  className={`w-full rounded-t ${
-                    vc.rate >= 90 ? 'bg-green-500' :
+                  className={`w-full rounded-t ${vc.rate >= 90 ? 'bg-green-500' :
                     vc.rate >= 75 ? 'bg-yellow-500' : 'bg-red-500'
-                  } hover:opacity-75 transition-opacity cursor-pointer`}
+                    } hover:opacity-75 transition-opacity cursor-pointer`}
                   style={{ height: `${height}%` }}
                   title={`Visit ${vc.visitNumber}: ${vc.rate}%`}
                 ></div>
@@ -357,22 +358,33 @@ export default function FollowUpCompliancePage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
         <h3 className="text-lg font-semibold text-blue-900 mb-4">📋 Recommendations</h3>
         <ul className="space-y-2 text-sm text-blue-800">
+          {overallCompliance >= 90 ? (
+            <li className="flex items-start">
+              <span className="mr-2">🏆</span>
+              <span className="font-semibold text-green-800">Excellent compliance! Data is of high quality and suitable for international publications (e.g., JCO, Lancet Oncology standards).</span>
+            </li>
+          ) : (
+            <li className="flex items-start">
+              <span className="mr-2">•</span>
+              <span>Overall compliance is below 90%. Focus on increasing retention to ensure research validity for international publications.</span>
+            </li>
+          )}
           {overallCompliance < 90 && (
             <li className="flex items-start">
               <span className="mr-2">•</span>
-              <span>Overall compliance is below target. Consider implementing automated reminder system.</span>
+              <span>Consider implementing the Automated SMS/Email Reminder System to reduce missed visits.</span>
             </li>
           )}
           {avgDaysLate > 7 && (
             <li className="flex items-start">
               <span className="mr-2">•</span>
-              <span>Average delay exceeds 7 days. Review scheduling and reminder processes.</span>
+              <span>Average delay exceeds 7 days. Late visits increase the risk of missing early recurrence detection.</span>
             </li>
           )}
           {lostToFollowUp > 0 && (
             <li className="flex items-start">
               <span className="mr-2">•</span>
-              <span>{lostToFollowUp} patient(s) lost to follow-up. Initiate contact and re-engagement protocol.</span>
+              <span className="font-semibold text-red-800">{lostToFollowUp} patient(s) lost to follow-up. These missing data points weaken statistical power for registry research.</span>
             </li>
           )}
           {visitCompliance.some(vc => vc.visitNumber > 10 && vc.rate < 75) && (

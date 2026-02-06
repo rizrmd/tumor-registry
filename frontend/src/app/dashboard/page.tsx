@@ -124,16 +124,26 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div
+            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => window.location.href = '/follow-up/compliance'}
+          >
             <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className={`p-3 rounded-lg ${stats.followUpCompliance >= 90 ? 'bg-emerald-100' : 'bg-yellow-100'}`}>
+                <svg className={`h-6 w-6 ${stats.followUpCompliance >= 90 ? 'text-emerald-600' : 'text-yellow-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Follow-up Compliance</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.followUpCompliance}%</p>
+                <div className="flex items-center space-x-2">
+                  <p className="text-2xl font-semibold text-gray-900">{stats.followUpCompliance}%</p>
+                  {stats.followUpCompliance >= 90 && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500 text-white rounded-full uppercase tracking-tighter">
+                      Quality Data
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 mt-1">14-visit protocol</p>
               </div>
             </div>

@@ -257,7 +257,7 @@ export class NationalDashboardService {
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        const [totalPatients, newPatients, activeCenters, totalVisits, completedVisits] = await Promise.all([
+        const [totalPatients, newPatients, activeCenters, completedVisits, totalShouldHaveOccurred] = await Promise.all([
             this.prisma.patient.count(),
             this.prisma.patient.count({
                 where: {
@@ -269,14 +269,21 @@ export class NationalDashboardService {
             this.prisma.center.count({
                 where: { isActive: true }
             }),
-            this.prisma.followUpVisit.count(),
             this.prisma.followUpVisit.count({
                 where: { status: 'completed' }
+            }),
+            this.prisma.followUpVisit.count({
+                where: {
+                    OR: [
+                        { status: 'completed' },
+                        { scheduledDate: { lte: now } }
+                    ]
+                }
             })
         ]);
 
-        const followUpComplianceRate = totalVisits > 0
-            ? Math.round((completedVisits / totalVisits) * 100)
+        const followUpComplianceRate = totalShouldHaveOccurred > 0
+            ? Math.round((completedVisits / totalShouldHaveOccurred) * 100)
             : 0;
 
         return {
