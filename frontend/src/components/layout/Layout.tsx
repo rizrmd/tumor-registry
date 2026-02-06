@@ -10,7 +10,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -99,7 +99,7 @@ export function Layout({ children }: LayoutProps) {
   // Filter navigation items based on user role
   const filteredNavigation = navigation.filter(item => {
     if (!item.roles) return true;
-    return !user?.role || item.roles.includes(user.role);
+    return user?.role && item.roles.includes(user.role);
   });
 
   const getRoleLabel = (role: string) => {
@@ -217,78 +217,89 @@ export function Layout({ children }: LayoutProps) {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {filteredNavigation.map((item) => {
-              const isActive = isMenuActive(item);
-              const hasSubmenu = item.submenu && item.submenu.length > 0;
-              const isExpanded = expandedMenus.includes(item.name);
+            {isLoading ? (
+              <div className="space-y-3 animate-pulse">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="flex items-center px-3 py-2 space-x-3">
+                    <div className="w-6 h-6 bg-gray-200 rounded"></div>
+                    <div className="h-4 bg-gray-100 rounded w-24"></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              filteredNavigation.map((item) => {
+                const isActive = isMenuActive(item);
+                const hasSubmenu = item.submenu && item.submenu.length > 0;
+                const isExpanded = expandedMenus.includes(item.name);
 
-              return (
-                <div key={item.name}>
-                  {/* Main menu item */}
-                  {hasSubmenu ? (
-                    <button
-                      onClick={() => toggleMenu(item.name)}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg group ${isActive
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                        }`}
-                    >
-                      <div className="flex items-center">
+                return (
+                  <div key={item.name}>
+                    {/* Main menu item */}
+                    {hasSubmenu ? (
+                      <button
+                        onClick={() => toggleMenu(item.name)}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg group ${isActive
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                          }`}
+                      >
+                        <div className="flex items-center">
+                          <span className="mr-3 text-lg">{item.icon}</span>
+                          {item.name}
+                        </div>
+                        <svg
+                          className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <a
+                        href={item.href}
+                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg group ${isActive
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                          }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
                         <span className="mr-3 text-lg">{item.icon}</span>
                         {item.name}
-                      </div>
-                      <svg
-                        className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  ) : (
-                    <a
-                      href={item.href}
-                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg group ${isActive
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                        }`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <span className="mr-3 text-lg">{item.icon}</span>
-                      {item.name}
-                    </a>
-                  )}
+                      </a>
+                    )}
 
-                  {/* Submenu items */}
-                  {hasSubmenu && isExpanded && (
-                    <div className="ml-6 mt-1 space-y-1">
-                      {item.submenu
-                        .filter((subitem: any) => {
-                          if (!subitem.roles) return true;
-                          return !user?.role || subitem.roles.includes(user.role);
-                        })
-                        .map((subitem: any) => {
-                          const isSubActive = pathname === subitem.href;
-                          return (
-                            <a
-                              key={subitem.name}
-                              href={subitem.href}
-                              className={`flex items-center px-3 py-2 text-sm rounded-lg ${isSubActive
-                                ? 'bg-emerald-50 text-emerald-700 font-medium'
-                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                                }`}
-                              onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                              {subitem.name}
-                            </a>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    {/* Submenu items */}
+                    {hasSubmenu && isExpanded && (
+                      <div className="ml-6 mt-1 space-y-1">
+                        {item.submenu
+                          .filter((subitem: any) => {
+                            if (!subitem.roles) return true;
+                            return user?.role && subitem.roles.includes(user.role);
+                          })
+                          .map((subitem: any) => {
+                            const isSubActive = pathname === subitem.href;
+                            return (
+                              <a
+                                key={subitem.name}
+                                href={subitem.href}
+                                className={`flex items-center px-3 py-2 text-sm rounded-lg ${isSubActive
+                                  ? 'bg-emerald-50 text-emerald-700 font-medium'
+                                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                  }`}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                              >
+                                {subitem.name}
+                              </a>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </nav>
 
           {/* User info */}
