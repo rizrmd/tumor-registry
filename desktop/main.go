@@ -4,6 +4,7 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/wailsapp/wails/v2"
@@ -17,32 +18,38 @@ var assets embed.FS
 // Custom handler for Next.js static export
 func nextJSHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get the path
 		path := strings.TrimPrefix(r.URL.Path, "/")
-		
-		// Try to serve the exact file first
-		if _, err := fs.Stat(assets, "frontend/out/"+path); err == nil {
+		if path == "" {
+			r.URL.Path = "/index.html"
 			next.ServeHTTP(w, r)
 			return
 		}
-		
-		// Try with .html extension
-		htmlPath := path + ".html"
-		if _, err := fs.Stat(assets, "frontend/out/"+htmlPath); err == nil {
-			r.URL.Path = "/" + htmlPath
-			next.ServeHTTP(w, r)
-			return
+
+		// List of possible file matches in order of priority
+		options := []string{
+			path,
+			path + ".html",
+			path + "/index.html",
 		}
-		
-		// Try index.html in directory
-		indexPath := path + "/index.html"
-		if _, err := fs.Stat(assets, "frontend/out/"+indexPath); err == nil {
-			r.URL.Path = "/" + indexPath
-			next.ServeHTTP(w, r)
-			return
+
+		for _, opt := range options {
+			fullPath := "frontend/out/" + opt
+			if _, err := fs.Stat(assets, fullPath); err == nil {
+				// We found a real file!
+				// If it's a directory, technically we should check, but Next.js usually
+				// provides a .html file if it's a page.
+				if !strings.HasSuffix(opt, "/") && !strings.Contains(filepath.Base(opt), ".") {
+					// It's a clean URL like /patients, rewrite to /patients.html
+					r.URL.Path = "/" + opt + ".html"
+				} else {
+					r.URL.Path = "/" + opt
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
 		}
-		
-		// Fallback to index.html for SPA routing
+
+		// Fallback for SPA routing
 		r.URL.Path = "/index.html"
 		next.ServeHTTP(w, r)
 	})

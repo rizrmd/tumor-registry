@@ -117,11 +117,13 @@ export function Section1CenterPathology() {
 
   const handlePathologyTypeChange = (pathologyTypeId: string) => {
     const pathologyType = pathologyTypes.find((pt) => pt.id === pathologyTypeId);
-    updateSection('section1', {
-      ...sectionData,
-      pathologyType: pathologyTypeId, // Changed to match validation field name
-      pathologyTypeName: pathologyType?.name,
-    });
+    if (pathologyType) {
+      updateSection('section1', {
+        ...sectionData,
+        pathologyType: pathologyType.code, // Essential fix: match the code expected by backend
+        pathologyTypeName: pathologyType.name,
+      });
+    }
   };
 
   if (isLoading) {
@@ -208,7 +210,7 @@ export function Section1CenterPathology() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {pathologyTypes.map((pathologyType) => {
-            const isSelected = sectionData.pathologyType === pathologyType.id;
+            const isSelected = sectionData.pathologyType === pathologyType.code;
 
             return (
               <button
@@ -217,10 +219,9 @@ export function Section1CenterPathology() {
                 onClick={() => handlePathologyTypeChange(pathologyType.id)}
                 className={`
                   relative p-6 rounded-lg border-2 text-left transition-all
-                  ${
-                    isSelected
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-blue-300'
+                  ${isSelected
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:border-blue-300'
                   }
                 `}
               >
