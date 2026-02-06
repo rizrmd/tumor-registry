@@ -29,7 +29,7 @@ export function SyncIndicator() {
 
     let statusColor = 'bg-emerald-500';
     let statusText = 'Synced';
-    let pulseClass = 'animate-pulse'; // Always pulse for attention-grabbing
+    let pulseClass = 'animate-blink-slow';
     let statusIcon = (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -39,16 +39,16 @@ export function SyncIndicator() {
     if (isSyncing) {
         statusColor = 'bg-blue-500';
         statusText = 'Syncing...';
-        pulseClass = 'animate-pulse';
+        pulseClass = 'animate-blink-fast';
         statusIcon = (
             <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
         );
     } else if (needsAttention || hasFailed || hasConflicts) {
-        statusColor = 'bg-red-500'; // RED classification
+        statusColor = 'bg-red-500';
         statusText = 'Not synced';
-        pulseClass = 'animate-bounce'; // More aggressive pulse for error
+        pulseClass = 'animate-blink-fast'; // Fast blink for warning
         statusIcon = (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -57,7 +57,7 @@ export function SyncIndicator() {
     } else if (hasPending) {
         statusColor = 'bg-yellow-500';
         statusText = 'Local Data';
-        pulseClass = 'animate-pulse';
+        pulseClass = 'animate-blink-slow';
         statusIcon = (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
