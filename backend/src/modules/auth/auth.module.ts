@@ -19,9 +19,9 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+        secret: configService.get<string>('JWT_SECRET') || 'inamsos-production-jwt-secret-key-2025-change-in-deployment',
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN', '15m'),
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN', '1d'),
         },
       } as any),
       inject: [ConfigService],
@@ -40,4 +40,4 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
   ],
   exports: [AuthService, EmailService, EncryptionService],
 })
-export class AuthModule {}
+export class AuthModule { }

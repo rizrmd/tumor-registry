@@ -135,6 +135,7 @@ func (m *Manager) StartPostgres() error {
 func (m *Manager) StartBackend() error {
 	// Try multiple possible paths for the backend script
 	possiblePaths := []string{
+		"backend/dist_user/main.js",                   // Bundled in build/bin
 		"../backend/dist_user/main.js",                // From desktop/cmd/runner
 		"../../backend/dist_user/main.js",             // From desktop/
 		"../../bin/backend/main.js",                   // From desktop/cmd/runner (pre-built)
@@ -157,7 +158,7 @@ func (m *Manager) StartBackend() error {
 	nodeBin := "node"
 	m.BackendPort = "3001"
 
-	localDbUrl := "postgresql://postgres@127.0.0.1:54321/postgres"
+	localDbUrl := "postgresql://postgres@127.0.0.1:54321/postgres?schema=system"
 	args := []string{backendScript}
 
 	cmd := exec.Command(nodeBin, args...)
