@@ -922,6 +922,8 @@ export class OfflineQueueService implements OnModuleInit {
         return await this.prisma.integrationSyncLog.upsert({ where: { id }, create: data, update: rest });
       case 'calendar-integration':
         return await this.prisma.calendarIntegration.upsert({ where: { id }, create: data, update: rest });
+      case 'research-request':
+        return await this.prisma.researchRequest.upsert({ where: { id }, create: data, update: rest });
     }
   }
 

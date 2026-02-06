@@ -68,6 +68,8 @@ export class MutationInterceptor implements NestInterceptor {
                 'clinical-photos': 'clinical-photo',
                 'staging-data': 'staging-data',
                 'musculoskeletal': 'msts-score',
+                'msts-scores': 'msts-score',
+                'follow-ups': 'follow-up-visit',
                 'research-requests': 'research-request',
             };
 
