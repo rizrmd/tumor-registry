@@ -29,6 +29,7 @@ export function SyncIndicator() {
 
     let statusColor = 'bg-emerald-500';
     let statusText = 'Synced';
+    let pulseClass = 'animate-pulse'; // Always pulse for attention-grabbing
     let statusIcon = (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -38,14 +39,16 @@ export function SyncIndicator() {
     if (isSyncing) {
         statusColor = 'bg-blue-500';
         statusText = 'Syncing...';
+        pulseClass = 'animate-pulse';
         statusIcon = (
             <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
         );
-    } else if (needsAttention) {
-        statusColor = 'bg-red-500';
-        statusText = 'Sync Issue';
+    } else if (needsAttention || hasFailed || hasConflicts) {
+        statusColor = 'bg-red-500'; // RED classification
+        statusText = 'Not synced';
+        pulseClass = 'animate-bounce'; // More aggressive pulse for error
         statusIcon = (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -53,7 +56,8 @@ export function SyncIndicator() {
         );
     } else if (hasPending) {
         statusColor = 'bg-yellow-500';
-        statusText = 'Pending Sync';
+        statusText = 'Local Data';
+        pulseClass = 'animate-pulse';
         statusIcon = (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -90,7 +94,7 @@ export function SyncIndicator() {
                 className="flex items-center space-x-2 px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50 transition-colors bg-white shadow-sm"
                 title={`Sync Status: ${statusText}`}
             >
-                <div className={`w-2 h-2 rounded-full ${statusColor} ${isSyncing ? 'animate-pulse' : ''}`} />
+                <div className={`w-2 h-2 rounded-full ${statusColor} ${pulseClass}`} />
                 <span className="text-sm font-medium text-gray-700 hidden sm:inline">
                     {statusText}
                 </span>
@@ -163,7 +167,7 @@ export function SyncIndicator() {
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
                                     <p className="text-xl font-bold text-yellow-600">{statistics.pending}</p>
                                 </div>
-                                <Link 
+                                <Link
                                     href="/sync/conflicts"
                                     className="p-2.5 rounded-lg bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors cursor-pointer block"
                                     onClick={() => setIsOpen(false)}
@@ -171,7 +175,7 @@ export function SyncIndicator() {
                                     <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Conflicts</p>
                                     <p className="text-xl font-bold text-orange-600">{statistics.conflict}</p>
                                 </Link>
-                                <Link 
+                                <Link
                                     href="/sync/conflicts"
                                     className="p-2.5 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer block"
                                     onClick={() => setIsOpen(false)}
@@ -222,8 +226,8 @@ export function SyncIndicator() {
                             }}
                             disabled={isSyncing}
                             className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${isSyncing
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]'
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]'
                                 }`}
                         >
                             {isSyncing ? (
