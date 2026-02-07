@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { PrismaService } from '@/common/database/prisma.service';
+import { PrismaService } from '@/database/prisma.service';
 import { SamlService } from './services/saml.service';
 import { OidcService } from './services/oidc.service';
 import { CreateSsoConfigDto, UpdateSsoConfigDto, SsoLoginDto } from './dto/sso.dto';

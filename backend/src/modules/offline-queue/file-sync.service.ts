@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { PrismaService } from '@/common/database/prisma.service';
+import { PrismaService } from '@/database/prisma.service';
 import { RemotePrismaService } from '@/database/remote-prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';

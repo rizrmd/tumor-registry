@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '@/common/database/prisma.service';
+import { PrismaService } from '@/database/prisma.service';
 import { UploadClinicalPhotoDto } from './dto/upload-clinical-photo.dto';
 import * as fs from 'fs';
 import * as path from 'path';

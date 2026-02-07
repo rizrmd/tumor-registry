@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../../common/database/prisma.service';
+import { PrismaService } from '../../../database/prisma.service';
 import { CreateMstsScoreDto, UpdateMstsScoreDto } from './dto/msts-score.dto';
 
 @Injectable()

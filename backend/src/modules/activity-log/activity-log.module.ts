@@ -1,7 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { ActivityLogService } from './activity-log.service';
 import { ActivityLogController } from './activity-log.controller';
-import { PrismaService } from '../../common/database/prisma.service';
+import { PrismaService } from '../../database/prisma.service';
 
 @Global()
 @Module({

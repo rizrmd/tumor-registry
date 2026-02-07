@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/common/database/prisma.service';
+import { PrismaService } from '@/database/prisma.service';
 import { ThreatDetectionService } from './services/threat-detection.service';
 import { BehavioralAnalyticsService } from './services/behavioral-analytics.service';
 

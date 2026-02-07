@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '@/common/database/prisma.service';
+import { PrismaService } from '@/database/prisma.service';
 import { CreatePatientDto, UpdatePatientDto } from './dto';
 import { MedicalRecordService } from '../medical-record/medical-record.service';
 

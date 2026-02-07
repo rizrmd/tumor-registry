@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '@/common/database/prisma.service';
+import { PrismaService } from '@/database/prisma.service';
 import { CreateCaseReviewDto } from './dto/create-case-review.dto';
 import { AssignReviewDto } from './dto/assign-review.dto';
 import { AddCommentDto } from './dto/add-comment.dto';
