@@ -161,10 +161,10 @@ async function step3_SimulateOfflineDiagnosisCreation(userId: string, patientId:
         patientId: patientId,
         diagnosisCode: 'C40.0',
         diagnosisName: 'Malignant neoplasm of scapula and long bones of upper limb',
-        diagnosisDate: new Date(),
+        onsetDate: new Date(),
         isPrimary: true,
-        diagnosisType: 'CLINICAL', // or DiagnosisType.CLINICAL if imported
-        status: 'CONFIRMED', // or DiagnosisStatus.CONFIRMED
+        diagnosisType: DiagnosisType.PRIMARY,
+        status: DiagnosisStatus.ACTIVE,
         providerId: userId,
       }
     });
