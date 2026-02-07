@@ -79,8 +79,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path desktop/resources/backend
-          Copy-Item -Path backend/* -Destination desktop/resources/backend -Recurse -Force
-          Exclude-Item desktop/resources/backend/node_modules -Recurse -ErrorAction SilentlyContinue
+          Copy-Item -Path backend/* -Destination desktop/resources/backend -Recurse -Force -Exclude @('node_modules', 'dist', 'dist_user')
           Remove-Item desktop/resources/backend/node_modules -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item desktop/resources/backend/dist -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item desktop/resources/backend/dist_user -Recurse -Force -ErrorAction SilentlyContinue
