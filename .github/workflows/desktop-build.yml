@@ -66,12 +66,25 @@ jobs:
           bun install
           bun run build
 
-      - name: Copy backend source to desktop resources
+      - name: Copy backend source to desktop resources (Unix)
+        if: runner.os != 'Windows'
         run: |
           mkdir -p desktop/resources/backend
           rsync -av --exclude='node_modules' --exclude='dist' --exclude='dist_user' backend/ desktop/resources/backend/
           rm -rf desktop/resources/backend/node_modules
           echo "Backend source copied to desktop/resources/backend"
+
+      - name: Copy backend source to desktop resources (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path desktop/resources/backend
+          Copy-Item -Path backend/* -Destination desktop/resources/backend -Recurse -Force
+          Exclude-Item desktop/resources/backend/node_modules -Recurse -ErrorAction SilentlyContinue
+          Remove-Item desktop/resources/backend/node_modules -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item desktop/resources/backend/dist -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item desktop/resources/backend/dist_user -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "Backend source copied to desktop/resources/backend"
 
       - name: Sync frontend to desktop
         run: bun scripts/sync-frontend.js
