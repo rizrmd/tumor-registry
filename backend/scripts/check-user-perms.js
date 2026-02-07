@@ -9,7 +9,7 @@ async function main() {
                 include: {
                     role: {
                         include: {
-                            rolePermissions: {
+                            permissions: {
                                 include: {
                                     permission: true
                                 }
@@ -28,7 +28,7 @@ async function main() {
 
     console.log('User:', user.email);
     const permissions = user.userRoles.flatMap(ur =>
-        ur.role.rolePermissions.map(rp => rp.permission.code)
+        ur.role.permissions.map(rp => rp.permission.code)
     );
     console.log('Permissions:', permissions);
 }
