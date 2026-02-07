@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
+import { PrismaService } from '../../database/prisma.service';
 
 export interface TestCenterConfig {
   id: string;
@@ -20,7 +20,7 @@ export class TestTenantManager {
   private readonly logger = new Logger(TestTenantManager.name);
   private readonly TEST_CENTERS_PREFIX = 'test_';
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Create a test center with isolated schema
