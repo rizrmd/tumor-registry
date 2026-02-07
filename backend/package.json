@@ -1,6 +1,6 @@
 {
   "name": "inamsos-backend",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "INAMSOS Backend API - Indonesia National Cancer Database System",
   "main": "dist_user/main.js",
   "scripts": {
