@@ -131,6 +131,8 @@ const PERMISSIONS = [
   { name: 'Update Research', code: 'RESEARCH_UPDATE', resource: 'research', action: 'update', description: 'Update research protocols and requests' },
   { name: 'Approve Research', code: 'RESEARCH_APPROVE', resource: 'research', action: 'approve', description: 'Approve research requests and protocols' },
   { name: 'Export Research', code: 'RESEARCH_EXPORT', resource: 'research', action: 'export', description: 'Export research data and reports' },
+  { name: 'Review Research Requests', code: 'RESEARCH_REQUESTS_REVIEW', resource: 'research_requests', action: 'review', description: 'Review pending research requests' },
+  { name: 'Approve Research Requests', code: 'RESEARCH_REQUESTS_APPROVE', resource: 'research_requests', action: 'approve', description: 'Approve or reject research requests' },
 
   // Population Health Analytics Permissions
   { name: 'Read Population Health', code: 'POPULATION_HEALTH_READ', resource: 'population_health', action: 'read', description: 'View population health analytics and reports' },
@@ -209,6 +211,7 @@ async function seedRolesAndPermissions() {
       p.code.includes('UPDATE') ||
       p.code.includes('APPROVE') ||
       p.code.includes('MONITOR') ||
+      p.code.includes('REVIEW') ||
       p.code === 'SYSTEM_MONITOR'
     );
     for (const permission of nationalPermissions) {
