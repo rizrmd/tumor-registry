@@ -1,4 +1,4 @@
-import { PrismaClient, Gender } from '@prisma/client';
+import { PrismaClient, Gender, DiagnosisType, DiagnosisStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 /**
@@ -163,6 +163,9 @@ async function step3_SimulateOfflineDiagnosisCreation(userId: string, patientId:
         diagnosisName: 'Malignant neoplasm of scapula and long bones of upper limb',
         diagnosisDate: new Date(),
         isPrimary: true,
+        diagnosisType: 'CLINICAL', // or DiagnosisType.CLINICAL if imported
+        status: 'CONFIRMED', // or DiagnosisStatus.CONFIRMED
+        providerId: userId,
       }
     });
 
