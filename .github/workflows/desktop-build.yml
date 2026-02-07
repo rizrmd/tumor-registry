@@ -67,8 +67,6 @@ jobs:
           bun run build
 
       - name: Copy backend source to desktop resources
-
-      - name: Copy backend source to desktop resources
         run: |
           mkdir -p desktop/resources/backend
           rsync -av --exclude='node_modules' --exclude='dist' --exclude='dist_user' backend/ desktop/resources/backend/
