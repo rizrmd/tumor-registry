@@ -5,10 +5,13 @@ package process
 import (
 	"fmt"
 	"os/exec"
+	"syscall"
 )
 
 func SetProcessGroup(cmd *exec.Cmd) {
-	// Not supported/needed for basic Windows usage in this context
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow: true,
+	}
 }
 
 func KillProcessGroup(cmd *exec.Cmd, sig Signal) error {
