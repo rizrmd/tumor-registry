@@ -10,7 +10,7 @@ export class ActivityLogController {
     constructor(private readonly activityLogService: ActivityLogService) { }
 
     @Get()
-    @Permissions('ACTIVITY_LOG_VIEW')
+    @Permissions('AUDIT_READ')
     async findAll(
         @Query('page') page?: string,
         @Query('limit') limit?: string,
