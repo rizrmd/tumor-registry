@@ -4,11 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ConflictResolutionDialog } from '@/components/sync/ConflictResolutionDialog';
-import { 
-    syncService, 
-    QueueItem, 
+import {
+    syncService,
+    QueueItem,
     ConflictResolution,
-    SyncStatistics 
+    SyncStatistics
 } from '@/services/sync.service';
 import toast from 'react-hot-toast';
 
@@ -240,19 +240,17 @@ export default function ConflictsPage() {
                                 <button
                                     key={tab.key}
                                     onClick={() => setActiveFilter(tab.key as any)}
-                                    className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                                        activeFilter === tab.key
+                                    className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeFilter === tab.key
                                             ? 'border-emerald-500 text-emerald-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                    }`}
+                                        }`}
                                 >
                                     <span>{tab.label}</span>
                                     {tab.count > 0 && (
-                                        <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                            activeFilter === tab.key
+                                        <span className={`px-2 py-0.5 rounded-full text-xs ${activeFilter === tab.key
                                                 ? 'bg-emerald-100 text-emerald-700'
                                                 : 'bg-gray-100 text-gray-600'
-                                        }`}>
+                                            }`}>
                                             {tab.count}
                                         </span>
                                     )}
@@ -270,8 +268,21 @@ export default function ConflictsPage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
                                 </div>
-                                <h3 className="text-lg font-medium text-gray-900">All caught up!</h3>
-                                <p className="text-gray-500 mt-1">No items need your attention</p>
+                                {activeFilter === 'all' ? (
+                                    <>
+                                        <h3 className="text-lg font-medium text-gray-900">All caught up!</h3>
+                                        <p className="text-gray-500 mt-1">No items need your attention</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3 className="text-lg font-medium text-gray-900 capitalize">No {activeFilter} items</h3>
+                                        <p className="text-gray-500 mt-1">
+                                            {statistics?.needsAttention && statistics.needsAttention > 0 && activeFilter === 'pending'
+                                                ? `You have ${statistics.needsAttention} items that need attention in other tabs.`
+                                                : `There are no items with ${activeFilter} status.`}
+                                        </p>
+                                    </>
+                                )}
                             </div>
                         ) : (
                             filteredItems.map((item) => (
@@ -296,9 +307,9 @@ export default function ConflictsPage() {
                                                         {item.status}
                                                     </span>
                                                 </div>
-                                                
+
                                                 <p className="text-sm text-gray-500 mt-1">
-                                                    ID: {item.entityId?.slice(0, 12)}... • 
+                                                    ID: {item.entityId?.slice(0, 12)}... •
                                                     Attempt {item.attemptCount}/{item.maxAttempts} •
                                                     {new Date(item.localTimestamp).toLocaleString()}
                                                 </p>
@@ -336,7 +347,7 @@ export default function ConflictsPage() {
                                                     <span>Resolve</span>
                                                 </button>
                                             )}
-                                            
+
                                             {item.status === 'FAILED' && (
                                                 <button
                                                     onClick={() => handleRetry(item)}
