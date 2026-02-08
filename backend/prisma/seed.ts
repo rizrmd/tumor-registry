@@ -244,7 +244,7 @@ async function seedRolesAndPermissions() {
       p.resource === 'backups' ||
       p.resource === 'monitoring' ||
       p.resource === 'alerts' ||
-      p.resource === 'audit' ||
+      p.resource === 'audit_logs' ||
       p.code === 'SYSTEM_MONITOR'
     );
     for (const permission of centerPermissions) {
