@@ -1200,18 +1200,23 @@ export class OfflineQueueService implements OnModuleInit {
 
   async getQueueStatistics(userId: string | null): Promise<any> {
     try {
-      const [pending, processing, synced, failed, conflict] = await Promise.all([
-        this.prisma.offlineDataQueue.count({ where: { userId, status: 'PENDING' } }),
-        this.prisma.offlineDataQueue.count({ where: { userId, status: 'PROCESSING' } }),
-        this.prisma.offlineDataQueue.count({ where: { userId, status: 'SYNCED' } }),
-        this.prisma.offlineDataQueue.count({ where: { userId, status: 'FAILED' } }),
-        this.prisma.offlineDataQueue.count({ where: { userId, status: 'CONFLICT' } }),
+      // Get push statistics (Global queue, not user specific matching syncAllPendingItems)
+      const [pending, processing, pushedSynced, failed, conflict] = await Promise.all([
+        this.prisma.offlineDataQueue.count({ where: { status: 'PENDING' } }),
+        this.prisma.offlineDataQueue.count({ where: { status: 'PROCESSING' } }),
+        this.prisma.offlineDataQueue.count({ where: { status: 'SYNCED' } }),
+        this.prisma.offlineDataQueue.count({ where: { status: 'FAILED' } }),
+        this.prisma.offlineDataQueue.count({ where: { status: 'CONFLICT' } }),
       ]);
+
+      // Get pull statistics
+      const syncStates = await this.prisma.offlineSyncState.findMany();
+      const pulledSynced = syncStates.reduce((acc, curr) => acc + curr.totalItemsSynced, 0);
 
       return {
         pending,
         processing,
-        synced,
+        synced: pushedSynced + pulledSynced,
         failed,
         conflict,
         needsAttention: failed + conflict,
