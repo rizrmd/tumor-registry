@@ -327,25 +327,24 @@ export default function FollowUpCompliancePage() {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-6">Compliance Trend (Year 1-5)</h2>
         <div className="flex items-end space-x-2 h-64">
-          {visitCompliance.map((vc) => {
-            const year = vc.visitNumber <= 8 ? Math.ceil(vc.visitNumber / 4) : Math.ceil((vc.visitNumber - 8) / 2) + 2;
-            const height = Math.max(vc.rate, 5);
-
-            return (
-              <div key={vc.visitNumber} className="flex-1 flex flex-col items-center">
-                <div
-                  className={`w-full rounded-t ${vc.rate >= 90 ? 'bg-green-500' :
-                    vc.rate >= 75 ? 'bg-yellow-500' : 'bg-red-500'
-                    } hover:opacity-75 transition-opacity cursor-pointer`}
-                  style={{ height: `${height}%` }}
-                  title={`Visit ${vc.visitNumber}: ${vc.rate}%`}
-                ></div>
-                <div className="mt-2 text-xs font-medium text-gray-600">
-                  V{vc.visitNumber}
+          {visitCompliance.map((vc) => (
+            <div key={vc.visitNumber} className="flex-1 flex flex-col items-center group h-full justify-end">
+              <div
+                className={`w-full rounded-t ${vc.rate >= 90 ? 'bg-green-500' :
+                  vc.rate >= 75 ? 'bg-yellow-500' : 'bg-red-500'
+                  } hover:opacity-75 transition-opacity cursor-pointer relative group-hover:scale-110`}
+                style={{ height: `${Math.max(vc.rate, 5)}%` }} // Ensure minimum height for visibility
+                title={`Visit ${vc.visitNumber}: ${vc.rate}%`}
+              >
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                  {vc.rate}%
                 </div>
               </div>
-            );
-          })}
+              <div className="mt-2 text-xs font-medium text-gray-600">
+                V{vc.visitNumber}
+              </div>
+            </div>
+          ))}
         </div>
         <div className="flex justify-between mt-4 text-sm text-gray-500">
           <span>Year 1-2 (Q3M)</span>
