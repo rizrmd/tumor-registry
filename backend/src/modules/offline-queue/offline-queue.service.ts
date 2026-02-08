@@ -1071,7 +1071,9 @@ export class OfflineQueueService implements OnModuleInit {
 
     try {
       const pendingItems = await this.prisma.offlineDataQueue.findMany({
-        where: { status: 'PENDING' },
+        where: {
+          status: { in: ['PENDING', 'FAILED'] }
+        },
         orderBy: [{ priority: 'desc' }, { localTimestamp: 'asc' }],
       });
 
