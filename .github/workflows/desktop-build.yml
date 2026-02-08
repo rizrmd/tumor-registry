@@ -99,20 +99,31 @@ jobs:
           codesign --force --deep --sign - desktop/build/bin/INAMSOS.app
           codesign --verify --verbose desktop/build/bin/INAMSOS.app
 
-      - name: Package macOS app
+      - name: Package macOS App
         if: runner.os == 'macOS'
         run: |
           cd desktop/build/bin
-          zip -r INAMSOS-macos.zip INAMSOS.app
+          ditto -c -k --keepParent INAMSOS.app INAMSOS-macos-universal.zip
+          rm -rf INAMSOS.app
+
+      - name: Package Linux Binary
+        if: runner.os == 'Linux'
+        run: |
+          cd desktop/build/bin
+          tar zcvf INAMSOS-linux-amd64.tar.gz INAMSOS
+          rm INAMSOS
+
+      - name: Package Windows Binary
+        if: runner.os == 'Windows'
+        run: |
+          cd desktop/build/bin
+          Rename-Item INAMSOS.exe INAMSOS-windows-amd64.exe
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: |
-            desktop/build/bin/INAMSOS*
-            !desktop/build-bin/*.app
-            desktop/build/bin/*.zip
+          path: desktop/build/bin/*
           retention-days: 30
 
   release:
@@ -130,10 +141,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            artifacts/tumor-registry-linux/INAMSOS
-            artifacts/tumor-registry-windows/INAMSOS.exe
-            artifacts/tumor-registry-macos/INAMSOS-macos.zip
+          files: artifacts/**/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
