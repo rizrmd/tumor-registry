@@ -28,7 +28,8 @@ export class PatientsService {
         ...(includeInactive === false && { isActive: true }),
         ...(search && {
           OR: [
-            // Search by anonymousId, INAMSOS MR numbers - NOT by name
+            // Search by anonymousId, INAMSOS MR numbers - AND by name (for authorized users)
+            { name: { contains: search, mode: 'insensitive' } },
             { anonymousId: { contains: search, mode: 'insensitive' } },
             { inamsosRecordNumber: { contains: search, mode: 'insensitive' } },
             { hospitalRecordNumber: { contains: search, mode: 'insensitive' } },
@@ -71,7 +72,8 @@ export class PatientsService {
             },
           },
           orderBy: [
-            // Order by anonymousId instead of name
+            // Order by name if available, otherwise anonymousId
+            { name: 'asc' },
             { anonymousId: 'asc' },
           ],
           skip,
@@ -87,8 +89,8 @@ export class PatientsService {
       return {
         patients: patients.map(patient => ({
           ...patient,
-          // Explicitly exclude name field from response
-          name: undefined,
+          // Include name unless user is OBSERVER
+          name: isObserver ? undefined : patient.name,
           // Mask sensitive data for OBSERVER
           nik: isObserver ? undefined : patient.nik,
           phoneNumber: isObserver ? undefined : patient.phoneNumber,
