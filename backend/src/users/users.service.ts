@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { User, UserProfile, UpdateProfileDto, ChangePasswordDto } from './interfaces/user.interface';
 
 @Injectable()

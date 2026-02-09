@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { TokenService } from './token.service';
 import { EmailService } from './services/email.service';

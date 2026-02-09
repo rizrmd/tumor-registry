@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { CreatePasswordPolicyDto, UpdatePasswordPolicyDto, ValidatePasswordDto } from './dto/password-policy.dto';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import * as zxcvbn from 'zxcvbn';
 
 @Injectable()
