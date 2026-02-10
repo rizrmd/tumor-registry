@@ -4,87 +4,94 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ConflictResolutionDialog } from '@/components/sync/ConflictResolutionDialog';
+import { useSync } from '@/contexts/SyncContext';
 import {
     syncService,
     QueueItem,
-    ConflictResolution,
-    SyncStatistics
+    ConflictResolution
 } from '@/services/sync.service';
 import toast from 'react-hot-toast';
 
 export default function ConflictsPage() {
     const router = useRouter();
+    const {
+        statistics,
+        isSyncing,
+        triggerFullSync,
+        refreshStatistics
+    } = useSync();
+
     const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
-    const [statistics, setStatistics] = useState<SyncStatistics | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingItems, setIsLoadingItems] = useState(true);
     const [selectedItem, setSelectedItem] = useState<QueueItem | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState<'all' | 'conflict' | 'failed' | 'pending'>('all');
-    const [isSyncing, setIsSyncing] = useState(false);
 
-    const fetchData = useCallback(async () => {
+    const fetchQueueItems = useCallback(async () => {
         try {
-            const [queueData, stats] = await Promise.all([
-                syncService.getQueueItems(100),
-                syncService.getStatistics(),
-            ]);
+            const queueData = await syncService.getQueueItems(100);
             setQueueItems(queueData.items);
-            setStatistics(stats);
         } catch (error) {
-            console.error('Failed to fetch sync data:', error);
-            toast.error('Failed to load sync data');
+            console.error('Failed to fetch queue items:', error);
+            toast.error('Gagal memuat antrian sinkronisasi');
         } finally {
-            setIsLoading(false);
+            setIsLoadingItems(false);
         }
     }, []);
 
+    const handleRefresh = async () => {
+        const toastId = toast.loading('Memperbarui data...');
+        try {
+            await Promise.all([
+                refreshStatistics(),
+                fetchQueueItems()
+            ]);
+            toast.success('Data diperbarui', { id: toastId });
+        } catch (error) {
+            toast.error('Gagal memperbarui data', { id: toastId });
+        }
+    };
+
     useEffect(() => {
-        fetchData();
-        // Refresh every 30 seconds
-        const interval = setInterval(fetchData, 30000);
-        return () => clearInterval(interval);
-    }, [fetchData]);
+        fetchQueueItems();
+        // Statistics are handled by SyncContext polling
+    }, [fetchQueueItems]);
 
     const handleResolve = async (resolution: ConflictResolution, mergedData?: any) => {
         if (!selectedItem) return;
 
-        const toastId = toast.loading('Resolving conflict...');
+        const toastId = toast.loading('Menyelesaikan konflik...');
         try {
             await syncService.resolveConflict(selectedItem.id, resolution, mergedData);
-            toast.success('Conflict resolved successfully', { id: toastId });
+            toast.success('Konflik berhasil diselesaikan', { id: toastId });
             setIsDialogOpen(false);
             setSelectedItem(null);
-            await fetchData();
+            await Promise.all([refreshStatistics(), fetchQueueItems()]);
         } catch (error) {
             console.error('Failed to resolve conflict:', error);
-            toast.error('Failed to resolve conflict', { id: toastId });
+            toast.error('Gagal menyelesaikan konflik', { id: toastId });
         }
     };
 
     const handleRetry = async (item: QueueItem) => {
-        const toastId = toast.loading('Retrying sync...');
+        const toastId = toast.loading('Mengulangi sinkronisasi...');
         try {
             await syncService.retryItem(item.id);
-            toast.success('Item queued for retry', { id: toastId });
-            await fetchData();
+            toast.success('Item masuk antrian untuk dicoba lagi', { id: toastId });
+            await Promise.all([refreshStatistics(), fetchQueueItems()]);
         } catch (error) {
             console.error('Failed to retry:', error);
-            toast.error('Failed to retry', { id: toastId });
+            toast.error('Gagal mengulangi sinkronisasi', { id: toastId });
         }
     };
 
-    const handleSyncAll = async () => {
-        setIsSyncing(true);
-        const toastId = toast.loading('Running full sync...');
+    const handleSyncNow = async () => {
         try {
-            await syncService.runFullSync();
-            toast.success('Sync completed', { id: toastId });
-            await fetchData();
+            await triggerFullSync();
+            toast.success('Sinkronisasi selesai');
+            await fetchQueueItems();
         } catch (error) {
-            console.error('Sync failed:', error);
-            toast.error('Sync failed', { id: toastId });
-        } finally {
-            setIsSyncing(false);
+            // Error is handled by SyncContext/toast
         }
     };
 
@@ -134,7 +141,7 @@ export default function ConflictsPage() {
         }
     };
 
-    if (isLoading) {
+    if (isLoadingItems) {
         return (
             <Layout>
                 <div className="flex items-center justify-center h-64">
@@ -156,7 +163,7 @@ export default function ConflictsPage() {
                         </div>
                         <div className="flex items-center space-x-3">
                             <button
-                                onClick={fetchData}
+                                onClick={handleRefresh}
                                 className="flex items-center space-x-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                             >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -165,7 +172,7 @@ export default function ConflictsPage() {
                                 <span>Refresh</span>
                             </button>
                             <button
-                                onClick={handleSyncAll}
+                                onClick={handleSyncNow}
                                 disabled={isSyncing}
                                 className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -241,15 +248,15 @@ export default function ConflictsPage() {
                                     key={tab.key}
                                     onClick={() => setActiveFilter(tab.key as any)}
                                     className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeFilter === tab.key
-                                            ? 'border-emerald-500 text-emerald-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        ? 'border-emerald-500 text-emerald-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     <span>{tab.label}</span>
                                     {tab.count > 0 && (
                                         <span className={`px-2 py-0.5 rounded-full text-xs ${activeFilter === tab.key
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : 'bg-gray-100 text-gray-600'
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : 'bg-gray-100 text-gray-600'
                                             }`}>
                                             {tab.count}
                                         </span>
