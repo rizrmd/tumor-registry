@@ -33,15 +33,25 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
 
     const checkBackendHealth = async () => {
       try {
-        // Try to ping backend health endpoint or any simple endpoint
-        await apiClient.get('/users/count', { timeout: 3000 });
+        // Try to ping backend public status endpoint
+        // Global prefix in main.ts is 'api/v1', so we use '/status' relative to baseURL
+        await apiClient.get('/status', { timeout: 3000 });
         if (isMounted) {
           setIsBackendReady(true);
           setBackendStatus('System Ready');
           clearInterval(checkInterval);
         }
-      } catch (error) {
-        if (isMounted) {
+      } catch (error: any) {
+        // If we get an error but it's a 401/403, it means the server IS up 
+        // but just unauthorized (which is expected for /users/count, but /status should be public)
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          if (isMounted) {
+            setIsBackendReady(true);
+            setBackendStatus('System Ready');
+            clearInterval(checkInterval);
+          }
+        } else if (isMounted) {
+          // Actual network error (connection refused) or timeout
           setIsBackendReady(false);
           setBackendStatus('System Initializing... Please wait');
         }
@@ -135,8 +145,8 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
 
         {/* Backend Status Indicator */}
         <div className={`mt-6 rounded-lg p-3 border ${isBackendReady
-            ? 'bg-green-50 border-green-200'
-            : 'bg-yellow-50 border-yellow-200'
+          ? 'bg-green-50 border-green-200'
+          : 'bg-yellow-50 border-yellow-200'
           }`}>
           <div className="flex items-center">
             <div className="flex-shrink-0">

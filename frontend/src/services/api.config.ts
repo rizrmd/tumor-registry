@@ -4,8 +4,8 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } f
 // Detect if running in Wails desktop environment
 function isWailsEnvironment(): boolean {
   if (typeof window === 'undefined') return false;
-  // Check for Wails-specific window properties
-  return !!(window as any).go?.main?.App || !(window as any).wails;
+  // Wails v2 specifically injects these objects
+  return !!((window as any).go || (window as any).runtime);
 }
 
 // Determine API base URL
@@ -65,9 +65,9 @@ apiClient.interceptors.response.use(
       const isUnauthorized =
         status === 401 ||
         (status === 400 &&
-         responseData?.error?.details?.some((d: any) =>
-           d.message === 'Unauthorized' || d.message?.includes('token')
-         ));
+          responseData?.error?.details?.some((d: any) =>
+            d.message === 'Unauthorized' || d.message?.includes('token')
+          ));
 
       if (isUnauthorized) {
         // Unauthorized or token expired - clear storage and redirect to login

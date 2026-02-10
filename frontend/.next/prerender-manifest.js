@@ -1,0 +1,1 @@
+self.__PRERENDER_MANIFEST="{\"version\":4,\"routes\":{\"/admin/audit\":{\"experimentalBypassFor\":[{\"type\":\"header\",\"key\":\"Next-Action\"},{\"type\":\"header\",\"key\":\"content-type\",\"value\":\"multipart/form-data\"}],\"initialRevalidateSeconds\":false,\"srcRoute\":\"/admin/audit\"
