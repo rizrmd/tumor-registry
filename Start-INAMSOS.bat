@@ -25,8 +25,8 @@ echo.
 
 echo [Step 3/3] Starting Backend Services...
 cd backend
-if not exist "dist_user\server.js" (
-    echo [ERROR] Backend Server File (server.js) Not Found!
+if not exist "start.js" (
+    echo [ERROR] Backend Startup File (start.js) Not Found!
     echo         Please reinstall or check integrity.
     pause
     exit /b 1
@@ -39,7 +39,7 @@ echo   INAMSOS BACKEND SERVICE (Do Not Close)
 echo =================================================
 echo.
 echo [%TIME%] Starting Application Logic...
-node dist_user/server.js
+node start.js
 echo.
 echo [WARNING] Backend Service Stopped unexpectedly.
 echo          It will restart automatically in 5 seconds to maintain uptime.
