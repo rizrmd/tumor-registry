@@ -235,9 +235,9 @@ export function Layout({ children }: LayoutProps) {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      <div className={`z-50 w-64 bg-white shadow-lg lg:static transition-transform duration-200 ease-in-out ${isMobileMenuOpen ? 'fixed inset-y-0 left-0 translate-x-0' : 'fixed inset-y-0 left-0 -translate-x-full lg:static lg:translate-x-0'
         }`}>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col min-h-screen">
           {/* Logo */}
           <div className="flex items-center justify-center h-16 px-4 bg-emerald-600 border-b border-emerald-700">
             <div className="flex items-center space-x-2">
@@ -254,7 +254,7 @@ export function Layout({ children }: LayoutProps) {
 
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-4 py-6 space-y-1">
             {isLoading ? (
               <div className="space-y-3 animate-pulse">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -367,7 +367,7 @@ export function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col lg:pl-0">
+      <div className="flex-1 flex flex-col">
         {/* Top navigation bar */}
         <div className="z-40 bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
