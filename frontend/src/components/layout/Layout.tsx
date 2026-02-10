@@ -355,7 +355,8 @@ export function Layout({ children }: LayoutProps) {
 
             {/* Sync Indicator and User menu */}
             <div className="flex items-center space-x-4">
-              <SyncIndicator />
+              {/* Sync Indicator - Temporarily disabled */}
+              {/* <SyncIndicator /> */}
 
               <div className="relative">
                 <button

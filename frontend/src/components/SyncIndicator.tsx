@@ -220,12 +220,12 @@ export function SyncIndicator() {
                             </div>
                         )}
 
-                        {/* Error Display */}
-                        {error && (
+                        {/* Error Display - Disabled to prevent confusion in offline-only mode */}
+                        {/* {error && !error.toLowerCase().includes('remote') && !error.toLowerCase().includes('connection') && (
                             <div className="p-2.5 rounded-lg bg-red-50 border border-red-100 text-xs text-red-600">
                                 {error}
                             </div>
-                        )}
+                        )} */}
 
                         {/* Sync Button */}
                         <button
