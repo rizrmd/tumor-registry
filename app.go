@@ -55,22 +55,21 @@ func (a *App) startup(ctx context.Context) {
 }
 
 // startPostgreSQL starts the embedded PostgreSQL server
-// startPostgreSQL starts the embedded PostgreSQL server
 func (a *App) startPostgreSQL(appDir string) {
 	postgresDir := filepath.Join(appDir, "bin")
 	dataDir := filepath.Join(appDir, "data")
+	logFile := filepath.Join(appDir, "postgres.log")
 
 	var postgresExe string
 	if runtime.GOOS == "windows" {
 		postgresExe = filepath.Join(postgresDir, "pg_ctl.exe")
 	} else {
-		postgresExe = filepath.Join(postgresDir, "pg_ctl")
+		postgresExe = postgresDir + "/pg_ctl"
 	}
 
-	// Check if PostgreSQL is already running
-	statusCmd := exec.Command(postgresExe, "status", "-D", dataDir)
-	if err := statusCmd.Run(); err == nil {
-		log.Println("PostgreSQL is already running")
+	// Check if executable exists
+	if _, err := os.Stat(postgresExe); os.IsNotExist(err) {
+		log.Printf("[ERROR] PostgreSQL executable not found at: %s", postgresExe)
 		return
 	}
 
@@ -82,14 +81,31 @@ func (a *App) startPostgreSQL(appDir string) {
 	}
 
 	// Start PostgreSQL
-	a.postgresCmd = exec.Command(postgresExe, "start", "-D", dataDir, "-l", filepath.Join(appDir, "postgres.log"), "-o", "-p 54321")
+	// -w waits for startup to complete (so we can catch errors)
+	// -l redirects server logs to file
+	// -o passes options to postgres process
+	log.Println("Starting PostgreSQL...")
+	cmd := exec.Command(postgresExe, "start", "-D", dataDir, "-l", logFile, "-w", "-o", "-p 54321")
 
-	if err := a.postgresCmd.Start(); err != nil {
-		log.Printf("Failed to start PostgreSQL: %v", err)
+	// Capture output (startup status)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("[ERROR] Failed to start PostgreSQL: %v\nOutput: %s", err, string(output))
+
+		// Read tail of postgres.log for details
+		content, _ := os.ReadFile(logFile)
+		if len(content) > 0 {
+			tail := string(content)
+			if len(tail) > 2000 {
+				tail = tail[len(tail)-2000:]
+			}
+			log.Printf("PostgreSQL Log Tail:\n%s", tail)
+		}
 		return
 	}
 
-	log.Println("PostgreSQL started successfully")
+	log.Printf("PostgreSQL started successfully:\n%s", string(output))
+	a.postgresCmd = cmd
 }
 
 // startBackend starts the NestJS backend server
@@ -105,10 +121,11 @@ func (a *App) startBackend(appDir string) {
 	backendScript := filepath.Join(appDir, "backend", "dist_user", "main.js")
 	// Check if script exists
 	if _, err := os.Stat(backendScript); err != nil {
-		log.Printf("Backend script not found at: %s", backendScript)
+		log.Printf("[ERROR] Backend script not found at: %s", backendScript)
 		return
 	}
 
+	// 3. Set Environment Variables
 	// Use 'postgres' user (default superuser) and trust auth (any password works if configured in pg_hba.conf)
 	// Use 127.0.0.1 explicitly to avoid localhost resolution issues
 	// Match DB name and schema from prisma.schema
@@ -136,8 +153,9 @@ func (a *App) startBackend(appDir string) {
 	}
 
 	// 6. Start Process
+	log.Printf("Starting Backend...")
 	if err := a.backendCmd.Start(); err != nil {
-		log.Printf("Failed to start backend: %v", err)
+		log.Printf("[ERROR] Failed to start backend: %v", err)
 		return
 	}
 

@@ -1,4 +1,4 @@
-// File: D:\Project\Tumor Registry\tumor-registry\frontend\src\app\research\collaboration\page.tsx
+// File: D:\Project\Tumor Registry\INAMSOS Application Desktop\frontend\src\app\research\collaboration\page.tsx
 import * as entry from '../../../../../src/app/research/collaboration/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

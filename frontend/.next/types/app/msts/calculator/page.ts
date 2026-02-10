@@ -1,4 +1,4 @@
-// File: D:\Project\Tumor Registry\tumor-registry\frontend\src\app\msts\calculator\page.tsx
+// File: D:\Project\Tumor Registry\INAMSOS Application Desktop\frontend\src\app\msts\calculator\page.tsx
 import * as entry from '../../../../../src/app/msts/calculator/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
