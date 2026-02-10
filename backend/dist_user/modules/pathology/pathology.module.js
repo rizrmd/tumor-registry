@@ -10,7 +10,7 @@ exports.PathologyModule = void 0;
 const common_1 = require("@nestjs/common");
 const pathology_controller_1 = require("./pathology.controller");
 const pathology_service_1 = require("./pathology.service");
-const database_module_1 = require("@/database/database.module");
+const database_module_1 = require("../../database/database.module");
 const auth_module_1 = require("../auth/auth.module");
 let PathologyModule = class PathologyModule {
 };

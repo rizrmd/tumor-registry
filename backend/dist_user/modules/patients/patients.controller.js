@@ -16,7 +16,7 @@ exports.PatientsController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const patients_service_1 = require("./patients.service");
-const jwt_guard_1 = require("@/modules/auth/guards/jwt.guard");
+const jwt_guard_1 = require("../auth/guards/jwt.guard");
 const client_1 = require("@prisma/client");
 let PatientsController = class PatientsController {
     constructor(patientsService) {

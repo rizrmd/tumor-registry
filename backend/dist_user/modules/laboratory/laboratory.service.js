@@ -12,7 +12,7 @@ var LaboratoryService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LaboratoryService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 let LaboratoryService = LaboratoryService_1 = class LaboratoryService {
     constructor(prisma) {
         this.prisma = prisma;

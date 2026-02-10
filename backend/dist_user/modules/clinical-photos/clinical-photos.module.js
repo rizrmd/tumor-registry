@@ -10,7 +10,7 @@ exports.ClinicalPhotosModule = void 0;
 const common_1 = require("@nestjs/common");
 const clinical_photos_controller_1 = require("./clinical-photos.controller");
 const clinical_photos_service_1 = require("./clinical-photos.service");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 let ClinicalPhotosModule = class ClinicalPhotosModule {
 };
 exports.ClinicalPhotosModule = ClinicalPhotosModule;

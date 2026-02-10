@@ -12,7 +12,7 @@ var DatabasePerformanceService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabasePerformanceService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 const performance_monitor_service_1 = require("./performance-monitor.service");
 const schedule_1 = require("@nestjs/schedule");
 let DatabasePerformanceService = DatabasePerformanceService_1 = class DatabasePerformanceService {

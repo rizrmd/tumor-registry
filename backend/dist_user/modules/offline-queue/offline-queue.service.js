@@ -12,9 +12,9 @@ var OfflineQueueService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OfflineQueueService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 const file_sync_service_1 = require("./file-sync.service");
-const remote_prisma_service_1 = require("@/database/remote-prisma.service");
+const remote_prisma_service_1 = require("../../database/remote-prisma.service");
 let OfflineQueueService = OfflineQueueService_1 = class OfflineQueueService {
     constructor(prisma, remotePrismaService, fileSyncService) {
         this.prisma = prisma;

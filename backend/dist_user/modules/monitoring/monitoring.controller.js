@@ -16,10 +16,10 @@ exports.MonitoringController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const monitoring_service_1 = require("./monitoring.service");
-const jwt_guard_1 = require("@/auth/guards/jwt.guard");
-const permissions_guard_1 = require("@/auth/guards/permissions.guard");
-const permissions_decorator_1 = require("@/auth/decorators/permissions.decorator");
-const audit_log_decorator_1 = require("@/common/decorators/audit-log.decorator");
+const jwt_guard_1 = require("../auth/guards/jwt.guard");
+const permissions_guard_1 = require("../../auth/guards/permissions.guard");
+const permissions_decorator_1 = require("../../auth/decorators/permissions.decorator");
+const audit_log_decorator_1 = require("../../common/decorators/audit-log.decorator");
 let MonitoringController = class MonitoringController {
     constructor(monitoringService) {
         this.monitoringService = monitoringService;

@@ -10,8 +10,8 @@ exports.MedicalRecordsModule = void 0;
 const common_1 = require("@nestjs/common");
 const medical_records_controller_1 = require("./medical-records.controller");
 const medical_records_service_1 = require("./medical-records.service");
-const database_module_1 = require("@/database/database.module");
-const auth_module_1 = require("@/auth/auth.module");
+const database_module_1 = require("../../database/database.module");
+const auth_module_1 = require("../../auth/auth.module");
 let MedicalRecordsModule = class MedicalRecordsModule {
 };
 exports.MedicalRecordsModule = MedicalRecordsModule;

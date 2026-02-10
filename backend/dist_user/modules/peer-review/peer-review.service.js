@@ -12,7 +12,7 @@ var PeerReviewService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PeerReviewService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 let PeerReviewService = PeerReviewService_1 = class PeerReviewService {
     constructor(prisma) {
         this.prisma = prisma;

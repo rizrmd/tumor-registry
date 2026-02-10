@@ -10,8 +10,8 @@ exports.VitalSignsModule = void 0;
 const common_1 = require("@nestjs/common");
 const vital_signs_controller_1 = require("./vital-signs.controller");
 const vital_signs_service_1 = require("./vital-signs.service");
-const database_module_1 = require("@/database/database.module");
-const auth_module_1 = require("@/auth/auth.module");
+const database_module_1 = require("../../database/database.module");
+const auth_module_1 = require("../../auth/auth.module");
 let VitalSignsModule = class VitalSignsModule {
 };
 exports.VitalSignsModule = VitalSignsModule;

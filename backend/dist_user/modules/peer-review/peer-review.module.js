@@ -10,7 +10,7 @@ exports.PeerReviewModule = void 0;
 const common_1 = require("@nestjs/common");
 const peer_review_controller_1 = require("./peer-review.controller");
 const peer_review_service_1 = require("./peer-review.service");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 let PeerReviewModule = class PeerReviewModule {
 };
 exports.PeerReviewModule = PeerReviewModule;

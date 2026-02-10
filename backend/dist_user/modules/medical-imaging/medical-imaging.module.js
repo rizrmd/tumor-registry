@@ -10,7 +10,7 @@ exports.MedicalImagingModule = void 0;
 const common_1 = require("@nestjs/common");
 const medical_imaging_controller_1 = require("./medical-imaging.controller");
 const medical_imaging_service_1 = require("./medical-imaging.service");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 let MedicalImagingModule = class MedicalImagingModule {
 };
 exports.MedicalImagingModule = MedicalImagingModule;

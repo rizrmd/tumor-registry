@@ -10,8 +10,8 @@ exports.DataMigrationModule = void 0;
 const common_1 = require("@nestjs/common");
 const data_migration_controller_1 = require("./data-migration.controller");
 const data_migration_service_1 = require("./data-migration.service");
-const database_module_1 = require("@/database/database.module");
-const auth_module_1 = require("@/auth/auth.module");
+const database_module_1 = require("../../database/database.module");
+const auth_module_1 = require("../../auth/auth.module");
 let DataMigrationModule = class DataMigrationModule {
 };
 exports.DataMigrationModule = DataMigrationModule;

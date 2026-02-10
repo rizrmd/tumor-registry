@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EnhancedPermissionsGuard = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
-const permissions_decorator_1 = require("@/auth/decorators/permissions.decorator");
+const permissions_decorator_1 = require("../../../auth/decorators/permissions.decorator");
 let EnhancedPermissionsGuard = class EnhancedPermissionsGuard {
     constructor(reflector) {
         this.reflector = reflector;

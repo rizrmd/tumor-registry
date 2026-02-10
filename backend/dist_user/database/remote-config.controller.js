@@ -16,7 +16,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RemoteConfigController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
-const jwt_guard_1 = require("@/auth/guards/jwt.guard");
+const jwt_guard_1 = require("../modules/auth/guards/jwt.guard");
 const remote_config_service_1 = require("./remote-config.service");
 let RemoteConfigController = RemoteConfigController_1 = class RemoteConfigController {
     constructor(remoteConfigService) {

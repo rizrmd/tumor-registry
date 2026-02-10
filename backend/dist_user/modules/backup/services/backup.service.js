@@ -12,7 +12,7 @@ var BackupService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BackupService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../../database/prisma.service");
 const database_backup_strategy_1 = require("../strategies/database-backup.strategy");
 const fs = require("fs");
 const path = require("path");

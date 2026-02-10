@@ -12,7 +12,7 @@ var StreamingService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StreamingService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 const performance_monitor_service_1 = require("./performance-monitor.service");
 const stream_1 = require("stream");
 let StreamingService = StreamingService_1 = class StreamingService {

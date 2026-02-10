@@ -12,7 +12,7 @@ var PasswordPolicyService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PasswordPolicyService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../../database/prisma.service");
 const bcrypt = require("bcryptjs");
 let PasswordPolicyService = PasswordPolicyService_1 = class PasswordPolicyService {
     constructor(prisma) {

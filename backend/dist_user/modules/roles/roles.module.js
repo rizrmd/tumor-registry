@@ -10,8 +10,8 @@ exports.RolesModule = void 0;
 const common_1 = require("@nestjs/common");
 const roles_controller_1 = require("./roles.controller");
 const roles_service_1 = require("./roles.service");
-const database_module_1 = require("@/database/database.module");
-const auth_module_1 = require("@/auth/auth.module");
+const database_module_1 = require("../../database/database.module");
+const auth_module_1 = require("../../auth/auth.module");
 let RolesModule = class RolesModule {
 };
 exports.RolesModule = RolesModule;

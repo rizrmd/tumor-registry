@@ -14,7 +14,7 @@ exports.SystemAdministrationService = void 0;
 const common_1 = require("@nestjs/common");
 const configuration_service_1 = require("./configuration.service");
 const dashboard_service_1 = require("./dashboard.service");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../../database/prisma.service");
 let SystemAdministrationService = SystemAdministrationService_1 = class SystemAdministrationService {
     constructor(prisma, configurationService, dashboardService) {
         this.prisma = prisma;

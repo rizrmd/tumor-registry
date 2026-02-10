@@ -11,8 +11,8 @@ const common_1 = require("@nestjs/common");
 const offline_queue_controller_1 = require("./offline-queue.controller");
 const offline_queue_service_1 = require("./offline-queue.service");
 const file_sync_service_1 = require("./file-sync.service");
-const prisma_service_1 = require("@/database/prisma.service");
-const remote_prisma_service_1 = require("@/database/remote-prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
+const remote_prisma_service_1 = require("../../database/remote-prisma.service");
 let OfflineQueueModule = class OfflineQueueModule {
 };
 exports.OfflineQueueModule = OfflineQueueModule;

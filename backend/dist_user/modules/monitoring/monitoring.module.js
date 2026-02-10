@@ -10,8 +10,8 @@ exports.MonitoringModule = void 0;
 const common_1 = require("@nestjs/common");
 const monitoring_controller_1 = require("./monitoring.controller");
 const monitoring_service_1 = require("./monitoring.service");
-const database_module_1 = require("@/database/database.module");
-const auth_module_1 = require("@/auth/auth.module");
+const database_module_1 = require("../../database/database.module");
+const auth_module_1 = require("../../auth/auth.module");
 let MonitoringModule = class MonitoringModule {
 };
 exports.MonitoringModule = MonitoringModule;

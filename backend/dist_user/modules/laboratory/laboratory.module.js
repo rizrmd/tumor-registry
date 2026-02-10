@@ -10,7 +10,7 @@ exports.LaboratoryModule = void 0;
 const common_1 = require("@nestjs/common");
 const laboratory_controller_1 = require("./laboratory.controller");
 const laboratory_service_1 = require("./laboratory.service");
-const database_module_1 = require("@/database/database.module");
+const database_module_1 = require("../../database/database.module");
 const auth_module_1 = require("../auth/auth.module");
 let LaboratoryModule = class LaboratoryModule {
 };

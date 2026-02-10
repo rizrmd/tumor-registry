@@ -12,7 +12,7 @@ var QualityService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QualityService = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 let QualityService = QualityService_1 = class QualityService {
     constructor(prisma) {
         this.prisma = prisma;

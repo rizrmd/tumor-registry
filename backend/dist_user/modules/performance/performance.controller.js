@@ -20,10 +20,10 @@ const redis_service_1 = require("./redis.service");
 const performance_monitor_service_1 = require("./performance-monitor.service");
 const streaming_service_1 = require("./streaming.service");
 const database_performance_service_1 = require("./database-performance.service");
-const jwt_guard_1 = require("@/auth/guards/jwt.guard");
-const permissions_guard_1 = require("@/auth/guards/permissions.guard");
-const permissions_decorator_1 = require("@/auth/decorators/permissions.decorator");
-const audit_log_decorator_1 = require("@/common/decorators/audit-log.decorator");
+const jwt_guard_1 = require("../auth/guards/jwt.guard");
+const permissions_guard_1 = require("../../auth/guards/permissions.guard");
+const permissions_decorator_1 = require("../../auth/decorators/permissions.decorator");
+const audit_log_decorator_1 = require("../../common/decorators/audit-log.decorator");
 let PerformanceController = class PerformanceController {
     constructor(performanceService, redisService, performanceMonitor, streamingService, databasePerformance) {
         this.performanceService = performanceService;

@@ -10,8 +10,8 @@ exports.PopulationHealthModule = void 0;
 const common_1 = require("@nestjs/common");
 const population_health_controller_1 = require("./population-health.controller");
 const population_health_service_1 = require("./population-health.service");
-const database_module_1 = require("@/database/database.module");
-const auth_module_1 = require("@/auth/auth.module");
+const database_module_1 = require("../../database/database.module");
+const auth_module_1 = require("../../auth/auth.module");
 let PopulationHealthModule = class PopulationHealthModule {
 };
 exports.PopulationHealthModule = PopulationHealthModule;

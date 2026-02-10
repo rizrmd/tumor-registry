@@ -10,7 +10,7 @@ exports.QualityModule = void 0;
 const common_1 = require("@nestjs/common");
 const quality_controller_1 = require("./quality.controller");
 const quality_service_1 = require("./quality.service");
-const prisma_service_1 = require("@/database/prisma.service");
+const prisma_service_1 = require("../../database/prisma.service");
 let QualityModule = class QualityModule {
 };
 exports.QualityModule = QualityModule;
