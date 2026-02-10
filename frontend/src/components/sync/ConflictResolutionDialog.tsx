@@ -38,7 +38,7 @@ export function ConflictResolutionDialog({
     const allKeys = Array.from(new Set([...Object.keys(localData), ...Object.keys(remoteData)]));
 
     // Filter out internal/metadata keys
-    const displayKeys = allKeys.filter(key => 
+    const displayKeys = allKeys.filter(key =>
         !['id', 'createdAt', 'updatedAt', 'passwordHash', 'metadata'].includes(key)
     );
 
@@ -64,11 +64,11 @@ export function ConflictResolutionDialog({
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             {/* Backdrop */}
-            <div 
+            <div
                 className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
             />
-            
+
             {/* Dialog */}
             <div className="flex min-h-full items-center justify-center p-4">
                 <div className="relative w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden">
@@ -108,21 +108,19 @@ export function ConflictResolutionDialog({
                             <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
                                 <button
                                     onClick={() => setActiveTab('visual')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                                        activeTab === 'visual' 
-                                            ? 'bg-white text-gray-900 shadow-sm' 
+                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'visual'
+                                            ? 'bg-white text-gray-900 shadow-sm'
                                             : 'text-gray-600 hover:text-gray-900'
-                                    }`}
+                                        }`}
                                 >
                                     Visual Diff
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('json')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                                        activeTab === 'json' 
-                                            ? 'bg-white text-gray-900 shadow-sm' 
+                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'json'
+                                            ? 'bg-white text-gray-900 shadow-sm'
                                             : 'text-gray-600 hover:text-gray-900'
-                                    }`}
+                                        }`}
                                 >
                                     JSON View
                                 </button>
@@ -153,8 +151,8 @@ export function ConflictResolutionDialog({
                                     </div>
                                     <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
                                         {displayKeys.map(key => (
-                                            <div 
-                                                key={key} 
+                                            <div
+                                                key={key}
                                                 className={`p-2 rounded-lg ${isDifferent(key) ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}
                                             >
                                                 <div className="text-xs font-medium text-gray-500 uppercase">{key}</div>
@@ -183,8 +181,8 @@ export function ConflictResolutionDialog({
                                     </div>
                                     <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
                                         {displayKeys.map(key => (
-                                            <div 
-                                                key={key} 
+                                            <div
+                                                key={key}
                                                 className={`p-2 rounded-lg ${isDifferent(key) ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'}`}
                                             >
                                                 <div className="text-xs font-medium text-gray-500 uppercase">{key}</div>
@@ -223,7 +221,10 @@ export function ConflictResolutionDialog({
                                     description="Keep your local changes and overwrite server"
                                     icon="💻"
                                     selected={selectedStrategy === ConflictResolution.USE_LOCAL}
-                                    onSelect={setSelectedStrategy}
+                                    onSelect={(val) => {
+                                        setSelectedStrategy(val);
+                                        setMergedData({ ...localData });
+                                    }}
                                     color="blue"
                                 />
                                 <ResolutionOption
@@ -232,7 +233,10 @@ export function ConflictResolutionDialog({
                                     description="Accept server changes and discard yours"
                                     icon="🌐"
                                     selected={selectedStrategy === ConflictResolution.USE_REMOTE}
-                                    onSelect={setSelectedStrategy}
+                                    onSelect={(val) => {
+                                        setSelectedStrategy(val);
+                                        setMergedData({ ...remoteData });
+                                    }}
                                     color="purple"
                                 />
                                 <ResolutionOption
@@ -241,7 +245,20 @@ export function ConflictResolutionDialog({
                                     description="Merge non-conflicting fields from both"
                                     icon="🔀"
                                     selected={selectedStrategy === ConflictResolution.MERGE}
-                                    onSelect={setSelectedStrategy}
+                                    onSelect={(val) => {
+                                        setSelectedStrategy(val);
+                                        // Smart Merge Logic:
+                                        // Use Remote as base (server truth)
+                                        // Override with Local ONLY if Local has valid value
+                                        const smartMerged = { ...remoteData };
+                                        Object.keys(localData).forEach(key => {
+                                            const val = localData[key];
+                                            if (val !== null && val !== undefined && val !== '') {
+                                                smartMerged[key] = val;
+                                            }
+                                        });
+                                        setMergedData(smartMerged);
+                                    }}
                                     color="orange"
                                 />
                                 <ResolutionOption
@@ -250,7 +267,10 @@ export function ConflictResolutionDialog({
                                     description="Edit the data before resolving"
                                     icon="✏️"
                                     selected={selectedStrategy === ConflictResolution.MANUAL}
-                                    onSelect={setSelectedStrategy}
+                                    onSelect={(val) => {
+                                        setSelectedStrategy(val);
+                                        setMergedData({ ...localData });
+                                    }}
                                     color="emerald"
                                 />
                             </div>
@@ -262,20 +282,26 @@ export function ConflictResolutionDialog({
                                 <h3 className="text-sm font-semibold text-gray-900 mb-2">
                                     {selectedStrategy === ConflictResolution.MERGE ? 'Review Merged Data' : 'Edit Data Manually'}
                                 </h3>
-                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                    {displayKeys.slice(0, 10).map(key => (
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                                    {displayKeys.map(key => (
                                         <div key={key} className="mb-3">
-                                            <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                                                {key}
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="block text-xs font-medium text-gray-500 uppercase">
+                                                    {key}
+                                                    {isDifferent(key) && (
+                                                        <span className="ml-2 text-orange-500" title="Different in Local and Remote">●</span>
+                                                    )}
+                                                </label>
                                                 {isDifferent(key) && (
-                                                    <span className="ml-2 text-orange-500">●</span>
+                                                    <span className="text-xs text-orange-600">Conflict</span>
                                                 )}
-                                            </label>
+                                            </div>
                                             <input
                                                 type="text"
-                                                value={mergedData[key] || ''}
+                                                value={mergedData[key] !== undefined && mergedData[key] !== null ? String(mergedData[key]) : ''}
                                                 onChange={(e) => setMergedData({ ...mergedData, [key]: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${isDifferent(key) ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
+                                                    }`}
                                             />
                                         </div>
                                     ))}
@@ -341,9 +367,8 @@ function ResolutionOption({ value, label, description, icon, selected, onSelect,
     return (
         <button
             onClick={() => onSelect(value)}
-            className={`p-4 rounded-xl border-2 text-left transition-all ${
-                selected ? selectedClasses[color] : colorClasses[color]
-            }`}
+            className={`p-4 rounded-xl border-2 text-left transition-all ${selected ? selectedClasses[color] : colorClasses[color]
+                }`}
         >
             <div className="flex items-start space-x-3">
                 <span className="text-2xl">{icon}</span>
