@@ -109,10 +109,10 @@ func (a *App) startBackend(appDir string) {
 		return
 	}
 
-	// 3. Set Environment Variables
 	// Use 'postgres' user (default superuser) and trust auth (any password works if configured in pg_hba.conf)
 	// Use 127.0.0.1 explicitly to avoid localhost resolution issues
-	dbURL := "postgresql://postgres:password@127.0.0.1:54321/inamsos?schema=public"
+	// Match DB name and schema from prisma.schema
+	dbURL := "postgresql://postgres@127.0.0.1:54321/postgres?schema=system"
 	os.Setenv("NODE_ENV", "production")
 	os.Setenv("PORT", "3001")
 	os.Setenv("DATABASE_URL", dbURL)
