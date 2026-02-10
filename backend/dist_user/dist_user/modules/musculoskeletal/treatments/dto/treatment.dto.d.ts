@@ -1,0 +1,73 @@
+export declare class TreatmentManagementDto {
+    id: string;
+    patientId: string;
+    treatmentType: string;
+    surgeryType?: string;
+    reconstructionMethod?: string;
+    surgicalMargin?: string;
+    marginDistance?: number;
+    amputationLevel?: string;
+    chemotherapyProtocol?: string;
+    numberOfCycles?: number;
+    cyclesCompleted?: number;
+    radiotherapyDose?: number;
+    numberOfFractions?: number;
+    fractionsCompleted?: number;
+    startDate?: Date;
+    endDate?: Date;
+    status: string;
+    response?: string;
+    huvosGrade?: string;
+    complications?: string;
+    adverseEvents?: string;
+    notes?: string;
+    performedBy?: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+export declare class CreateTreatmentDto {
+    patientId: string;
+    treatmentType: string;
+    surgeryType?: string;
+    reconstructionMethod?: string;
+    surgicalMargin?: string;
+    marginDistance?: number;
+    amputationLevel?: string;
+    chemotherapyProtocol?: string;
+    numberOfCycles?: number;
+    cyclesCompleted?: number;
+    radiotherapyDose?: number;
+    numberOfFractions?: number;
+    fractionsCompleted?: number;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    response?: string;
+    huvosGrade?: string;
+    complications?: string;
+    adverseEvents?: string;
+    notes?: string;
+    performedBy?: string;
+}
+export declare class UpdateTreatmentDto {
+    surgeryType?: string;
+    reconstructionMethod?: string;
+    surgicalMargin?: string;
+    marginDistance?: number;
+    amputationLevel?: string;
+    chemotherapyProtocol?: string;
+    numberOfCycles?: number;
+    cyclesCompleted?: number;
+    radiotherapyDose?: number;
+    numberOfFractions?: number;
+    fractionsCompleted?: number;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    response?: string;
+    huvosGrade?: string;
+    complications?: string;
+    adverseEvents?: string;
+    notes?: string;
+    performedBy?: string;
+}

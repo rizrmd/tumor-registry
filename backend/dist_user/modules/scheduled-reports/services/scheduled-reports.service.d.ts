@@ -1,0 +1,43 @@
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { PrismaService } from '@/database/prisma.service';
+import { ExecutionContext, ExecutionResult } from '../interfaces/scheduled-reports.interface';
+import { CreateScheduledReportDto } from '../dto/create-scheduled-report.dto';
+import { UpdateScheduledReportDto } from '../dto/update-scheduled-report.dto';
+export declare class ScheduledReportsService {
+    private readonly prisma;
+    private readonly schedulerRegistry;
+    private readonly logger;
+    private scheduledJobs;
+    constructor(prisma: PrismaService, schedulerRegistry: SchedulerRegistry);
+    onModuleInit(): Promise<void>;
+    onModuleDestroy(): Promise<void>;
+    create(createDto: CreateScheduledReportDto): Promise<any>;
+    update(id: string, updateDto: UpdateScheduledReportDto): Promise<any>;
+    findOne(id: string): Promise<any>;
+    findAll(filters?: {
+        templateId?: string;
+        isActive?: boolean;
+        deliveryMethod?: string;
+    }): Promise<any[]>;
+    toggleActive(id: string): Promise<any>;
+    remove(id: string): Promise<void>;
+    executeScheduledReport(context: ExecutionContext): Promise<ExecutionResult>;
+    private validateReportData;
+    private generateExecutiveSummary;
+    private checkThresholds;
+    private sendThresholdAlerts;
+    private distributeReport;
+    private personalizeReport;
+    private initializeScheduledReports;
+    private scheduleJob;
+    private unscheduleJob;
+    private validateCronExpression;
+    private calculateNextRun;
+    private generateReport;
+    private getDataSourceCount;
+    private getRecentDataCount;
+    private checkDataCompleteness;
+    private resolveRecipientEmail;
+    private resolveRecipientName;
+    cleanupOldExecutions(): Promise<void>;
+}

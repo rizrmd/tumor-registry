@@ -1,13 +1,38 @@
-build/bin
-node_modules
-frontend/dist
-bin/
+# Build artifacts
+*.exe
+dist/
+build/
 
-INAMSOS_App/
-backend/dist_user/
-backend/.env
-backend/node_modules/
+# Database
+data/
+*.db
+*.sqlite
 
-frontend/.next/
-frontend/out/
-*.bak
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Uploads
+uploads/
