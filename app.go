@@ -44,8 +44,8 @@ func (a *App) startup(ctx context.Context) {
 	// Start PostgreSQL
 	go a.startPostgreSQL(appDir)
 
-	// Wait for PostgreSQL to start
-	time.Sleep(3 * time.Second)
+	// Wait for PostgreSQL to start (allow time for recovery)
+	time.Sleep(15 * time.Second)
 
 	// Start Backend
 	go a.startBackend(appDir)
