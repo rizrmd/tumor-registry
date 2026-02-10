@@ -104,9 +104,14 @@ func (a *App) startup(ctx context.Context) {
 
 // startPostgreSQL starts the embedded PostgreSQL server
 func (a *App) startPostgreSQL(appDir string) {
-	postgresDir := filepath.Join(appDir, "bin")
+	postgresDir := filepath.Join(appDir, "engine", "bin")
 	dataDir := filepath.Join(appDir, "data")
-	logFile := filepath.Join(appDir, "postgres.log")
+	logDir := filepath.Join(appDir, "logs")
+
+	// Ensure log directory exists
+	os.MkdirAll(logDir, 0755)
+
+	logFile := filepath.Join(logDir, "postgres.log")
 	var postgresExe string
 	if runtime.GOOS == "windows" {
 		postgresExe = filepath.Join(postgresDir, "pg_ctl.exe")
@@ -145,7 +150,7 @@ func (a *App) startPostgreSQL(appDir string) {
 // startBackend starts the NestJS backend server
 func (a *App) startBackend(appDir string) {
 	nodeExe := "node"
-	localNode := filepath.Join(appDir, "bin", "node.exe")
+	localNode := filepath.Join(appDir, "engine", "bin", "node.exe")
 	if _, err := os.Stat(localNode); err == nil {
 		nodeExe = localNode
 	}
@@ -162,7 +167,7 @@ func (a *App) startBackend(appDir string) {
 	a.backendCmd = exec.Command(nodeExe, backendScript)
 	a.backendCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	a.backendCmd.Dir = filepath.Dir(backendScript)
-	logPath := filepath.Join(appDir, "backend.log")
+	logPath := filepath.Join(appDir, "logs", "backend.log")
 	logFile, err := os.Create(logPath)
 	if err == nil {
 		a.backendCmd.Stdout = logFile
@@ -190,7 +195,7 @@ func (a *App) shutdown(ctx context.Context) {
 		log.Println("Stopping PostgreSQL...")
 		exePath, _ := os.Executable()
 		appDir := filepath.Dir(exePath)
-		postgresDir := filepath.Join(appDir, "bin")
+		postgresDir := filepath.Join(appDir, "engine", "bin")
 		dataDir := filepath.Join(appDir, "data")
 		var postgresExe string
 		if runtime.GOOS == "windows" {
