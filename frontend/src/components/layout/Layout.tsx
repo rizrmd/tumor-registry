@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { SyncIndicator } from '@/components/SyncIndicator';
+import { syncService } from '@/services/sync.service';
+import toast from 'react-hot-toast';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -176,6 +178,40 @@ export function Layout({ children }: LayoutProps) {
     setIsInitialized(true);
   }, [pathname]);
 
+  // Auto Sync Logic
+  useEffect(() => {
+    // function to handle online status
+    const handleOnline = () => {
+      console.log('Network online detected. Starting sync...');
+      toast.promise(syncService.runFullSync(), {
+        loading: 'Connection restored. Syncing data...',
+        success: 'Data synchronized successfully',
+        error: 'Sync failed (will retry later)',
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+
+    // Initial check
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      // Optional: trigger silent sync on load?
+      // syncService.runFullSync().catch(() => {});
+    }
+
+    // Periodic Sync (every 5 minutes)
+    const syncInterval = setInterval(() => {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        console.log('Running scheduled sync...');
+        syncService.runFullSync().catch(err => console.error('Scheduled sync failed', err));
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      clearInterval(syncInterval);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Loading Overlay */}
@@ -214,6 +250,8 @@ export function Layout({ children }: LayoutProps) {
               </div>
             </div>
           </div>
+
+
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
@@ -355,8 +393,8 @@ export function Layout({ children }: LayoutProps) {
 
             {/* Sync Indicator and User menu */}
             <div className="flex items-center space-x-4">
-              {/* Sync Indicator - Temporarily disabled */}
-              {/* <SyncIndicator /> */}
+              {/* Sync Indicator */}
+              <SyncIndicator />
 
               <div className="relative">
                 <button

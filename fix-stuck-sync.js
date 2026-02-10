@@ -11,74 +11,54 @@ const prisma = new PrismaClient({
 
 async function fixStuckItems() {
     try {
-        console.log('Checking for stuck PENDING items...');
+        console.log('Running Deep Clean on Sync Queue...');
 
-        // Find items with attempt_count > max_attempts
-        const stuckItems = await prisma.offlineDataQueue.findMany({
+        // 1. Delete 'national-dashboard' items (Invalid Entity)
+        // These are creating the ghost pending items
+        const invalidItems = await prisma.offlineDataQueue.deleteMany({
+            where: {
+                entityType: 'national-dashboard'
+            }
+        });
+        console.log(`Deleted ${invalidItems.count} items with type 'national-dashboard'.`);
+
+        // 2. Mark stuck items (> 10 attempts) as FAILED
+        // The user reported items with ~94 attempts. We need to stop them.
+        const stuckItems = await prisma.offlineDataQueue.updateMany({
             where: {
                 status: 'PENDING',
                 attemptCount: {
-                    gt: prisma.offlineDataQueue.fields.maxAttempts
-                }
-            }
-        });
-
-        console.log(`Found ${stuckItems.length} stuck items`);
-
-        if (stuckItems.length > 0) {
-            // Update them to FAILED status
-            const result = await prisma.offlineDataQueue.updateMany({
-                where: {
-                    status: 'PENDING',
-                    attemptCount: {
-                        gt: 3
-                    }
-                },
-                data: {
-                    status: 'FAILED'
-                }
-            });
-
-            console.log(`Updated ${result.count} items to FAILED status`);
-        }
-
-        // Also check for items with very high attempt counts (>100)
-        const veryStuckItems = await prisma.offlineDataQueue.findMany({
-            where: {
-                attemptCount: {
-                    gt: 100
+                    gt: 10
                 }
             },
-            select: {
-                id: true,
-                entityType: true,
-                operation: true,
-                status: true,
-                attemptCount: true,
-                maxAttempts: true
+            data: {
+                status: 'FAILED',
+                errorMessage: 'Automatically marked FAILED due to excessive attempts (>10)'
             }
         });
+        console.log(`Marked ${stuckItems.count} items (>10 attempts) as FAILED.`);
 
-        console.log('\nItems with >100 attempts:');
-        veryStuckItems.forEach(item => {
-            console.log(`- ${item.entityType} (${item.operation}): ${item.status}, ${item.attemptCount}/${item.maxAttempts} attempts`);
-        });
-
-        if (veryStuckItems.length > 0) {
-            const deleteResult = await prisma.offlineDataQueue.deleteMany({
-                where: {
-                    attemptCount: {
-                        gt: 100
-                    }
+        // 3. Reset stuck PROCESSING items (older than 1 hour)
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const stuckProcessing = await prisma.offlineDataQueue.updateMany({
+            where: {
+                status: 'PROCESSING',
+                updatedAt: {
+                    lt: oneHourAgo
                 }
-            });
-            console.log(`\nDeleted ${deleteResult.count} extremely stuck items`);
-        }
+            },
+            data: {
+                status: 'PENDING',
+                attemptCount: { increment: 1 },
+                errorMessage: 'Reset from stuck PROCESSING state'
+            }
+        });
+        console.log(`Reset ${stuckProcessing.count} stuck PROCESSING items.`);
 
-        console.log('\nDone!');
+        console.log('\nDeep Clean Complete!');
 
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error('Error:', error);
     } finally {
         await prisma.$disconnect();
     }
