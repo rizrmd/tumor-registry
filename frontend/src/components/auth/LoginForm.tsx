@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginRequest } from '@/types/auth';
+import apiClient from '@/services/api.config';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -19,9 +20,45 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string>('');
+  const [isBackendReady, setIsBackendReady] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<string>('Checking system...');
 
   const { login } = useAuth();
   const router = useRouter();
+
+  // Backend Health Check
+  useEffect(() => {
+    let isMounted = true;
+    let checkInterval: NodeJS.Timeout;
+
+    const checkBackendHealth = async () => {
+      try {
+        // Try to ping backend health endpoint or any simple endpoint
+        await apiClient.get('/users/count', { timeout: 3000 });
+        if (isMounted) {
+          setIsBackendReady(true);
+          setBackendStatus('System Ready');
+          clearInterval(checkInterval);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setIsBackendReady(false);
+          setBackendStatus('System Initializing... Please wait');
+        }
+      }
+    };
+
+    // Initial check
+    checkBackendHealth();
+
+    // Poll every 2 seconds until backend is ready
+    checkInterval = setInterval(checkBackendHealth, 2000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(checkInterval);
+    };
+  }, []);
 
   const validateForm = (): boolean => {
     const errors: Partial<LoginRequest> = {};
@@ -96,6 +133,33 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
           </p>
         </div>
 
+        {/* Backend Status Indicator */}
+        <div className={`mt-6 rounded-lg p-3 border ${isBackendReady
+            ? 'bg-green-50 border-green-200'
+            : 'bg-yellow-50 border-yellow-200'
+          }`}>
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              {isBackendReady ? (
+                <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : (
+                <svg className="animate-spin h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              )}
+            </div>
+            <div className="ml-3">
+              <p className={`text-sm font-medium ${isBackendReady ? 'text-green-800' : 'text-yellow-800'
+                }`}>
+                {backendStatus}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {loginError && (
             <div className="rounded-lg bg-red-50 p-4 border border-red-200">
@@ -147,9 +211,8 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
                   required
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`appearance-none relative block w-full pl-10 pr-3 py-2 border ${
-                    fieldErrors.email ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm`}
+                  className={`appearance-none relative block w-full pl-10 pr-3 py-2 border ${fieldErrors.email ? 'border-red-300' : 'border-gray-300'
+                    } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm`}
                   placeholder="nama@contoh.com"
                 />
               </div>
@@ -176,9 +239,8 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`appearance-none relative block w-full pl-10 pr-10 py-2 border ${
-                    fieldErrors.password ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm`}
+                  className={`appearance-none relative block w-full pl-10 pr-10 py-2 border ${fieldErrors.password ? 'border-red-300' : 'border-gray-300'
+                    } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm`}
                   placeholder="••••••••"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -229,7 +291,7 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
           <div>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isBackendReady}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
