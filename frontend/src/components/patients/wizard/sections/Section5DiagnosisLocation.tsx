@@ -96,7 +96,7 @@ export function Section5DiagnosisLocation() {
   const loadBoneLocations = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
       const response = await fetch(`${apiUrl}/locations/bone`);
 
       if (!response.ok) {
@@ -116,7 +116,7 @@ export function Section5DiagnosisLocation() {
   const loadSoftTissueLocations = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
       const response = await fetch(`${apiUrl}/locations/soft-tissue`);
 
       if (!response.ok) {

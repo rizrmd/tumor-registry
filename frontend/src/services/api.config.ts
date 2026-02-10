@@ -18,7 +18,7 @@ function getApiBaseUrl(): string {
   // In Wails/desktop mode, use localhost
   if (isWailsEnvironment()) {
     console.log('[API] Running in Wails/desktop mode, using localhost API');
-    return 'http://localhost:3001/api/v1';
+    return 'http://127.0.0.1:3001/api/v1';
   }
 
   // Default: use Next.js proxy rewrite (web mode)

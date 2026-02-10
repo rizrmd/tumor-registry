@@ -137,7 +137,7 @@ export function Section2PatientIdentity() {
   const loadProvinces = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
       const response = await fetch(`${apiUrl}/regions/provinces`);
 
       if (!response.ok) {
@@ -156,7 +156,7 @@ export function Section2PatientIdentity() {
 
   const loadRegencies = async (provinceId: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
       const response = await fetch(`${apiUrl}/regions/provinces/${provinceId}/regencies`);
 
       if (!response.ok) {
@@ -173,7 +173,7 @@ export function Section2PatientIdentity() {
 
   const loadDistricts = async (regencyId: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
       const response = await fetch(`${apiUrl}/regions/regencies/${regencyId}/districts`);
 
       if (!response.ok) {
@@ -190,7 +190,7 @@ export function Section2PatientIdentity() {
 
   const loadVillages = async (districtId: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
       const response = await fetch(`${apiUrl}/regions/districts/${districtId}/villages`);
 
       if (!response.ok) {
