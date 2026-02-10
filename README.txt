@@ -26,7 +26,7 @@ SOFTWARE VERSIONS:
    - Installation: 
      1. Install prerequisites above (Node 32-bit).
      2. Open `Start-INAMSOS.bat` with Notepad.
-     3. Change `start "" "INAMSOS_64.exe"` to `start "" "INAMSOS_32.exe"`.
+     3. Start "" "INAMSOS_64.exe"`
      4. Save and Run.
 
 INSTALLATION & STARTUP
