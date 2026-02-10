@@ -213,7 +213,7 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Loading Overlay */}
       {isNavigating && (
         <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 flex items-center justify-center">
