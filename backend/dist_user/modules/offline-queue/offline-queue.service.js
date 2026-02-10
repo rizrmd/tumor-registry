@@ -815,7 +815,12 @@ let OfflineQueueService = OfflineQueueService_1 = class OfflineQueueService {
             let conflictData = null;
             try {
                 if (!(await this.remotePrismaService.checkConnection())) {
-                    throw new Error('Remote database unavailable');
+                    // Silently skip sync if remote is unavailable (offline-only mode)
+                    await this.prisma.offlineDataQueue.update({
+                        where: { id: queueId },
+                        data: { status: 'PENDING', errorMessage: null },
+                    });
+                    return { status: 'PENDING', queueItem };
                 }
                 result = await this.executeRemoteOperation(queueItem.entityType, queueItem.operation, queueItem.entityId, queueItem.data, userId);
                 await this.prisma.offlineDataQueue.update({
@@ -1205,7 +1210,7 @@ exports.OfflineQueueService = OfflineQueueService;
 exports.OfflineQueueService = OfflineQueueService = OfflineQueueService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        remote_prisma_service_1.RemotePrismaService,
-        file_sync_service_1.FileSyncService])
+    remote_prisma_service_1.RemotePrismaService,
+    file_sync_service_1.FileSyncService])
 ], OfflineQueueService);
 //# sourceMappingURL=offline-queue.service.js.map
