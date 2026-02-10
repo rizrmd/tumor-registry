@@ -2,6 +2,12 @@
 *.exe
 dist/
 build/
+.next/
+**/dist/
+**/dist_user/
+**/out/
+**/wailsjs/
+**/tsconfig.tsbuildinfo
 
 # Database
 data/
