@@ -1,0 +1,20 @@
+{
+    "$schema": "https://wails.io/schemas/config.v2.json",
+    "name": "INAMSOS",
+    "outputfilename": "INAMSOS",
+    "frontend:install": "npm install",
+    "frontend:build": "bun ../scripts/sync-frontend.js",
+    "frontend:dev:watcher": "npm run dev",
+    "frontend:dev:serverUrl": "auto",
+    "author": {
+        "name": "INAMSOS Team",
+        "email": "admin@inamsos.go.id"
+    },
+    "info": {
+        "companyName": "INAMSOS",
+        "productName": "INAMSOS Tumor Registry",
+        "productVersion": "1.3.5",
+        "copyright": "Copyright © 2024 INAMSOS",
+        "comments": "Indonesia National Musculoskeletal Tumor Database System"
+    }
+}
