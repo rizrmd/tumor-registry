@@ -1024,11 +1024,28 @@ export class OfflineQueueService implements OnModuleInit {
       } catch (error: any) {
         // Check if it's a conflict error
         if (error instanceof ConflictException || error.message?.includes('conflict')) {
+          const remoteData = await this.fetchRemoteData(queueItem.entityType, queueItem.entityId);
+
+          // SMART CHECK: If remote data is exactly the same as local data, it's not actually a conflict
+          if (remoteData && this.isDataEqual(queueItem.data, remoteData)) {
+            this.logger.log(`Conflict detected for ${queueItem.entityType} ${queueItem.id} but data is identical. Auto-syncing.`);
+            await this.prisma.offlineDataQueue.update({
+              where: { id: queueId },
+              data: {
+                status: 'SYNCED',
+                syncedAt: new Date(),
+                errorMessage: null,
+                errorDetails: null,
+              },
+            });
+            return { status: 'SYNCED', result: remoteData, queueItem };
+          }
+
           hasConflict = true;
           conflictData = {
             errorMessage: error.message,
             localData: queueItem.data,
-            remoteData: await this.fetchRemoteData(queueItem.entityType, queueItem.entityId),
+            remoteData: remoteData,
           };
 
           await this.prisma.offlineDataQueue.update({
@@ -1294,11 +1311,12 @@ export class OfflineQueueService implements OnModuleInit {
       'patient-visit': 'patientVisit',
       'activity-log': 'activityLog',
       'national-statistics-cache': 'nationalStatisticsCache',
+      'national-dashboard': 'executiveDashboard',
       'cancer-geographic-data': 'cancerGeographicData',
       'cancer-aggregate-stats': 'cancerAggregateStats',
     };
 
-    const prismaModel = entityMap[entityType.toLowerCase()];
+    const prismaModel = entityMap[entityType.toLowerCase()] || (entityType.toLowerCase() === 'national-dashboard' ? 'executiveDashboard' : null);
     if (!prismaModel) {
       throw new BadRequestException(`Unsupported entity type: ${entityType}`);
     }
@@ -1330,6 +1348,7 @@ export class OfflineQueueService implements OnModuleInit {
       case 'patient-visit':
       case 'activity-log':
       case 'national-statistics-cache':
+      case 'national-dashboard':
       case 'cancer-geographic-data':
       case 'cancer-aggregate-stats':
         return this.handleGenericOperation(this.remotePrisma, prismaModel, operation, entityId, data);
@@ -1467,6 +1486,10 @@ export class OfflineQueueService implements OnModuleInit {
           return await this.remotePrisma.mstsScore.findUnique({ where: { id: entityId } });
         case 'research-request':
           return await this.remotePrisma.researchRequest.findUnique({ where: { id: entityId } });
+        case 'national-dashboard':
+          return await this.remotePrisma.executiveDashboard.findUnique({ where: { id: entityId } });
+        case 'national-statistics-cache':
+          return await this.remotePrisma.nationalStatisticsCache.findUnique({ where: { id: entityId } });
         default:
           return null;
       }
@@ -1474,5 +1497,20 @@ export class OfflineQueueService implements OnModuleInit {
       this.logger.warn(`Could not fetch remote data for ${entityType} ${entityId}`, error);
       return null;
     }
+  }
+
+  /**
+   * Helper to compare two data objects for equality
+   */
+  private isDataEqual(local: any, remote: any): boolean {
+    if (!local || !remote) return false;
+
+    // Remove metadata fields that might differ but don't represent data changes
+    const clean = (obj: any) => {
+      const { updatedAt, createdAt, syncedAt, ...rest } = obj;
+      return JSON.stringify(rest, Object.keys(rest).sort());
+    };
+
+    return clean(local) === clean(remote);
   }
 }
