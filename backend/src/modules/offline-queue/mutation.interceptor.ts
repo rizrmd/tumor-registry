@@ -27,6 +27,11 @@ export class MutationInterceptor implements NestInterceptor {
                 return next.handle();
             }
 
+            // Avoid intercepting read-only search/query operations that might use POST
+            if (url.includes('/search') || url.includes('/export') || url.includes('/summary') || url.includes('/stats')) {
+                return next.handle();
+            }
+
             return next.handle().pipe(
                 tap({
                     next: (response) => {
