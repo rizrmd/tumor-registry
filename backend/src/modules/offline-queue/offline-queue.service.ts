@@ -200,24 +200,29 @@ export class OfflineQueueService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    // Start background sync every 5 minutes
+    // Start background sync every 1 minute
     // Wrap in timeout to ensure app is fully booted
-    setTimeout(() => {
+    setTimeout(async () => {
       this.logger.log('Starting background sync loop');
 
-      // Data sync interval (5 minutes)
+      // Run initial sync immediately after boot
+      this.runFullSync().catch((err) =>
+        this.logger.error('Initial background sync failed', err),
+      );
+
+      // Data sync interval (1 minute)
       setInterval(() => {
         this.runFullSync().catch((err) =>
           this.logger.error('Background sync failed', err),
         );
-      }, 1000 * 60 * 5); // 5 minutes
+      }, 1000 * 60 * 1); // 1 minute
 
-      // File sync interval (10 minutes - less frequent due to bandwidth)
+      // File sync interval (5 minutes)
       setInterval(() => {
         this.syncFiles().catch((err) =>
           this.logger.error('Background file sync failed', err),
         );
-      }, 1000 * 60 * 10); // 10 minutes
+      }, 1000 * 60 * 5); // 5 minutes
 
     }, 5000);
   }

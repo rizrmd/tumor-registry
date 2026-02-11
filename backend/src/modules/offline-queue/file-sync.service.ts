@@ -44,6 +44,7 @@ export interface SyncStats {
     currentProgress: number;
   };
   isOnline: boolean;
+  centralServerUrl?: string;
   lastCheckAt: Date;
 }
 
@@ -113,10 +114,10 @@ export class FileSyncService {
   ): Promise<FileSyncJob> {
     // Check if already queued
     const existing = Array.from(this.jobQueue.values()).find(
-      job => job.entityId === entityId && job.operation === operation && 
-             ['PENDING', 'IN_PROGRESS'].includes(job.status)
+      job => job.entityId === entityId && job.operation === operation &&
+        ['PENDING', 'IN_PROGRESS'].includes(job.status)
     );
-    
+
     if (existing) {
       return existing;
     }
@@ -140,7 +141,7 @@ export class FileSyncService {
 
     this.jobQueue.set(job.id, job);
     this.logger.log(`File queued for ${operation}: ${filePath}`);
-    
+
     return job;
   }
 
@@ -234,7 +235,7 @@ export class FileSyncService {
 
         if (!localExists && remoteImage.filePath) {
           const localPath = path.join(this.uploadDir, 'medical-imaging', path.basename(remoteImage.filePath));
-          
+
           if (!fs.existsSync(localPath)) {
             await this.queueFile(
               'medical-image',
@@ -261,7 +262,7 @@ export class FileSyncService {
 
         if (!localExists && remotePhoto.fileUrl) {
           const localPath = path.join(this.uploadDir, 'clinical-photos', path.basename(remotePhoto.fileUrl));
-          
+
           if (!fs.existsSync(localPath)) {
             await this.queueFile(
               'clinical-photo',
@@ -425,8 +426,8 @@ export class FileSyncService {
     }
 
     const remoteUrl = process.env.REMOTE_API_URL || 'http://localhost:3000';
-    const downloadUrl = job.remoteUrl.startsWith('http') 
-      ? job.remoteUrl 
+    const downloadUrl = job.remoteUrl.startsWith('http')
+      ? job.remoteUrl
       : `${remoteUrl}${job.remoteUrl}`;
 
     const response = await axios.get(downloadUrl, {
@@ -458,7 +459,7 @@ export class FileSyncService {
       const remoteRecord = await this.remotePrisma.medicalImage.findUnique({
         where: { id: job.entityId },
       });
-      
+
       if (remoteRecord) {
         await this.prisma.medicalImage.create({
           data: {
@@ -471,7 +472,7 @@ export class FileSyncService {
       const remoteRecord = await this.remotePrisma.clinicalPhoto.findUnique({
         where: { id: job.entityId },
       });
-      
+
       if (remoteRecord) {
         await this.prisma.clinicalPhoto.create({
           data: {
@@ -498,7 +499,7 @@ export class FileSyncService {
     currentProgress: number;
   } {
     const jobs = Array.from(this.jobQueue.values());
-    
+
     const pending = jobs.filter(j => j.status === 'PENDING').length;
     const inProgress = jobs.filter(j => j.status === 'IN_PROGRESS').length;
     const completed = jobs.filter(j => j.status === 'COMPLETED').length;
@@ -540,7 +541,8 @@ export class FileSyncService {
    */
   async getSyncStatus(): Promise<SyncStats> {
     const isOnline = await this.remotePrismaService.checkConnection();
-    
+    const centralServerUrl = this.remotePrismaService.getCentralServerUrl();
+
     const dataStats = await this.prisma.offlineDataQueue.groupBy({
       by: ['status'],
       _count: { status: true },
@@ -558,6 +560,7 @@ export class FileSyncService {
       dataSync,
       fileSync: this.getFileSyncStats(),
       isOnline,
+      centralServerUrl,
       lastCheckAt: new Date(),
     };
   }
@@ -581,8 +584,8 @@ export class FileSyncService {
     let count = 0;
 
     for (const [id, job] of this.jobQueue.entries()) {
-      if ((job.status === 'COMPLETED' || job.status === 'FAILED') && 
-          job.updatedAt < cutoffTime) {
+      if ((job.status === 'COMPLETED' || job.status === 'FAILED') &&
+        job.updatedAt < cutoffTime) {
         this.jobQueue.delete(id);
         count++;
       }
