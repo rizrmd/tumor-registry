@@ -116,11 +116,11 @@ export function Layout({ children }: LayoutProps) {
       national_stakeholder: 'Stakeholder Nasional',
 
       // Actual DB roles
-      SYSTEM_ADMIN: 'System Administrator',
+      SYSTEM_ADMIN: 'Admin Pusat',
       NATIONAL_ADMIN: 'National Administrator',
       CENTER_ADMIN: 'Center Administrator',
       RESEARCHER: 'Researcher',
-      DATA_ENTRY: 'Data Entry',
+      DATA_ENTRY: 'Staff Input',
       MEDICAL_OFFICER: 'Medical Officer',
       HEAD_OF_CENTER: 'Kepala Center',
       OBSERVER: 'Observer',
