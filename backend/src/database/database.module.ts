@@ -1,6 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { PrismaService } from './inamsos-prisma.service';
+import { PrismaService } from './prisma.service';
 import { RemotePrismaService } from './remote-prisma.service';
 import { RemoteConfigService } from './remote-config.service';
 import { RemoteConfigController } from './remote-config.controller';
