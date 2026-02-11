@@ -30,6 +30,7 @@ export interface FullSyncStatus {
     dataSync: SyncStatistics;
     fileSync: FileSyncStats;
     isOnline: boolean;
+    centralServerUrl?: string;
     lastCheckAt: string;
 }
 

@@ -53,7 +53,7 @@ export class RemoteConfigService {
 
       const centralServerUrl = this.configService.get<string>('remoteSync.centralServerUrl');
       const envToken = this.configService.get<string>('remoteSync.jwtToken');
-      
+
       // Use token from memory (set by desktop app) or from environment
       const jwtToken = this.jwtToken || envToken;
 
@@ -70,7 +70,7 @@ export class RemoteConfigService {
       }
 
       const url = `${centralServerUrl}/api/v1/centers/my/remote-db-config`;
-      
+
       this.logger.log(`Fetching remote DB config from central server`);
 
       const response = await firstValueFrom(
@@ -143,5 +143,12 @@ export class RemoteConfigService {
   async refreshConfig(): Promise<RemoteDbConfig | null> {
     this.clearCache();
     return this.fetchRemoteDbConfig();
+  }
+
+  /**
+   * Get the central server URL
+   */
+  getCentralServerUrl(): string {
+    return this.configService.get<string>('remoteSync.centralServerUrl') || 'https://inamsos.com';
   }
 }

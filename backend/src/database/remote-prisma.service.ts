@@ -65,7 +65,7 @@ export class RemotePrismaService implements OnModuleDestroy {
     try {
       // Fetch config from central server
       const config = await this.remoteConfigService.fetchRemoteDbConfig();
-      
+
       if (!config?.enabled || !config.url) {
         this.logger.log('Remote database not configured or disabled');
         return false;
@@ -157,6 +157,13 @@ export class RemotePrismaService implements OnModuleDestroy {
     if (this.prismaClient) {
       await this.prismaClient.$disconnect();
     }
+  }
+
+  /**
+   * Get central server URL for frontend display
+   */
+  getCentralServerUrl(): string {
+    return this.remoteConfigService.getCentralServerUrl();
   }
 
   async onModuleDestroy() {
