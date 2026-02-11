@@ -6,7 +6,7 @@ import { PrismaService } from '../../database/prisma.service';
 @Global()
 @Module({
     controllers: [ActivityLogController],
-    providers: [ActivityLogService, PrismaService],
+    providers: [ActivityLogService],
     exports: [ActivityLogService],
 })
 export class ActivityLogModule { }
