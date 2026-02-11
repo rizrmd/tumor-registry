@@ -85,6 +85,14 @@ export class OfflineQueueController {
     return await this.offlineQueueService.resolveConflict(id, resolveDto, userId);
   }
 
+  @Post('auto-resolve-conflicts')
+  @ApiOperation({ summary: 'Auto-resolve all conflicts using smart merge' })
+  @ApiResponse({ status: 200, description: 'Auto-resolution completed' })
+  async autoResolveConflicts(@Req() req: any) {
+    const userId = req.user.userId;
+    return await this.offlineQueueService.autoResolveConflicts(userId);
+  }
+
   // ==================== FILE SYNC ENDPOINTS ====================
 
   @Get('files/status')

@@ -96,6 +96,14 @@ export const syncService = {
     },
 
     /**
+     * Auto-resolve all conflicts using smart merge
+     */
+    autoResolveConflicts: async (): Promise<any> => {
+        const response = await apiClient.post('/offline-queue/auto-resolve-conflicts');
+        return response.data;
+    },
+
+    /**
      * Retry a failed queue item
      */
     retryItem: async (id: string): Promise<any> => {

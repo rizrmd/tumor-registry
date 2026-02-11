@@ -1134,9 +1134,18 @@ export class OfflineQueueService implements OnModuleInit {
           break;
         case 'MERGE':
           if (!resolveDto.mergedData) {
-            throw new BadRequestException('Merged data is required for MERGE resolution');
+            // Apply automatic smart merge if no merged data provided
+            const remoteData = (queueItem.conflictData as any)?.remoteData || {};
+            const localData = (queueItem.data as any) || {};
+            dataToUse = { ...remoteData };
+            Object.keys(localData).forEach(key => {
+              if (localData[key] !== null && localData[key] !== undefined && localData[key] !== '') {
+                dataToUse[key] = localData[key];
+              }
+            });
+          } else {
+            dataToUse = resolveDto.mergedData;
           }
-          dataToUse = resolveDto.mergedData;
           break;
         case 'MANUAL':
           if (!resolveDto.mergedData) {
@@ -1174,6 +1183,28 @@ export class OfflineQueueService implements OnModuleInit {
       this.logger.error(`Error resolving conflict for queue item ${queueId}`, error);
       throw error;
     }
+  }
+
+  async autoResolveConflicts(userId: string | null): Promise<any> {
+    const conflicts = await this.prisma.offlineDataQueue.findMany({
+      where: { status: 'CONFLICT' },
+    });
+
+    if (conflicts.length === 0) return { resolved: 0 };
+
+    this.logger.log(`Auto-resolving ${conflicts.length} conflicts using SMART MERGE`);
+    let resolvedCount = 0;
+
+    for (const conflict of conflicts) {
+      try {
+        await this.resolveConflict(conflict.id, { resolution: 'MERGE' } as any, userId);
+        resolvedCount++;
+      } catch (e) {
+        this.logger.error(`Failed to auto-resolve conflict ${conflict.id}`, e);
+      }
+    }
+
+    return { resolved: resolvedCount, total: conflicts.length };
   }
 
   async getPendingQueue(userId: string | null, limit = 100): Promise<any> {
