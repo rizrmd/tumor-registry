@@ -16,6 +16,7 @@ export default function ConflictsPage() {
     const router = useRouter();
     const {
         statistics,
+        fullSyncStatus,
         isSyncing,
         triggerFullSync,
         refreshStatistics
@@ -159,7 +160,25 @@ export default function ConflictsPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">Sync Management</h1>
-                            <p className="text-gray-600 mt-1">Manage sync conflicts and pending items</p>
+                            <div className="flex items-center space-x-2 mt-1">
+                                <p className="text-gray-600">Manage sync conflicts and pending items</p>
+                                {fullSyncStatus?.centralServerUrl && (
+                                    <>
+                                        <span className="text-gray-300">•</span>
+                                        <a
+                                            href={fullSyncStatus.centralServerUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-emerald-600 hover:text-emerald-700 text-sm font-medium flex items-center"
+                                        >
+                                            <span>Buka Server Pusat</span>
+                                            <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                        </a>
+                                    </>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center space-x-3">
                             <button
