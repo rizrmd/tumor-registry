@@ -5,7 +5,7 @@ import { PrismaService } from '@/database/prisma.service';
 
 @Module({
   controllers: [QualityController],
-  providers: [QualityService, PrismaService],
+  providers: [QualityService],
   exports: [QualityService],
 })
-export class QualityModule {}
+export class QualityModule { }

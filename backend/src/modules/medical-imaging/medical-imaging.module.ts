@@ -5,7 +5,7 @@ import { PrismaService } from '@/database/prisma.service';
 
 @Module({
   controllers: [MedicalImagingController],
-  providers: [MedicalImagingService, PrismaService],
+  providers: [MedicalImagingService],
   exports: [MedicalImagingService],
 })
-export class MedicalImagingModule {}
+export class MedicalImagingModule { }

@@ -5,6 +5,6 @@ import { PrismaService } from '../../database/prisma.service';
 
 @Module({
     controllers: [NationalDashboardController],
-    providers: [NationalDashboardService, PrismaService],
+    providers: [NationalDashboardService],
 })
 export class NationalDashboardModule { }

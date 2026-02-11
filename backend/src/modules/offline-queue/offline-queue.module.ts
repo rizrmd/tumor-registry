@@ -10,8 +10,6 @@ import { RemotePrismaService } from '@/database/remote-prisma.service';
   providers: [
     OfflineQueueService,
     FileSyncService,
-    PrismaService,
-    RemotePrismaService,
   ],
   exports: [OfflineQueueService, FileSyncService],
 })

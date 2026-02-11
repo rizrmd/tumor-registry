@@ -11,7 +11,6 @@ import { PrismaService } from '@/database/prisma.service';
     SystemAdministrationService,
     ConfigurationService,
     DashboardService,
-    PrismaService,
   ],
   exports: [
     SystemAdministrationService,
@@ -19,4 +18,4 @@ import { PrismaService } from '@/database/prisma.service';
     DashboardService,
   ],
 })
-export class SystemAdministrationModule {}
+export class SystemAdministrationModule { }

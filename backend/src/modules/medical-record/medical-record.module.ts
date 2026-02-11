@@ -3,7 +3,7 @@ import { MedicalRecordService } from './medical-record.service';
 import { PrismaService } from '../../database/prisma.service';
 
 @Module({
-    providers: [MedicalRecordService, PrismaService],
+    providers: [MedicalRecordService],
     exports: [MedicalRecordService],
 })
 export class MedicalRecordModule { }
