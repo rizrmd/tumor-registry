@@ -1092,6 +1092,9 @@ export class OfflineQueueService implements OnModuleInit {
     this.isSyncing = true;
 
     try {
+      // Reset stuck items first
+      await this.resetStuckItems();
+
       const pendingItems = await this.prisma.offlineDataQueue.findMany({
         where: {
           status: { in: ['PENDING', 'FAILED'] }
@@ -1512,5 +1515,29 @@ export class OfflineQueueService implements OnModuleInit {
     };
 
     return clean(local) === clean(remote);
+  }
+
+  /**
+   * Reset items that have been in PROCESSING state for too long
+   * (e.g., due to server crash)
+   */
+  async resetStuckItems(): Promise<number> {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+
+    const stuck = await this.prisma.offlineDataQueue.updateMany({
+      where: {
+        status: 'PROCESSING',
+        updatedAt: { lt: fiveMinutesAgo },
+      },
+      data: {
+        status: 'PENDING',
+      },
+    });
+
+    if (stuck.count > 0) {
+      this.logger.log(`Reset ${stuck.count} stuck PROCESSING items back to PENDING`);
+    }
+
+    return stuck.count;
   }
 }
