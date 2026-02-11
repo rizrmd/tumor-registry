@@ -1251,6 +1251,15 @@ export class OfflineQueueService implements OnModuleInit {
       'staging-data': 'stagingData',
       'msts-score': 'mstsScore',
       'research-request': 'researchRequest',
+      'center': 'center',
+      'user': 'user',
+      'role': 'role',
+      'follow-up-visit': 'followUpVisit',
+      'patient-visit': 'patientVisit',
+      'activity-log': 'activityLog',
+      'national-statistics-cache': 'nationalStatisticsCache',
+      'cancer-geographic-data': 'cancerGeographicData',
+      'cancer-aggregate-stats': 'cancerAggregateStats',
     };
 
     const prismaModel = entityMap[entityType.toLowerCase()];
@@ -1266,6 +1275,10 @@ export class OfflineQueueService implements OnModuleInit {
         return this.handleDiagnosisOperation(this.remotePrisma, operation, entityId, data);
       case 'medication':
         return this.handleMedicationOperation(this.remotePrisma, operation, entityId, data);
+      case 'clinical-photo':
+        return this.handleClinicalPhotoOperation(this.remotePrisma, operation, entityId, data);
+      case 'msts-score':
+        return this.handleMstsScoreOperation(this.remotePrisma, operation, entityId, data);
       case 'vital-sign':
       case 'laboratory-result':
       case 'radiology-result':
@@ -1274,11 +1287,16 @@ export class OfflineQueueService implements OnModuleInit {
       case 'medical-image':
       case 'staging-data':
       case 'research-request':
+      case 'center':
+      case 'user':
+      case 'role':
+      case 'follow-up-visit':
+      case 'patient-visit':
+      case 'activity-log':
+      case 'national-statistics-cache':
+      case 'cancer-geographic-data':
+      case 'cancer-aggregate-stats':
         return this.handleGenericOperation(this.remotePrisma, prismaModel, operation, entityId, data);
-      case 'clinical-photo':
-        return this.handleClinicalPhotoOperation(this.remotePrisma, operation, entityId, data);
-      case 'msts-score':
-        return this.handleMstsScoreOperation(this.remotePrisma, operation, entityId, data);
       default:
         throw new BadRequestException(`Unsupported entity type: ${entityType}`);
     }
