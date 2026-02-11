@@ -110,7 +110,7 @@ class AuthService {
       }
 
       const response = await apiClient.post<{ accessToken: string; refreshToken: string }>(
-        '/auth/refresh-token',
+        '/auth/refresh',
         { refreshToken }
       );
 
@@ -123,8 +123,9 @@ class AuthService {
       return response.data;
     } catch (error) {
       console.error('Failed to refresh token:', error);
-      // If refresh fails, logout user
-      this.logout();
+      // If refresh fails, clear tokens but don't logout (let user try to login again)
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       return null;
     }
   }

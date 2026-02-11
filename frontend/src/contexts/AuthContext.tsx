@@ -106,6 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check for existing session on mount
   useEffect(() => {
+    let isMounted = true;
+
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem(TOKEN_KEY);
@@ -113,53 +115,114 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           try {
             // Try to verify token and get user data using authService
             const userData = await authService.getProfile();
-            setUser(userData);
-            setIsAuthenticated(true);
-            
-            // Store password version (updatedAt timestamp)
-            if (userData.updatedAt) {
-              localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
+            if (isMounted) {
+              setUser(userData);
+              setIsAuthenticated(true);
+
+              // Store password version (updatedAt timestamp)
+              if (userData.updatedAt) {
+                localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
+              }
             }
           } catch (apiError: any) {
             // Check if it's a password change error
-            if (apiError.response?.status === 401 && 
+            if (apiError.response?.status === 401 &&
                 apiError.response?.data?.message?.includes('Password changed')) {
               console.warn('[Auth] Password changed on server - forcing logout');
-              logout();
+              if (isMounted) logout();
               return;
             }
-            
-            // API call failed, fall back to localStorage user (for demo/offline mode)
-            console.warn('[Auth] API not available, using cached user:', apiError);
-            const cachedUser = localStorage.getItem(USER_KEY);
-            if (cachedUser) {
+
+            // API call failed, try to use rememberMe credentials for auto-login
+            console.warn('[Auth] Token verification failed, checking remember me:', apiError);
+            const savedEmail = localStorage.getItem('remember_email');
+            const savedPassword = localStorage.getItem('remember_password');
+            const savedRememberMe = localStorage.getItem('remember_me') === 'true';
+
+            if (savedRememberMe && savedEmail && savedPassword) {
+              console.log('[Auth] Auto-login with remember me credentials');
               try {
-                const parsedUser = JSON.parse(cachedUser);
-                setUser(parsedUser);
-                setIsAuthenticated(true);
-              } catch (parseError) {
-                // Invalid cached data, clear everything
-                logout();
+                // Auto-login with saved credentials
+                const loginData = await authService.login({ email: savedEmail, password: savedPassword });
+                if (isMounted) {
+                  setUser(loginData.user as User);
+                  setIsAuthenticated(true);
+
+                  if (loginData.user) {
+                    const userData = await authService.getProfile();
+                    if (userData.updatedAt) {
+                      localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
+                    }
+                  }
+                }
+                console.log('[Auth] Auto-login successful');
+              } catch (autoLoginError) {
+                console.error('[Auth] Auto-login failed:', autoLoginError);
+                if (isMounted) logout();
               }
             } else {
-              // No cached user, remove token
-              logout();
+              // No remember me, fall back to cached user (for offline mode)
+              const cachedUser = localStorage.getItem(USER_KEY);
+              if (cachedUser) {
+                try {
+                  const parsedUser = JSON.parse(cachedUser);
+                  if (isMounted) {
+                    setUser(parsedUser);
+                    setIsAuthenticated(true);
+                  }
+                } catch (parseError) {
+                  if (isMounted) logout();
+                }
+              } else {
+                if (isMounted) logout();
+              }
             }
           }
         } else {
-          // No token, user is not authenticated
-          setIsLoading(false);
+          // No token, check if remember me is enabled
+          const savedEmail = localStorage.getItem('remember_email');
+          const savedPassword = localStorage.getItem('remember_password');
+          const savedRememberMe = localStorage.getItem('remember_me') === 'true';
+
+          if (savedRememberMe && savedEmail && savedPassword) {
+            console.log('[Auth] No token, auto-login with remember me credentials');
+            try {
+              const loginData = await authService.login({ email: savedEmail, password: savedPassword });
+              if (isMounted) {
+                setUser(loginData.user as User);
+                setIsAuthenticated(true);
+
+                if (loginData.user) {
+                  const userData = await authService.getProfile();
+                  if (userData.updatedAt) {
+                    localStorage.setItem(PASSWORD_VERSION_KEY, new Date(userData.updatedAt).getTime().toString());
+                  }
+                }
+              }
+              console.log('[Auth] Auto-login successful');
+            } catch (autoLoginError) {
+              console.error('[Auth] Auto-login failed:', autoLoginError);
+            }
+          }
         }
       } catch (error) {
         console.error('[Auth] Auth check failed:', error);
-        setUser(null);
-        setIsAuthenticated(false);
+        if (isMounted) {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     checkAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, [logout]);
 
   // Periodic password version check when online
