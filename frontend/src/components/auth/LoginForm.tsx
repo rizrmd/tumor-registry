@@ -16,12 +16,28 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
     email: '',
     password: '',
   });
+  const [rememberMe, setRememberMe] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<LoginRequest>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string>('');
   const [isBackendReady, setIsBackendReady] = useState(false);
   const [backendStatus, setBackendStatus] = useState<string>('Checking system...');
+
+  // Remember Me Logic
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('remember_email');
+    const savedPassword = localStorage.getItem('remember_password');
+    const savedRememberMe = localStorage.getItem('remember_me') === 'true';
+
+    if (savedRememberMe && savedEmail) {
+      setFormData({
+        email: savedEmail,
+        password: savedPassword || '',
+      });
+      setRememberMe(true);
+    }
+  }, []);
 
   const { login } = useAuth();
   const router = useRouter();
@@ -112,6 +128,16 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
     setIsSubmitting(true);
 
     try {
+      if (rememberMe) {
+        localStorage.setItem('remember_email', formData.email);
+        localStorage.setItem('remember_password', formData.password);
+        localStorage.setItem('remember_me', 'true');
+      } else {
+        localStorage.removeItem('remember_email');
+        localStorage.removeItem('remember_password');
+        localStorage.removeItem('remember_me');
+      }
+
       await login(formData.email, formData.password);
       onSuccess?.();
       router.push('/dashboard');
@@ -261,6 +287,8 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
               id="remember-me"
               name="remember-me"
               type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
               className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
             />
             <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
