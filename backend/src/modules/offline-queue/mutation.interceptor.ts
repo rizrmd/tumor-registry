@@ -28,7 +28,16 @@ export class MutationInterceptor implements NestInterceptor {
             }
 
             // Avoid intercepting read-only search/query operations that might use POST
-            if (url.includes('/search') || url.includes('/export') || url.includes('/summary') || url.includes('/stats')) {
+            // These endpoints don't modify data and shouldn't be synced to remote
+            if (url.includes('/search') ||
+                url.includes('/search-aggregated') ||
+                url.includes('/searchAggregated') ||
+                url.includes('/export') ||
+                url.includes('/summary') ||
+                url.includes('/stats') ||
+                url.includes('/statistics') ||
+                url.includes('/aggregate') ||
+                url.includes('/analytics')) {
                 return next.handle();
             }
 
@@ -106,8 +115,14 @@ export class MutationInterceptor implements NestInterceptor {
                     return;
             }
 
-            // Skip common non-entity endpoints
-            if (['auth', 'health', 'app-config'].includes(normalizedEntityType)) {
+            // Skip common non-entity endpoints and analytics/reporting endpoints
+            // These are query-only operations that don't modify core data
+            const skipEndpoints = [
+                'auth', 'health', 'app-config',
+                'national-dashboard', 'dashboard', 'analytics',
+                'report', 'export', 'statistics', 'aggregate'
+            ];
+            if (skipEndpoints.some(ep => normalizedEntityType.includes(ep))) {
                 return;
             }
 

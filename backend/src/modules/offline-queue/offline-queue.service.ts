@@ -230,17 +230,49 @@ export class OfflineQueueService implements OnModuleInit {
   async runFullSync() {
     this.logger.log('Starting full sync (Push + Pull + Files)');
 
-    // Step 1: Push local data changes to remote
-    await this.syncAllPendingItems();
+    const result: any = {
+      pushResults: null,
+      pullResults: null,
+      fileSyncResults: null,
+      status: 'COMPLETED',
+      errors: []
+    };
 
-    // Step 2: Pull remote data changes to local
-    const dataSyncResults = await this.syncRemoteChanges();
+    try {
+      // Step 1: Push local data changes to remote
+      this.logger.log('Step 1: Pushing local data to remote...');
+      result.pushResults = await this.syncAllPendingItems();
 
-    // Step 3: Sync files (medical images, clinical photos, etc.)
-    await this.syncFiles();
+      // Step 2: Pull remote data changes to local
+      this.logger.log('Step 2: Pulling remote data to local...');
+      result.pullResults = await this.syncRemoteChanges();
 
-    this.logger.log('Full sync completed');
-    return { dataSync: dataSyncResults, status: 'COMPLETED' };
+      // Step 3: Sync files (medical images, clinical photos, etc.)
+      this.logger.log('Step 3: Syncing files...');
+      result.fileSyncResults = await this.syncFiles();
+
+      this.logger.log('Full sync completed successfully');
+
+      // Calculate summary
+      const pullResultsArray = Array.isArray(result.pullResults?.details)
+        ? result.pullResults.details
+        : (Array.isArray(result.pullResults) ? result.pullResults : []);
+
+      result.summary = {
+        dataPushed: result.pushResults?.synced || 0,
+        dataPulled: pullResultsArray.reduce((sum: number, r: any) => sum + (r.pulled || 0), 0) || 0,
+        filesSynced: result.fileSyncResults?.succeeded || 0,
+        failed: (result.pushResults?.failed || 0) + (result.fileSyncResults?.failed || 0),
+        conflicts: result.pushResults?.conflicts || 0
+      };
+
+      return result;
+    } catch (error: any) {
+      this.logger.error('Full sync encountered errors', error);
+      result.status = 'PARTIAL';
+      result.errors.push(error.message);
+      return result;
+    }
   }
 
   /**
@@ -277,7 +309,12 @@ export class OfflineQueueService implements OnModuleInit {
     try {
       // Check connection first
       if (!(await this.remotePrismaService.checkConnection())) {
-        return { status: 'OFFLINE' };
+        this.logger.log('Remote database not available - skipping pull sync');
+        return {
+          status: 'OFFLINE',
+          message: 'Remote database unavailable. Running in offline mode.',
+          pulled: 0
+        };
       }
 
       this.logger.log('Pulling remote changes...');
@@ -311,10 +348,21 @@ export class OfflineQueueService implements OnModuleInit {
         }
       }
 
-      return results;
+      const totalPulled = results.reduce((sum: number, r: any) => sum + (r.pulled || 0), 0);
+      this.logger.log(`Pull sync completed: ${totalPulled} records pulled`);
+
+      return {
+        status: 'SUCCESS',
+        totalPulled,
+        details: results
+      };
     } catch (error) {
       this.logger.error('Error pulling remote changes', error);
-      throw error;
+      return {
+        status: 'ERROR',
+        message: error.message,
+        pulled: 0
+      };
     }
   }
 
@@ -992,9 +1040,34 @@ export class OfflineQueueService implements OnModuleInit {
       let conflictData: any = null;
 
       try {
+        // Skip processing for non-syncable entities (analytics, dashboard, etc.)
+        const nonSyncableEntities = [
+          'national-dashboard', 'dashboard', 'analytics',
+          'report', 'export', 'statistics', 'aggregate',
+          'search-aggregation', 'searchAggregated'
+        ];
+        if (nonSyncableEntities.includes(queueItem.entityType.toLowerCase())) {
+          this.logger.warn(`Skipping sync for non-syncable entity: ${queueItem.entityType}`);
+          // Mark as synced with a note that this entity type doesn't need syncing
+          await this.prisma.offlineDataQueue.update({
+            where: { id: queueId },
+            data: {
+              status: 'SYNCED',
+              syncedAt: new Date(),
+              errorMessage: null,
+              errorDetails: null,
+              metadata: {
+                ...(queueItem.metadata as Record<string, any> || {}),
+                note: 'Non-syncable entity type - marked as synced'
+              }
+            },
+          });
+          return { status: 'SYNCED', result: null, queueItem };
+        }
+
         // Check connection first
         if (!(await this.remotePrismaService.checkConnection())) {
-          throw new Error('Remote database unavailable');
+          throw new Error('Remote database unavailable. Please check your internet connection and remote sync configuration.');
         }
 
         // Process based on entity type and operation
@@ -1539,5 +1612,37 @@ export class OfflineQueueService implements OnModuleInit {
     }
 
     return stuck.count;
+  }
+
+  /**
+   * Clear all failed items from the queue
+   * Useful for cleaning up items that consistently fail
+   */
+  async clearFailedItems(): Promise<{ deleted: number; message: string }> {
+    try {
+      // First, count failed items
+      const failedCount = await this.prisma.offlineDataQueue.count({
+        where: { status: 'FAILED' }
+      });
+
+      if (failedCount === 0) {
+        return { deleted: 0, message: 'No failed items to clear' };
+      }
+
+      // Delete all failed items
+      const deleted = await this.prisma.offlineDataQueue.deleteMany({
+        where: { status: 'FAILED' }
+      });
+
+      this.logger.log(`Cleared ${deleted.count} failed items from queue`);
+
+      return {
+        deleted: deleted.count,
+        message: `Cleared ${deleted.count} failed items. These items have been removed from the queue.`
+      };
+    } catch (error) {
+      this.logger.error('Error clearing failed items', error);
+      throw error;
+    }
   }
 }

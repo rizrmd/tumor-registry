@@ -123,16 +123,18 @@ export class RemotePrismaService implements OnModuleDestroy {
       if (!this.prismaClient) {
         const initialized = await this.initialize();
         if (!initialized) {
+          this.logger.debug('Remote database not configured or disabled');
           return false;
         }
       }
 
-      // Test connection
+      // Test connection with a simple query
       await this.prismaClient!.$connect();
-      await this.prismaClient!.$disconnect();
+      // Test query to verify connection works
+      await this.prismaClient!.$queryRaw`SELECT 1`;
       return true;
-    } catch (e) {
-      this.logger.warn('Remote database connection check failed', e);
+    } catch (e: any) {
+      this.logger.debug(`Remote database connection check failed: ${e.message}`);
       return false;
     }
   }

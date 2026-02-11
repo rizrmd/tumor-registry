@@ -133,4 +133,19 @@ export class OfflineQueueController {
   async getFullSyncStatus() {
     return await this.fileSyncService.getSyncStatus();
   }
+
+  @Post('clear-failed')
+  @ApiOperation({ summary: 'Clear all failed queue items' })
+  @ApiResponse({ status: 200, description: 'Failed items cleared' })
+  async clearFailedItems(@Req() req: any) {
+    const userId = req.user.userId;
+    return await this.offlineQueueService.clearFailedItems();
+  }
+
+  @Post('reset-processing')
+  @ApiOperation({ summary: 'Reset stuck processing items back to pending' })
+  @ApiResponse({ status: 200, description: 'Stuck items reset' })
+  async resetProcessingItems(@Req() req: any) {
+    return await this.offlineQueueService.resetStuckItems();
+  }
 }

@@ -37,20 +37,22 @@ export class RemoteConfigService {
 
   /**
    * Fetch remote database configuration from the central server
-   * Requires CENTRAL_SERVER_URL and USER_JWT_TOKEN to be configured
+   * Priority: 1. Direct URL from .env, 2. Central server with JWT
    */
   async fetchRemoteDbConfig(): Promise<RemoteDbConfig | null> {
     try {
-      // Check for direct URL first (backward compatibility)
+      // PRIORITY 1: Check for direct URL first (production mode)
       const directUrl = this.configService.get<string>('remoteSync.directUrl');
       if (directUrl) {
-        this.logger.debug('Using direct REMOTE_DATABASE_URL from environment');
-        return {
+        this.logger.log('✓ Using direct REMOTE_DATABASE_URL from environment');
+        this.cachedConfig = {
           enabled: true,
           url: directUrl,
         };
+        return this.cachedConfig;
       }
 
+      // PRIORITY 2: Fetch from central server with JWT token
       const centralServerUrl = this.configService.get<string>('remoteSync.centralServerUrl');
       const envToken = this.configService.get<string>('remoteSync.jwtToken');
 
@@ -59,7 +61,17 @@ export class RemoteConfigService {
 
       // Default central server is https://inamsos.com (set in configuration.ts)
       if (!jwtToken) {
-        this.logger.debug('JWT token not available, remote sync disabled');
+        this.logger.debug('JWT token not available, trying direct URL fallback');
+        // Fallback: try to construct from environment if available
+        const fallbackUrl = process.env.REMOTE_DATABASE_URL;
+        if (fallbackUrl) {
+          this.logger.log('✓ Using REMOTE_DATABASE_URL fallback from process.env');
+          this.cachedConfig = {
+            enabled: true,
+            url: fallbackUrl,
+          };
+          return this.cachedConfig;
+        }
         return null;
       }
 

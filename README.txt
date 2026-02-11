@@ -44,7 +44,7 @@ FITUR UNGGULAN V4.0.0
 
 TROUBLESHOOTING
 ---------------
-- Gagal Login (Network Error): Pastikan menunggu indikator status menjadi HIJAU (biasanya 10-20 detik setelah startup).
+- Gagal Login (Network Error): Pastikan menunggu indikator status dari MERAH menjadi HIJAU (dibuat 5 detik setelah startup).
 - Aplikasi Tidak Terbuka: Cek Task Manager, pastikan tidak ada proses `INAMSOS.exe` atau `postgres.exe` yang menyangkut dari sesi sebelumnya.
 - Header Tidak Freeze: Pastikan resolusi layar Anda memenuhi standar minimal (1366x768).
 
