@@ -5,6 +5,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { EmailService } from './email.service';
 import { PrismaService } from '@/database/prisma.service';
+import { RemoteConfigService } from '@/database/remote-config.service';
 import * as bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 
@@ -15,7 +16,8 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private prisma: PrismaService,
-  ) {}
+    private remoteConfigService: RemoteConfigService,
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const { email, name, kolegiumId, password, phone, nik } = registerDto;
@@ -112,6 +114,9 @@ export class AuthService {
     // Generate access and refresh tokens
     const tokens = await this.generateTokens(user);
 
+    // Update remote sync service with latest token
+    this.remoteConfigService.setJwtToken(tokens.accessToken);
+
     return {
       user: {
         id: user.id,
@@ -152,6 +157,9 @@ export class AuthService {
 
       // Generate final tokens
       const tokens = await this.generateTokens(user);
+
+      // Update remote sync service with latest token
+      this.remoteConfigService.setJwtToken(tokens.accessToken);
 
       return {
         user: {
@@ -362,7 +370,7 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify(token);
       const user = await this.usersService.findById(payload.sub);
-      
+
       if (!user || !user.isActive) {
         throw new UnauthorizedException('User not found or inactive');
       }
