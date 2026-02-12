@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -122,20 +123,38 @@ func (a *App) startup(ctx context.Context) {
 	}
 	appDir := filepath.Dir(exePath)
 
-	// Start PostgreSQL and wait longer for it to be ready
+	// Start PostgreSQL
 	log.Println("Starting PostgreSQL server...")
 	go a.startPostgreSQL(appDir)
 
-	// Wait 40 seconds for PostgreSQL to fully initialize and finish recovery
-	log.Println("Waiting for PostgreSQL to initialize (40 seconds)...")
-	time.Sleep(40 * time.Second)
+	// Wait for PostgreSQL to be ready by checking the port
+	log.Println("Waiting for PostgreSQL to be ready on port 54321...")
+	dbReady := false
+	for i := 0; i < 60; i++ { // Try for 60 seconds
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:54321", 1*time.Second)
+		if err == nil {
+			conn.Close()
+			dbReady = true
+			log.Println("PostgreSQL is ready!")
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 
-	// Verify PostgreSQL is running before starting backend
+	if !dbReady {
+		log.Println("[ERROR] PostgreSQL failed to start in time. Attempting to start backend anyway...")
+	} else {
+		// Even if port is open, PG might still be in recovery/startup
+		log.Println("Waiting 5 more seconds for DB stabilization...")
+		time.Sleep(5 * time.Second)
+	}
+
+	// Start backend server
 	log.Println("Starting backend server...")
 	go a.startBackend(appDir)
 
 	// Give backend time to initialize
-	time.Sleep(15 * time.Second)
+	time.Sleep(10 * time.Second)
 	log.Println("Application startup complete")
 }
 
