@@ -49,43 +49,41 @@ func (h *AssetHandler) Open(name string) (fs.File, error) {
 
 // ServeHTTP serves assets - default to login page
 func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Skip leading slash for fs.Stat
 	origPath := r.URL.Path
 	path := strings.TrimPrefix(origPath, "/")
 
-	// If root path, try to serve login.html or index.html
+	// If root path or empty, explicitly serve login or index
 	if path == "" {
 		if _, err := fs.Stat(h.assets, "login.html"); err == nil {
 			r.URL.Path = "/login.html"
 			h.handler.ServeHTTP(w, r)
 			return
 		}
-		if _, err2 := fs.Stat(h.assets, "index.html"); err2 == nil {
-			r.URL.Path = "/index.html"
-			h.handler.ServeHTTP(w, r)
-			return
-		}
-	}
-
-	// Check if the requested path is a directory
-	if info, err := fs.Stat(h.assets, path); err == nil && info.IsDir() {
-		// If it's a directory but doesn't end with a slash,
-		// we rewrite to directory/index.html internally to avoid redirects
-		indexPath := filepath.ToSlash(filepath.Join(path, "index.html"))
-		if _, err := fs.Stat(h.assets, indexPath); err == nil {
-			r.URL.Path = "/" + indexPath
-			h.handler.ServeHTTP(w, r)
-			return
-		}
-	}
-
-	// Serve filename directly if it exists and is not a directory
-	if info, err := fs.Stat(h.assets, path); err == nil && !info.IsDir() {
+		r.URL.Path = "/index.html"
 		h.handler.ServeHTTP(w, r)
 		return
 	}
 
-	// Try adding .html extension (common in static exports)
+	// Logic to prevent "directory requested without trailing slash" redirect
+	// 1. Check if path exists
+	if info, err := fs.Stat(h.assets, path); err == nil {
+		if info.IsDir() {
+			// If it's a directory, ALWAYS rewrite to its index.html
+			// This bypasses the redirect logic in http.FileServer
+			indexPath := filepath.ToSlash(filepath.Join(path, "index.html"))
+			if _, err := fs.Stat(h.assets, indexPath); err == nil {
+				r.URL.Path = "/" + indexPath
+				h.handler.ServeHTTP(w, r)
+				return
+			}
+		} else {
+			// If it's a file, serve it directly
+			h.handler.ServeHTTP(w, r)
+			return
+		}
+	}
+
+	// 2. Try with .html extension (SPAs often request /about instead of /about.html)
 	htmlPath := path + ".html"
 	if _, err := fs.Stat(h.assets, htmlPath); err == nil {
 		r.URL.Path = "/" + htmlPath
@@ -93,7 +91,7 @@ func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Final fallback - let the handler try to serve it
+	// 3. Last resort fallback
 	h.handler.ServeHTTP(w, r)
 }
 
