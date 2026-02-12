@@ -31,14 +31,7 @@ async function bootstrap() {
 
   // Register Fastify plugins
   await app.register(helmet, {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: [`'self'`],
-        styleSrc: [`'self'`, `'unsafe-inline'`],
-        imgSrc: [`'self'`, 'data:', 'validator.swagger.io'],
-        scriptSrc: [`'self'`, `https: 'unsafe-inline'`],
-      },
-    },
+    contentSecurityPolicy: false, // Disable CSP for desktop app compatibility
   });
 
   // CORS configuration - allow web and Wails desktop origins
