@@ -4,8 +4,8 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } f
 // Detect if running in Wails desktop environment
 function isWailsEnvironment(): boolean {
   if (typeof window === 'undefined') return false;
-  // Wails v2 specifically injects these objects
-  return !!((window as any).go || (window as any).runtime);
+  // Wails v2 specifically injects these objects or uses wails:// protocol
+  return !!((window as any).go || (window as any).runtime || window.location.protocol === 'wails:' || window.location.protocol === 'file:');
 }
 
 // Determine API base URL
