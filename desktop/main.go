@@ -164,7 +164,7 @@ func (a *App) startPostgreSQL(appDir string) {
 		os.Remove(pidFile)
 	}
 	log.Println("Starting PostgreSQL...")
-	cmd := exec.Command(postgresExe, "start", "-D", dataDir, "-l", logFile, "-w", "-o", "-p", "54321")
+	cmd := exec.Command(postgresExe, "start", "-D", dataDir, "-l", logFile, "-w", "-o", "-p 54321")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
