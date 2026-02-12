@@ -81,9 +81,15 @@ export class RemoteConfigService {
         return this.cachedConfig;
       }
 
-      const url = `${centralServerUrl}/api/v1/centers/my/remote-db-config`;
+      // Validate centralServerUrl
+      if (!centralServerUrl || !centralServerUrl.startsWith('http')) {
+        this.logger.error(`Invalid central server URL: ${centralServerUrl}`);
+        return null;
+      }
 
-      this.logger.log(`Fetching remote DB config from central server`);
+      const url = `${centralServerUrl.replace(/\/$/, '')}/api/v1/centers/my/remote-db-config`;
+
+      this.logger.log(`Fetching remote DB config from: ${url}`);
 
       const response = await firstValueFrom(
         this.httpService.get<RemoteDbConfig>(url, {
