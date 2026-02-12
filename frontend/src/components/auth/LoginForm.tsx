@@ -50,14 +50,15 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
     const checkBackendHealth = async () => {
       try {
         // Try to ping backend public status endpoint
-        // Global prefix in main.ts is 'api/v1', so we use '/status' relative to baseURL
-        await apiClient.get('/status', { timeout: 3000 });
+        // baseURL ends with /api/v1/, so we use 'status' to get /api/v1/status
+        await apiClient.get('status', { timeout: 3000 });
         if (isMounted) {
           setIsBackendReady(true);
           setBackendStatus('System Ready');
           clearInterval(checkInterval);
         }
       } catch (error: any) {
+        console.error('[HealthCheck] Backend not ready:', error.message);
         // If we get an error but it's a 401/403, it means the server IS up 
         // but just unauthorized (which is expected for /users/count, but /status should be public)
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
