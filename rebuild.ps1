@@ -3,13 +3,22 @@
 Write-Host "--- INAMSOS Master Build & Repair ---" -ForegroundColor Cyan
 
 # 1. Cleanup
-Write-Host "[1/6] Cleaning up running processes..." -ForegroundColor Yellow
+Write-Host "[1/6] Cleaning up running processes and old files..." -ForegroundColor Yellow
 Get-Process INAMSOS*, node*, postgres* -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 taskkill /F /IM INAMSOS.exe /T 2>$null
 taskkill /F /IM node.exe /T 2>$null
 
-# Wait for file locks to release
+# Wait and try harder if needed
 Start-Sleep -s 3
+if (Test-Path "INAMSOS.exe") {
+    Write-Host "File still locked, trying to force delete..." -ForegroundColor Gray
+    Remove-Item "INAMSOS.exe" -Force -ErrorAction SilentlyContinue
+}
+
+if (Test-Path "INAMSOS.exe") {
+     Write-Host "ERROR: Could not delete INAMSOS.exe. Please close the application manually." -ForegroundColor Red
+     exit
+}
 
 # 2. Build Backend
 Write-Host "[2/6] Building Backend..." -ForegroundColor Yellow
@@ -42,14 +51,12 @@ if ($LASTEXITCODE -ne 0) { Write-Host "Wails Build Failed!" -ForegroundColor Red
 Set-Location ..
 
 # 6. Finalization
-Write-Host "[6/6] Finalizing executable..." -ForegroundColor Yellow
-if (Test-Path "desktop/build/INAMSOS.exe") {
-    Copy-Item -Path "desktop/build/INAMSOS.exe" -Destination "INAMSOS.exe" -Force
-}
+Write-Host "[6/6] Finalizing..." -ForegroundColor Yellow
 
 # Cleanup temp build files
 Write-Host "Cleaning up temporary files..." -ForegroundColor Gray
-Remove-Item -Path "test-*.js", "debug-*.js" -ErrorAction SilentlyContinue
+Remove-Item -Path "test-*.js", "debug-*.js", "backend-internal.log" -ErrorAction SilentlyContinue -Filter "*.log"
+Remove-Item -Path "desktop/frontend/dist" -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host "--- BUILD SUCCESSFUL ---" -ForegroundColor Green
 Write-Host "Launching INAMSOS..." -ForegroundColor Cyan
