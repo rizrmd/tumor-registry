@@ -113,6 +113,10 @@ async function resetToZero() {
     // ========================================
     console.log('📋 STEP 4: Menghapus data sistem dan administratif...');
 
+    // First delete medical record sequences (they reference centers)
+    console.log('  → Menghapus medical record sequences...');
+    await prisma.medicalRecordSequence.deleteMany({});
+
     // Delete all offline queue data
     console.log('  → Menghapus offline queue...');
     await prisma.offlineDataQueue.deleteMany({});

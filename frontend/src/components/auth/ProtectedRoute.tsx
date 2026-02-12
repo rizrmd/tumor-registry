@@ -26,13 +26,22 @@ export function ProtectedRoute({
       setIsChecking(false);
 
       if (!isAuthenticated) {
-        router.push(redirectTo);
+        // Use window.location for immediate redirect (works better in static export)
+        if (typeof window !== 'undefined') {
+          window.location.href = redirectTo;
+        } else {
+          router.push(redirectTo);
+        }
         return;
       }
 
       if (requiredRole && user?.role !== requiredRole) {
         // User is authenticated but doesn't have the required role
-        router.push('/unauthorized');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/unauthorized';
+        } else {
+          router.push('/unauthorized');
+        }
         return;
       }
     }

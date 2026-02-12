@@ -14,7 +14,7 @@ const nextConfig = {
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'INAMSOS',
     NEXT_PUBLIC_VERSION: process.env.NEXT_PUBLIC_VERSION || '1.0.0',
   },
-  // Add rewrites for development and Wails desktop mode
+  // Add rewrites for development and Wails desktop mode (only in static export mode)
   ...(!isStaticExport && {
     async rewrites() {
       const backendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:3001';

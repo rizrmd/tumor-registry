@@ -20,7 +20,8 @@
     "test:e2e": "bun test --config ./test/jest-e2e.json",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "bun --bun prisma/seed.ts"
+    "db:seed": "bun --bun prisma/seed.ts",
+    "db:reset": "bun --bun scripts/reset-to-zero.ts"
   },
   "prisma": {
     "seed": "bun --bun prisma/seed.ts"

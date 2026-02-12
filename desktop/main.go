@@ -24,7 +24,7 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// AssetHandler handles serving assets from the embedded filesystem
+// AssetHandler handles serving assets from embedded filesystem
 type AssetHandler struct {
 	assets  fs.FS
 	handler http.Handler
@@ -37,37 +37,47 @@ func NewAssetHandler() *AssetHandler {
 		log.Fatal(err)
 	}
 	return &AssetHandler{
-		assets:  sub,
+		assets: sub,
 		handler: http.FileServer(http.FS(sub)),
 	}
 }
 
-// ServeHTTP serves the assets
+// ServeHTTP serves assets - default to login page
 func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	if path == "" {
+		// Default to login page
+		if info, err := fs.Stat(h.assets, "login.html"); err == nil {
+			r.URL.Path = "/login.html"
+			h.handler.ServeHTTP(w, r)
+			return
+		}
+		// Fallback to index if login not found
+		if info2, err2 := fs.Stat(h.assets, "index.html"); err2 == nil {
+			r.URL.Path = "/index.html"
+			h.handler.ServeHTTP(w, r)
+			return
+		}
+		// Serve other files normally
+		if info, err := fs.Stat(h.assets, path); err == nil && !info.IsDir() {
+			h.handler.ServeHTTP(w, r)
+			return
+		}
+		htmlPath := path + ".html"
+		if _, err := fs.Stat(h.assets, htmlPath); err == nil {
+			r.URL.Path = "/" + htmlPath
+			h.handler.ServeHTTP(w, r)
+			return
+		}
+		cleanPath := strings.TrimSuffix(path, "/")
+		indexPath := cleanPath + "/index.html"
+		if _, err := fs.Stat(h.assets, indexPath); err == nil {
+			r.URL.Path = "/" + indexPath
+			h.handler.ServeHTTP(w, r)
+			return
+		}
+		r.URL.Path = "/"
 		h.handler.ServeHTTP(w, r)
-		return
-	}
-	if info, err := fs.Stat(h.assets, path); err == nil && !info.IsDir() {
-		h.handler.ServeHTTP(w, r)
-		return
-	}
-	htmlPath := path + ".html"
-	if _, err := fs.Stat(h.assets, htmlPath); err == nil {
-		r.URL.Path = "/" + htmlPath
-		h.handler.ServeHTTP(w, r)
-		return
-	}
-	cleanPath := strings.TrimSuffix(path, "/")
-	indexPath := cleanPath + "/index.html"
-	if _, err := fs.Stat(h.assets, indexPath); err == nil {
-		r.URL.Path = "/" + indexPath
-		h.handler.ServeHTTP(w, r)
-		return
-	}
-	r.URL.Path = "/"
-	h.handler.ServeHTTP(w, r)
 }
 
 // App struct
@@ -82,12 +92,12 @@ func NewApp() *App {
 	return &App{}
 }
 
-// Greet returns a greeting for the given name
+// Greet returns a greeting for a given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
-// startup is called when the app starts
+// startup is called when app starts
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	exePath, err := os.Executable()
@@ -110,7 +120,6 @@ func (a *App) startPostgreSQL(appDir string) {
 
 	// Ensure log directory exists
 	os.MkdirAll(logDir, 0755)
-
 	logFile := filepath.Join(logDir, "postgres.log")
 	var postgresExe string
 	if runtime.GOOS == "windows" {
@@ -128,7 +137,7 @@ func (a *App) startPostgreSQL(appDir string) {
 		os.Remove(pidFile)
 	}
 	log.Println("Starting PostgreSQL...")
-	cmd := exec.Command(postgresExe, "start", "-D", dataDir, "-l", logFile, "-w", "-o", "-p 54321")
+	cmd := exec.Command(postgresExe, "start", "-D", dataDir, "-l", logFile, "-w", "-o", "-p", "54321")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -177,7 +186,7 @@ func (a *App) startBackend(appDir string) {
 		a.backendCmd.Stdout = os.Stdout
 		a.backendCmd.Stderr = os.Stderr
 	}
-	log.Printf("Starting Backend...")
+	log.Println("Starting Backend...")
 	if err := a.backendCmd.Start(); err != nil {
 		log.Printf("[ERROR] Failed to start backend: %v", err)
 		return
@@ -185,7 +194,7 @@ func (a *App) startBackend(appDir string) {
 	log.Printf("Backend started successfully. Logs at: %s", logPath)
 }
 
-// shutdown is called when the app is closing
+// shutdown is called when app is closing
 func (a *App) shutdown(ctx context.Context) {
 	if a.backendCmd != nil && a.backendCmd.Process != nil {
 		log.Println("Stopping backend...")
@@ -216,7 +225,7 @@ func main() {
 		Width:  1280,
 		Height: 800,
 		AssetServer: &assetserver.Options{
-			Assets:  nil,
+			Assets:  NewAssetHandler(),
 			Handler: NewAssetHandler(),
 		},
 		BackgroundColour: &options.RGBA{R: 255, G: 255, B: 255, A: 255},
@@ -227,7 +236,7 @@ func main() {
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,
-			WindowIsTranslucent:  false,
+			WindowIsTranslucent: false,
 			DisableWindowIcon:    false,
 		},
 	})
