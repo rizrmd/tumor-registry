@@ -153,4 +153,4 @@
   "license": "ISC",
   "type": "commonjs",
   "types": "./dist_user/main.d.ts"
-} 
+}
