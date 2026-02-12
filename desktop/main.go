@@ -126,16 +126,16 @@ func (a *App) startup(ctx context.Context) {
 	log.Println("Starting PostgreSQL server...")
 	go a.startPostgreSQL(appDir)
 
-	// Wait 20 seconds for PostgreSQL to fully initialize
-	log.Println("Waiting for PostgreSQL to initialize (20 seconds)...")
-	time.Sleep(20 * time.Second)
+	// Wait 40 seconds for PostgreSQL to fully initialize and finish recovery
+	log.Println("Waiting for PostgreSQL to initialize (40 seconds)...")
+	time.Sleep(40 * time.Second)
 
 	// Verify PostgreSQL is running before starting backend
 	log.Println("Starting backend server...")
 	go a.startBackend(appDir)
 
 	// Give backend time to initialize
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 	log.Println("Application startup complete")
 }
 
