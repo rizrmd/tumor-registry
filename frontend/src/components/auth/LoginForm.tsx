@@ -23,6 +23,7 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
   const [loginError, setLoginError] = useState<string>('');
   const [isBackendReady, setIsBackendReady] = useState(false);
   const [backendStatus, setBackendStatus] = useState<string>('Checking system...');
+  const [healthCheckCount, setHealthCheckCount] = useState(0);
 
   // Remember Me Logic
   useEffect(() => {
@@ -46,59 +47,76 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
   useEffect(() => {
     let isMounted = true;
     let checkInterval: NodeJS.Timeout;
+    let attemptCount = 0;
 
     const checkBackendHealth = async () => {
+      attemptCount++;
+      if (isMounted) {
+        setHealthCheckCount(attemptCount);
+      }
+
       try {
-        // Try to ping backend public status endpoint
+        // Try to ping backend public status endpoint with longer timeout
         // baseURL ends with /api/v1/, so we use 'status' to get /api/v1/status
-        await apiClient.get('status', { timeout: 3000 });
+        await apiClient.get('status', { timeout: 10000 });
         if (isMounted) {
+          console.log('[HealthCheck] Backend is ready!');
           setIsBackendReady(true);
           setBackendStatus('Sistem Siap');
           clearInterval(checkInterval);
         }
       } catch (error: any) {
-        console.error('[HealthCheck] Backend not ready:', error.message);
+        console.error('[HealthCheck] Backend not ready (attempt ' + attemptCount + '):', error.message);
 
-        // If 127.0.0.1 failed, try localhost directly as a fallback
-        if (isMounted && error.message?.includes('Network Error')) {
+        // If 127.0.0.1 failed, try localhost directly as a fallback with no-cors
+        if (isMounted && error.message?.includes('Network Error') || error.message?.includes('timeout')) {
           try {
-            await fetch('http://localhost:3001/api/v1/status', { mode: 'no-cors' });
-            // If fetch succeeded (at least reached the server), mark as ready
-            setIsBackendReady(true);
-            setBackendStatus('Sistem Siap (Local)');
-            clearInterval(checkInterval);
-            return;
+            const response = await fetch('http://127.0.0.1:3001/api/v1/status', {
+              method: 'GET',
+              mode: 'cors',
+              headers: { 'Accept': 'application/json' },
+            });
+            if (response.ok || response.status === 200) {
+              console.log('[HealthCheck] Fallback successful');
+              setIsBackendReady(true);
+              setBackendStatus('Sistem Siap');
+              clearInterval(checkInterval);
+              return;
+            }
           } catch (e) {
-            // Both failed
+            console.log('[HealthCheck] Fallback also failed:', e);
           }
         }
 
-        // If we get an error but it's a 401/403, it means the server IS up 
-        // but just unauthorized (which is expected for /users/count, but /status should be public)
+        // If we get an error but it's a 401/403, it means the server IS up
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
           if (isMounted) {
+            console.log('[HealthCheck] Backend responding but unauthorized - marking as ready');
             setIsBackendReady(true);
             setBackendStatus('Sistem Siap');
             clearInterval(checkInterval);
           }
         } else if (isMounted) {
-          // Actual network error (connection refused) or timeout
+          // Actual network error (connection refused) or timeout - keep trying
           setIsBackendReady(false);
-          const detail = error.message === 'Network Error' ? 'Koneksi Ditolak' : error.message;
-          setBackendStatus(`Menginisialisasi... (${detail})`);
+          const detail = error.message === 'Network Error' ? 'Menghubungkan...' : error.message;
+          setBackendStatus(`Menunggu sistem... (${attemptCount})`);
         }
       }
     };
 
-    // Initial check
-    checkBackendHealth();
+    // Initial check after a short delay to let browser initialize
+    const initialDelay = setTimeout(() => {
+      console.log('[HealthCheck] Starting health checks...');
+      checkBackendHealth();
+    }, 2000);
 
-    // Poll every 2 seconds until backend is ready
-    checkInterval = setInterval(checkBackendHealth, 2000);
+    // Poll every 3 seconds until backend is ready (increased from 2 seconds for less aggressive polling)
+    checkInterval = setInterval(checkBackendHealth, 3000);
 
     return () => {
       isMounted = false;
+      clearTimeout(initialDelay);
       clearInterval(checkInterval);
     };
   }, []);

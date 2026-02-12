@@ -153,8 +153,9 @@ func (a *App) startup(ctx context.Context) {
 	log.Println("Starting backend server...")
 	go a.startBackend(appDir)
 
-	// Give backend time to initialize
-	time.Sleep(10 * time.Second)
+	// Give backend more time to initialize - increased from 10 to 20 seconds
+	log.Println("Waiting for backend to fully initialize...")
+	time.Sleep(20 * time.Second)
 	log.Println("Application startup complete")
 }
 
