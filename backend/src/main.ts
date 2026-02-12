@@ -66,24 +66,7 @@ async function bootstrap() {
   ].filter(Boolean);
 
   await app.register(cors, {
-    origin: (origin: string | null, cb: (err: Error | null, allow: boolean) => void) => {
-      // Allow requests with no origin or "null" string (file:// desktop apps)
-      if (!origin || origin === 'null') {
-        cb(null, true);
-        return;
-      }
-      // Check against allowed origins
-      const allowed = corsOrigins.some((allowed: string | null) => {
-        if (!allowed) return false;
-        return origin === allowed || origin.startsWith(allowed) || origin.includes('localhost');
-      });
-      // In dev mode, allow all localhost origins
-      if (isDev && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-        cb(null, true);
-        return;
-      }
-      cb(null, allowed);
-    },
+    origin: true, // Allow all origins for the desktop app
     credentials: true,
   });
 
