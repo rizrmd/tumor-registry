@@ -49,15 +49,17 @@ func (h *AssetHandler) Open(name string) (fs.File, error) {
 
 // ServeHTTP serves assets - default to login page
 func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/")
+	// Skip leading slash for fs.Stat
+	origPath := r.URL.Path
+	path := strings.TrimPrefix(origPath, "/")
+
+	// If root path, try to serve login.html or index.html
 	if path == "" {
-		// Default to login page
 		if _, err := fs.Stat(h.assets, "login.html"); err == nil {
 			r.URL.Path = "/login.html"
 			h.handler.ServeHTTP(w, r)
 			return
 		}
-		// Fallback to index if login not found
 		if _, err2 := fs.Stat(h.assets, "index.html"); err2 == nil {
 			r.URL.Path = "/index.html"
 			h.handler.ServeHTTP(w, r)
@@ -65,12 +67,25 @@ func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Serve other files normally
+	// Check if the requested path is a directory
+	if info, err := fs.Stat(h.assets, path); err == nil && info.IsDir() {
+		// If it's a directory but doesn't end with a slash,
+		// we rewrite to directory/index.html internally to avoid redirects
+		indexPath := filepath.ToSlash(filepath.Join(path, "index.html"))
+		if _, err := fs.Stat(h.assets, indexPath); err == nil {
+			r.URL.Path = "/" + indexPath
+			h.handler.ServeHTTP(w, r)
+			return
+		}
+	}
+
+	// Serve filename directly if it exists and is not a directory
 	if info, err := fs.Stat(h.assets, path); err == nil && !info.IsDir() {
 		h.handler.ServeHTTP(w, r)
 		return
 	}
 
+	// Try adding .html extension (common in static exports)
 	htmlPath := path + ".html"
 	if _, err := fs.Stat(h.assets, htmlPath); err == nil {
 		r.URL.Path = "/" + htmlPath
@@ -78,14 +93,7 @@ func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cleanPath := strings.TrimSuffix(path, "/")
-	indexPath := cleanPath + "/index.html"
-	if _, err := fs.Stat(h.assets, indexPath); err == nil {
-		r.URL.Path = "/" + indexPath
-		h.handler.ServeHTTP(w, r)
-		return
-	}
-
+	// Final fallback - let the handler try to serve it
 	h.handler.ServeHTTP(w, r)
 }
 
