@@ -121,10 +121,22 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	appDir := filepath.Dir(exePath)
+
+	// Start PostgreSQL and wait longer for it to be ready
+	log.Println("Starting PostgreSQL server...")
 	go a.startPostgreSQL(appDir)
-	time.Sleep(15 * time.Second)
+
+	// Wait 20 seconds for PostgreSQL to fully initialize
+	log.Println("Waiting for PostgreSQL to initialize (20 seconds)...")
+	time.Sleep(20 * time.Second)
+
+	// Verify PostgreSQL is running before starting backend
+	log.Println("Starting backend server...")
 	go a.startBackend(appDir)
-	time.Sleep(5 * time.Second)
+
+	// Give backend time to initialize
+	time.Sleep(10 * time.Second)
+	log.Println("Application startup complete")
 }
 
 // startPostgreSQL starts the embedded PostgreSQL server
