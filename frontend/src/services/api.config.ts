@@ -12,12 +12,14 @@ function isWailsEnvironment(): boolean {
 function getApiBaseUrl(): string {
   // Check if environment variable is explicitly set (for development)
   if (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim() !== '') {
-    return process.env.NEXT_PUBLIC_API_URL;
+    const url = process.env.NEXT_PUBLIC_API_URL;
+    return url.endsWith('/') ? url : `${url}/`;
   }
 
   // In Wails/desktop mode, use localhost
   if (isWailsEnvironment()) {
     console.log('[API] Running in Wails/desktop mode, using localhost API');
+    // Try 127.0.0.1 as primary for desktop
     return 'http://127.0.0.1:3001/api/v1/';
   }
 

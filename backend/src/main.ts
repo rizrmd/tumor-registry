@@ -66,7 +66,19 @@ async function bootstrap() {
   ].filter(Boolean);
 
   await app.register(cors, {
-    origin: true, // Allow all origins for the desktop app
+    origin: (origin: string | null, cb: (err: Error | null, allow: boolean) => void) => {
+      // Allow requests with no origin (direct fetch) or specific local/wails origins
+      if (!origin ||
+        origin === 'null' ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.startsWith('wails://') ||
+        origin.startsWith('app://')) {
+        cb(null, true);
+        return;
+      }
+      cb(null, true); // Fallback to true for maximum compatibility in desktop app
+    },
     credentials: true,
   });
 

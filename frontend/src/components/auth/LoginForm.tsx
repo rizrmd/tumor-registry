@@ -54,23 +54,39 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
         await apiClient.get('status', { timeout: 3000 });
         if (isMounted) {
           setIsBackendReady(true);
-          setBackendStatus('System Ready');
+          setBackendStatus('Sistem Siap');
           clearInterval(checkInterval);
         }
       } catch (error: any) {
         console.error('[HealthCheck] Backend not ready:', error.message);
+
+        // If 127.0.0.1 failed, try localhost directly as a fallback
+        if (isMounted && error.message?.includes('Network Error')) {
+          try {
+            await fetch('http://localhost:3001/api/v1/status', { mode: 'no-cors' });
+            // If fetch succeeded (at least reached the server), mark as ready
+            setIsBackendReady(true);
+            setBackendStatus('Sistem Siap (Local)');
+            clearInterval(checkInterval);
+            return;
+          } catch (e) {
+            // Both failed
+          }
+        }
+
         // If we get an error but it's a 401/403, it means the server IS up 
         // but just unauthorized (which is expected for /users/count, but /status should be public)
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
           if (isMounted) {
             setIsBackendReady(true);
-            setBackendStatus('System Ready');
+            setBackendStatus('Sistem Siap');
             clearInterval(checkInterval);
           }
         } else if (isMounted) {
           // Actual network error (connection refused) or timeout
           setIsBackendReady(false);
-          setBackendStatus('System Initializing... Please wait');
+          const detail = error.message === 'Network Error' ? 'Koneksi Ditolak' : error.message;
+          setBackendStatus(`Menginisialisasi... (${detail})`);
         }
       }
     };
