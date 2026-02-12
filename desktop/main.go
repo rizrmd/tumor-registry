@@ -47,37 +47,41 @@ func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	if path == "" {
 		// Default to login page
-		if info, err := fs.Stat(h.assets, "login.html"); err == nil {
+		if _, err := fs.Stat(h.assets, "login.html"); err == nil {
 			r.URL.Path = "/login.html"
 			h.handler.ServeHTTP(w, r)
 			return
 		}
 		// Fallback to index if login not found
-		if info2, err2 := fs.Stat(h.assets, "index.html"); err2 == nil {
+		if _, err2 := fs.Stat(h.assets, "index.html"); err2 == nil {
 			r.URL.Path = "/index.html"
 			h.handler.ServeHTTP(w, r)
 			return
 		}
-		// Serve other files normally
-		if info, err := fs.Stat(h.assets, path); err == nil && !info.IsDir() {
-			h.handler.ServeHTTP(w, r)
-			return
-		}
-		htmlPath := path + ".html"
-		if _, err := fs.Stat(h.assets, htmlPath); err == nil {
-			r.URL.Path = "/" + htmlPath
-			h.handler.ServeHTTP(w, r)
-			return
-		}
-		cleanPath := strings.TrimSuffix(path, "/")
-		indexPath := cleanPath + "/index.html"
-		if _, err := fs.Stat(h.assets, indexPath); err == nil {
-			r.URL.Path = "/" + indexPath
-			h.handler.ServeHTTP(w, r)
-			return
-		}
-		r.URL.Path = "/"
+	}
+
+	// Serve other files normally
+	if info, err := fs.Stat(h.assets, path); err == nil && !info.IsDir() {
 		h.handler.ServeHTTP(w, r)
+		return
+	}
+
+	htmlPath := path + ".html"
+	if _, err := fs.Stat(h.assets, htmlPath); err == nil {
+		r.URL.Path = "/" + htmlPath
+		h.handler.ServeHTTP(w, r)
+		return
+	}
+
+	cleanPath := strings.TrimSuffix(path, "/")
+	indexPath := cleanPath + "/index.html"
+	if _, err := fs.Stat(h.assets, indexPath); err == nil {
+		r.URL.Path = "/" + indexPath
+		h.handler.ServeHTTP(w, r)
+		return
+	}
+
+	h.handler.ServeHTTP(w, r)
 }
 
 // App struct
