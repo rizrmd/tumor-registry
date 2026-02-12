@@ -37,9 +37,14 @@ func NewAssetHandler() *AssetHandler {
 		log.Fatal(err)
 	}
 	return &AssetHandler{
-		assets: sub,
+		assets:  sub,
 		handler: http.FileServer(http.FS(sub)),
 	}
+}
+
+// Open implements fs.FS
+func (h *AssetHandler) Open(name string) (fs.File, error) {
+	return h.assets.Open(name)
 }
 
 // ServeHTTP serves assets - default to login page
@@ -224,13 +229,14 @@ func (a *App) shutdown(ctx context.Context) {
 
 func main() {
 	app := NewApp()
+	handler := NewAssetHandler()
 	err := wails.Run(&options.App{
 		Title:  "INAMSOS - Tumor Registry",
 		Width:  1280,
 		Height: 800,
 		AssetServer: &assetserver.Options{
-			Assets:  NewAssetHandler(),
-			Handler: NewAssetHandler(),
+			Assets:  handler,
+			Handler: handler,
 		},
 		BackgroundColour: &options.RGBA{R: 255, G: 255, B: 255, A: 255},
 		OnStartup:        app.startup,
@@ -240,7 +246,7 @@ func main() {
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,
-			WindowIsTranslucent: false,
+			WindowIsTranslucent:  false,
 			DisableWindowIcon:    false,
 		},
 	})
