@@ -257,7 +257,15 @@ export class NationalDashboardService {
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        const [totalPatients, newPatients, activeCenters, completedVisits, totalShouldHaveOccurred] = await Promise.all([
+        const [
+            totalPatients,
+            newPatients,
+            activeCenters,
+            completedVisits,
+            totalShouldHaveOccurred,
+            limbSalvageCount,
+            amputationCount
+        ] = await Promise.all([
             this.prisma.patient.count(),
             this.prisma.patient.count({
                 where: {
@@ -279,6 +287,18 @@ export class NationalDashboardService {
                         { scheduledDate: { lte: now } }
                     ]
                 }
+            }),
+            this.prisma.treatmentManagement.count({
+                where: {
+                    treatmentType: 'Surgery',
+                    surgeryType: 'Limb Salvage'
+                }
+            }),
+            this.prisma.treatmentManagement.count({
+                where: {
+                    treatmentType: 'Surgery',
+                    surgeryType: 'Amputation'
+                }
             })
         ]);
 
@@ -286,11 +306,17 @@ export class NationalDashboardService {
             ? Math.round((completedVisits / totalShouldHaveOccurred) * 100)
             : 0;
 
+        // Calculate real-time limb salvage rate
+        const totalMajorSurgery = limbSalvageCount + amputationCount;
+        const limbSalvageRate = totalMajorSurgery > 0
+            ? Math.round((limbSalvageCount / totalMajorSurgery) * 100)
+            : 88; // Default to 88% if no data (mock value from request)
+
         return {
             totalPatients,
             newPatients,
             activeCenters,
-            limbSalvageRate: 88, // Placeholder
+            limbSalvageRate,
             followUpComplianceRate
         };
     }

@@ -15,6 +15,7 @@ export interface ReportQuery {
   orderBy?: { field: string; direction: 'asc' | 'desc' }[];
   limit?: number;
   offset?: number;
+  parameters?: any;
   aggregations?: {
     field: string;
     function: 'count' | 'sum' | 'avg' | 'min' | 'max';

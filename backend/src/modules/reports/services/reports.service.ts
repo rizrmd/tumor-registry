@@ -39,6 +39,8 @@ export class ReportsService {
         ...createTemplateDto,
         layout: createTemplateDto.layout as any,
         charts: createTemplateDto.charts as any,
+        isActive: createTemplateDto.isActive ?? true,
+        isPublic: createTemplateDto.isPublic ?? false,
       });
 
       if (!validation.isValid) {
@@ -47,12 +49,23 @@ export class ReportsService {
 
       const template = await this.prisma.reportTemplate.create({
         data: {
-          ...createTemplateDto,
+          name: createTemplateDto.name,
+          title: createTemplateDto.title,
+          description: createTemplateDto.description,
+          reportType: createTemplateDto.reportType as any,
+          templateType: createTemplateDto.templateType as any,
+          dataSource: createTemplateDto.dataSource,
+          parameters: createTemplateDto.parameters,
           layout: createTemplateDto.layout as any,
           styling: createTemplateDto.styling,
           filters: createTemplateDto.filters,
           aggregations: createTemplateDto.aggregations,
           charts: createTemplateDto.charts as any,
+          accessLevel: createTemplateDto.accessLevel as any,
+          isActive: createTemplateDto.isActive ?? true,
+          isPublic: createTemplateDto.isPublic ?? false,
+          createdBy: createTemplateDto.createdBy,
+          ...(createTemplateDto.centerId ? { center: { connect: { id: createTemplateDto.centerId } } } : {}),
         },
       });
 
@@ -219,6 +232,155 @@ export class ReportsService {
       },
       orderBy: { generatedAt: 'desc' },
       take: filters?.limit || 50,
+    });
+  }
+
+  async getTemplate(id: string): Promise<any> {
+    const template = await this.prisma.reportTemplate.findUnique({
+      where: { id },
+      include: {
+        center: true,
+      },
+    });
+
+    if (!template) {
+      throw new NotFoundException('Report template not found');
+    }
+
+    return template;
+  }
+
+  async getScheduledReports(filters: any): Promise<any[]> {
+    const where: any = {};
+    if (filters.centerId) where.template = { centerId: filters.centerId };
+    if (filters.isActive !== undefined) where.isActive = filters.isActive;
+
+    return this.prisma.scheduledReport.findMany({
+      where,
+      include: {
+        template: true,
+      },
+    });
+  }
+
+  async getScheduledReport(id: string): Promise<any> {
+    const report = await this.prisma.scheduledReport.findUnique({
+      where: { id },
+      include: {
+        template: true,
+      },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Scheduled report not found');
+    }
+
+    return report;
+  }
+
+  async toggleScheduledReport(id: string): Promise<any> {
+    const report = await this.getScheduledReport(id);
+    const updated = await this.prisma.scheduledReport.update({
+      where: { id },
+      data: { isActive: !report.isActive },
+    });
+
+    if (updated.isActive) {
+      this.scheduleReportJob(updated);
+    } else {
+      this.scheduledReports.get(id)?.stop();
+    }
+
+    return updated;
+  }
+
+  async deleteScheduledReport(id: string): Promise<void> {
+    this.scheduledReports.get(id)?.stop();
+    this.scheduledReports.delete(id);
+    await this.prisma.scheduledReport.delete({ where: { id } });
+  }
+
+  async deleteGeneratedReport(id: string): Promise<void> {
+    const report = await this.getReport(id);
+    if (report.filePath && fs.existsSync(report.filePath)) {
+      fs.unlinkSync(report.filePath);
+    }
+    await this.prisma.generatedReport.delete({ where: { id } });
+  }
+
+  async previewReportData(templateId: string, limit: number = 10, format?: string): Promise<any> {
+    const template = await this.getTemplate(templateId);
+    return this.executeReportQuery({
+      dataSource: template.dataSource,
+      filters: [],
+      limit,
+    });
+  }
+
+  async getAvailableDataSources(): Promise<string[]> {
+    return ['patients', 'users', 'diagnoses', 'treatments', 'centers'];
+  }
+
+  async getDataSourceSchema(source: string): Promise<any> {
+    const schemas: Record<string, any> = {
+      patients: {
+        fields: ['id', 'name', 'dateOfBirth', 'gender', 'isActive', 'createdAt'],
+        relationships: ['center', 'diagnoses'],
+      },
+      users: {
+        fields: ['id', 'name', 'email', 'isActive', 'createdAt'],
+        relationships: ['userRoles', 'center'],
+      },
+    };
+    return schemas[source] || { fields: [] };
+  }
+
+  async queryDataSource(source: string, query: any): Promise<any> {
+    return this.executeReportQuery({
+      dataSource: source,
+      filters: query.filters || [],
+      limit: query.limit || 50,
+    });
+  }
+
+  async getSupportedFormats(): Promise<string[]> {
+    return ['PDF', 'EXCEL', 'CSV', 'JSON', 'HTML'];
+  }
+
+  async getExportHistory(filters: any): Promise<any[]> {
+    const where: any = {};
+    if (filters.userId) where.generatedBy = filters.userId;
+    if (filters.startDate || filters.endDate) {
+      where.generatedAt = {};
+      if (filters.startDate) where.generatedAt.gte = filters.startDate;
+      if (filters.endDate) where.generatedAt.lte = filters.endDate;
+    }
+
+    return this.prisma.generatedReport.findMany({
+      where,
+      orderBy: { generatedAt: 'desc' },
+      take: filters.limit || 50,
+    });
+  }
+
+  async getTemplateUsage(id: string): Promise<any> {
+    const count = await this.prisma.generatedReport.count({
+      where: { templateId: id },
+    });
+    return { templateId: id, totalGenerations: count };
+  }
+
+  async cloneTemplate(id: string, cloneData: { name: string; description?: string }): Promise<any> {
+    const source = await this.getTemplate(id);
+    const { id: _, center: __, _count: ___, ...dataToClone } = source;
+
+    return this.prisma.reportTemplate.create({
+      data: {
+        ...dataToClone,
+        name: cloneData.name,
+        description: cloneData.description || source.description,
+        isActive: true,
+      },
     });
   }
 
@@ -557,7 +719,6 @@ export class ReportsService {
       const task = cron.schedule(scheduledReport.schedule, () => {
         this.executeScheduledReport(scheduledReport);
       }, {
-        scheduled: true,
         timezone: 'UTC',
       });
 

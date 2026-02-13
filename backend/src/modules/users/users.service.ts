@@ -4,7 +4,7 @@ import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(userData: {
     email: string;
@@ -191,6 +191,7 @@ export class UsersService {
         isActive: true,
         isEmailVerified: true,
         createdAt: true,
+        lastLoginAt: true,
         center: {
           select: {
             name: true,

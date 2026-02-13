@@ -83,8 +83,15 @@ export class MutationInterceptor implements NestInterceptor {
                 'staging-data': 'staging-data',
                 'musculoskeletal': 'msts-score',
                 'msts-scores': 'msts-score',
+                'follow-up-visits': 'follow-up-visit',
                 'follow-ups': 'follow-up-visit',
+                'follow-up': 'follow-up-visit',
                 'research-requests': 'research-request',
+                'who-bone-tumor': 'who-bone-tumor',
+                'who-soft-tissue-tumor': 'who-soft-tissue-tumor',
+                'bone-location': 'bone-location',
+                'soft-tissue-location': 'soft-tissue-location',
+                'tumor-syndrome': 'tumor-syndrome'
             };
 
             const normalizedEntityType = entityMap[parts[0]] || parts[0];

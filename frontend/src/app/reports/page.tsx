@@ -119,11 +119,11 @@ export default function ReportsPage() {
         },
         {
           id: '3',
-          name: 'Performa Pusat - Bulanan',
+          name: 'Performa Pusat - Bulanan (Sample)',
           type: 'Administrasi',
-          generatedAt: '2025-11-20 16:45',
-          status: 'processing',
-          size: '-',
+          generatedAt: '2026-02-10 16:45',
+          status: 'completed',
+          size: '1.5 MB',
         },
         {
           id: '4',
@@ -273,16 +273,14 @@ export default function ReportsPage() {
             <div
               key={template.id}
               onClick={() => setSelectedTemplate(template.id)}
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                selectedTemplate === template.id
+              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedTemplate === template.id
                   ? 'border-green-500 bg-green-50'
                   : 'border-gray-200 hover:border-green-300'
-              }`}
+                }`}
             >
               <div className="flex items-start space-x-3">
-                <div className={`p-2 rounded-lg ${
-                  selectedTemplate === template.id ? 'bg-green-200' : 'bg-gray-100'
-                }`}>
+                <div className={`p-2 rounded-lg ${selectedTemplate === template.id ? 'bg-green-200' : 'bg-gray-100'
+                  }`}>
                   <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
@@ -310,11 +308,10 @@ export default function ReportsPage() {
           <button
             onClick={handleGenerateReport}
             disabled={!selectedTemplate}
-            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-              selectedTemplate
+            className={`px-6 py-2 rounded-lg font-medium transition-colors ${selectedTemplate
                 ? 'bg-green-600 text-white hover:bg-green-700'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+              }`}
           >
             Generate Laporan
           </button>

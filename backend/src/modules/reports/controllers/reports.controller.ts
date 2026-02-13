@@ -21,7 +21,7 @@ import { ReportsService } from '../services/reports.service';
 import { ReportHistoryService } from '../services/report-history.service';
 import { CreateReportTemplateDto } from '../dto/create-report-template.dto';
 import { GenerateReportDto, ScheduleReportDto } from '../dto/generate-report.dto';
-import { Response } from 'express';
+import { FastifyReply } from 'fastify';
 import * as fs from 'fs';
 
 @ApiTags('reports')
@@ -32,7 +32,7 @@ export class ReportsController {
   constructor(
     private readonly reportsService: ReportsService,
     private readonly historyService: ReportHistoryService,
-  ) {}
+  ) { }
 
   @Get('templates')
   @Roles('SYSTEM_ADMIN', 'CENTER_DIRECTOR', 'DATA_ANALYST', 'RESEARCHER')
@@ -114,19 +114,15 @@ export class ReportsController {
       const { filePath, fileName, mimeType } = await this.reportsService.downloadReport(id);
 
       // Set appropriate headers
-      res.setHeader('Content-Type', mimeType);
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      reply.header('Content-Type', mimeType);
+      reply.header('Content-Disposition', `attachment; filename="${fileName}"`);
 
       // Stream the file
       const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
 
-      // Handle errors
-      fileStream.on('error', (error) => {
-        res.status(500).json({ error: 'Error reading file' });
-      });
+      return reply.send(fileStream);
     } catch (error) {
-      res.status(404).json({ error: error.message });
+      reply.status(404).send({ error: error.message });
     }
   }
 

@@ -69,13 +69,14 @@ export default function ReportsHistoryPage() {
           downloadUrl: '#',
         },
         {
-          id: 'RPT-2025-003',
-          name: 'Performa Pusat - Bulanan',
+          id: 'RPT-2026-003',
+          name: 'Performa Pusat - Bulanan (Sample)',
           type: 'Administrasi',
-          generatedAt: '2025-11-20 16:45',
+          generatedAt: '2026-02-10 16:45',
           generatedBy: 'Admin RSCM',
-          fileSize: '-',
-          status: 'processing',
+          fileSize: '1.5 MB',
+          status: 'completed',
+          downloadUrl: '#',
         },
         {
           id: 'RPT-2025-004',
@@ -548,22 +549,20 @@ export default function ReportsHistoryPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className={`px-4 py-2 border rounded-lg ${
-                    currentPage === 1
+                  className={`px-4 py-2 border rounded-lg ${currentPage === 1
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   Sebelumnya
                 </button>
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className={`px-4 py-2 border rounded-lg ${
-                    currentPage === totalPages
+                  className={`px-4 py-2 border rounded-lg ${currentPage === totalPages
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   Selanjutnya
                 </button>

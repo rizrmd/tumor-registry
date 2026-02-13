@@ -45,6 +45,7 @@ import { SystemAdministrationModule } from './modules/system-administration/syst
 // Phase 2-5 Modules
 import { MedicalRecordModule } from './modules/medical-record/medical-record.module';
 import { NationalDashboardModule } from './modules/national-dashboard/national-dashboard.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { ActivityLogModule } from './modules/activity-log/activity-log.module';
 import { LoggingInterceptor } from './modules/activity-log/logging.interceptor'; // Import Interceptor
 import { MutationInterceptor } from './modules/offline-queue/mutation.interceptor';
@@ -78,7 +79,7 @@ import { SecurityMiddleware } from './modules/auth/middleware/security.middlewar
     ResearchModule,
     ResearchRequestsModule,
     // ResearchImpactModule, // Temporarily disabled - depends on ResearchModule
-    // ReportsModule, // Temporarily disabled - has TypeScript errors
+    ReportsModule,
     // ScheduledReportsModule, // Temporarily disabled - uses ScheduleModule
     // NotificationsModule, // Temporarily disabled - uses ScheduleModule
     // Sprint 2 Modules

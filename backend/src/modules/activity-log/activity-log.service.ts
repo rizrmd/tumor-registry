@@ -31,9 +31,9 @@ export class ActivityLogService {
                     userAgent: data.userAgent,
                     requestMethod: data.requestMethod,
                     requestPath: data.requestPath,
-                    // Store simplified details in changesAfter for now, or expand schema to support generic 'details' field
-                    // The schema has changesBefore (Json) and changesAfter (Json).
-                    changesAfter: data.description ? { description: data.description } : undefined,
+                    description: data.description,
+                    // Optionally populate denormalized fields if actorId is provided but User record might be deleted later
+                    // changesAfter: data.description ? { description: data.description } : undefined,
                 },
             });
         } catch (error) {

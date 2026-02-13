@@ -45,29 +45,41 @@ export class LoggingInterceptor implements NestInterceptor {
             const { method, url, params, query } = request;
 
             // Determine action and entity from URL (simplified heuristics)
-            // e.g., /patients/123 -> Entity: Patient, EntityId: 123
-            const parts = url.split('/').filter(p => p);
-            let entity = 'UNKNOWN';
+            // e.g., /api/v1/patients/123 -> Entity: Patient, EntityId: 123
+            const urlPath = url.replace('/api/v1/', '').split('?')[0];
+            const parts = urlPath.split('/').filter(p => p);
+
+            let entity = 'SYSTEM';
             let entityId = null;
 
             if (parts.length > 0) {
-                entity = parts[0].toUpperCase().replace(/-/g, '_'); // e.g. RESEARCH_REQUESTS
+                entity = parts[0].toUpperCase().replace(/-/g, '_');
                 if (parts.length > 1) {
-                    // Check if second part is ID (simplified check)
-                    if (parts[1].match(/^[a-zA-Z0-9-]+$/)) {
+                    // Check if second part is ID (Simplified: not a sub-resource like 'sync')
+                    if (parts[1].length > 10 || parts[1].match(/^\d+$/)) {
                         entityId = parts[1];
                     }
                 }
             }
 
-            const action = `${method}_${entity.slice(0, -1)}`; // CREATE_PATIENT
+            const actionLabel = {
+                'POST': 'Menambahkan',
+                'PUT': 'Memperbarui',
+                'PATCH': 'Mengubah',
+                'DELETE': 'Menghapus'
+            }[method] || 'Melakukan';
+
+            const entityLabel = entity.charAt(0) + entity.slice(1).toLowerCase().replace(/_/g, ' ');
+            const action = `${method}_${entity}`.replace(/S$/, ''); // Singularize if ends with S
 
             await this.activityLogService.log({
-                actorId: user?.id,
+                actorId: user?.userId || user?.id, // Fallback just in case
                 action: status === 'FAILED' ? `${action}_FAILED` : action,
-                entity: entity.slice(0, -1), // Singular
+                entity: entity.replace(/S$/, ''), // Singular
                 entityId: entityId || undefined,
-                description: errorMessage ? `Failed: ${errorMessage}` : `Operation ${method} on ${url}`,
+                description: errorMessage
+                    ? `Gagal: ${errorMessage}`
+                    : `${actionLabel} ${entityLabel}${entityId ? ` (${entityId})` : ''}`,
                 centerId: user?.centerId,
                 ipAddress: request.ip,
                 userAgent: request.headers['user-agent'],
