@@ -65,15 +65,27 @@ func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Logic to prevent "directory requested without trailing slash" redirect
-	// 1. Check if path exists
+	// 1. Try with .html extension first (Common for Next.js static exports)
+	htmlPath := path + ".html"
+	if _, err := fs.Stat(h.assets, htmlPath); err == nil {
+		r.URL.Path = "/" + htmlPath
+		h.handler.ServeHTTP(w, r)
+		return
+	}
+
+	// 2. Try exact path
 	if info, err := fs.Stat(h.assets, path); err == nil {
 		if info.IsDir() {
-			// If it's a directory, ALWAYS rewrite to its index.html
-			// This bypasses the redirect logic in http.FileServer
+			// If it's a directory, check for index.html
 			indexPath := filepath.ToSlash(filepath.Join(path, "index.html"))
 			if _, err := fs.Stat(h.assets, indexPath); err == nil {
 				r.URL.Path = "/" + indexPath
+				h.handler.ServeHTTP(w, r)
+				return
+			}
+			// If directory but no index.html, don't let FileServer handle it (prevent redirect error)
+			if _, err := fs.Stat(h.assets, "login.html"); err == nil {
+				r.URL.Path = "/login.html"
 				h.handler.ServeHTTP(w, r)
 				return
 			}
@@ -84,15 +96,14 @@ func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 2. Try with .html extension (SPAs often request /about instead of /about.html)
-	htmlPath := path + ".html"
-	if _, err := fs.Stat(h.assets, htmlPath); err == nil {
-		r.URL.Path = "/" + htmlPath
+	// 3. Last resort fallback to login.html for any unknown routes
+	if _, err := fs.Stat(h.assets, "login.html"); err == nil {
+		r.URL.Path = "/login.html"
 		h.handler.ServeHTTP(w, r)
 		return
 	}
 
-	// 3. Last resort fallback
+	// Absolute fallback
 	h.handler.ServeHTTP(w, r)
 }
 
