@@ -48,7 +48,6 @@ func (h *AssetHandler) Open(name string) (fs.File, error) {
 	return h.assets.Open(name)
 }
 
-// ServeHTTP serves assets - default to login page
 func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	origPath := r.URL.Path
 	path := strings.TrimPrefix(origPath, "/")
@@ -66,6 +65,7 @@ func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Try with .html extension first (Common for Next.js static exports)
+	// This captures routes like /patients and serves patients.html
 	htmlPath := path + ".html"
 	if _, err := fs.Stat(h.assets, htmlPath); err == nil {
 		r.URL.Path = "/" + htmlPath
@@ -76,27 +76,25 @@ func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 2. Try exact path
 	if info, err := fs.Stat(h.assets, path); err == nil {
 		if info.IsDir() {
-			// If it's a directory, check for index.html
+			// If it's a directory, force it to index.html if it exists
+			// This prevents http.FileServer from trying to redirect and causing the error
 			indexPath := filepath.ToSlash(filepath.Join(path, "index.html"))
 			if _, err := fs.Stat(h.assets, indexPath); err == nil {
 				r.URL.Path = "/" + indexPath
 				h.handler.ServeHTTP(w, r)
 				return
 			}
-			// If directory but no index.html, don't let FileServer handle it (prevent redirect error)
-			if _, err := fs.Stat(h.assets, "login.html"); err == nil {
-				r.URL.Path = "/login.html"
-				h.handler.ServeHTTP(w, r)
-				return
-			}
-		} else {
-			// If it's a file, serve it directly
+			// Directory but no index.html -> fallback to login
+			r.URL.Path = "/login.html"
 			h.handler.ServeHTTP(w, r)
 			return
 		}
+		// Exact file (JS, CSS, Images), serve it
+		h.handler.ServeHTTP(w, r)
+		return
 	}
 
-	// 3. Last resort fallback to login.html for any unknown routes
+	// 3. Fallback to login.html for any unknown routes (SPA routing support)
 	if _, err := fs.Stat(h.assets, "login.html"); err == nil {
 		r.URL.Path = "/login.html"
 		h.handler.ServeHTTP(w, r)
