@@ -36,7 +36,7 @@ class AuthService {
    */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>(
-      '/auth/login',
+      'auth/login',
       credentials
     );
 
@@ -95,7 +95,7 @@ class AuthService {
    * Get current user profile from API
    */
   async getProfile(): Promise<User> {
-    const response = await apiClient.get<User>('/auth/profile');
+    const response = await apiClient.get<User>('auth/profile');
     return response.data;
   }
 
@@ -159,7 +159,7 @@ class AuthService {
    * Change password
    */
   async changePassword(oldPassword: string, newPassword: string): Promise<void> {
-    await apiClient.post('/auth/change-password', {
+    await apiClient.post('auth/change-password', {
       oldPassword,
       newPassword,
     });

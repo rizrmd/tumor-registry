@@ -67,7 +67,7 @@ import { SecurityMiddleware } from './modules/auth/middleware/security.middlewar
     ]),
     // ScheduleModule.forRoot(), // Temporarily disabled - crypto issue
     DatabaseModule,
-    // CommonModule, // Temporarily disabled - AuditLogService dependency issue
+    CommonModule,
     HealthModule,
     AuthModule,
     UsersModule,

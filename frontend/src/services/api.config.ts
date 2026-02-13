@@ -4,8 +4,22 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } f
 // Detect if running in Wails desktop environment
 function isWailsEnvironment(): boolean {
   if (typeof window === 'undefined') return false;
-  // Wails v2 specifically injects these objects or uses wails:// protocol
-  return !!((window as any).go || (window as any).runtime || window.location.protocol === 'wails:' || window.location.protocol === 'file:');
+
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+
+  // Wails v2 specific indicators
+  const isWailsProtocol = protocol === 'wails:' || protocol === 'app:';
+  const hasWailsObjects = !!((window as any).go || (window as any).runtime || (window as any).wails);
+  const isLocalFile = protocol === 'file:';
+
+  // Local development or custom local hostnames
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('wails.localhost');
+
+  // If we are not on a standard http/https public domain, it's likely the desktop app
+  const isNotStandardWeb = protocol !== 'http:' && protocol !== 'https:';
+
+  return isWailsProtocol || hasWailsObjects || isLocalFile || isLocal || isNotStandardWeb;
 }
 
 // Determine API base URL
@@ -16,14 +30,13 @@ function getApiBaseUrl(): string {
     return url.endsWith('/') ? url : `${url}/`;
   }
 
-  // In Wails/desktop mode, use localhost
+  // In Wails/desktop mode, ALWAYS use absolute localhost URL
   if (isWailsEnvironment()) {
-    console.log('[API] Running in Wails/desktop mode, using localhost API');
-    // Try 127.0.0.1 as primary for desktop
+    console.log('[API] Desktop environment detected, using absolute localhost API');
     return 'http://127.0.0.1:3001/api/v1/';
   }
 
-  // Default: use Next.js proxy rewrite (web mode)
+  // Default: use relative path for web deployments
   return '/api/v1/';
 }
 
@@ -40,9 +53,15 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - Add auth token
+// Request interceptor - Add auth token and fix slash issues
 apiClient.interceptors.request.use(
   (config) => {
+    // Fix: Remove leading slash if using absolute baseURL
+    // This prevents Axios from replacing the baseURL subpath (like /api/v1/)
+    if (config.url?.startsWith('/') && config.baseURL) {
+      config.url = config.url.substring(1);
+    }
+
     const token = localStorage.getItem('token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;

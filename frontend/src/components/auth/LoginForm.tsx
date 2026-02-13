@@ -72,25 +72,26 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
           if (url.startsWith('http')) {
             // Direct fetch for absolute URLs
             try {
-              await fetch(url, {
+              const response = await fetch(url, {
                 method: 'GET',
-                mode: 'no-cors', // No CORS mode for desktop app
                 headers: { 'Accept': 'application/json' },
                 signal: controller.signal,
               });
 
-              // With no-cors mode, if fetch doesn't throw, the server is reachable
-              console.log('[HealthCheck] Backend is ready! URL:', url);
-              if (isMounted) {
-                setIsBackendReady(true);
-                setBackendStatus('Sistem Siap');
-                clearInterval(checkInterval);
+              if (response.ok) {
+                console.log('[HealthCheck] Backend is ready! URL:', url);
+                if (isMounted) {
+                  setIsBackendReady(true);
+                  setBackendStatus('Sistem Siap');
+                  clearInterval(checkInterval);
+                }
+                clearTimeout(timeoutId);
+                return;
+              } else {
+                lastError = `Status: ${response.status}`;
               }
-              clearTimeout(timeoutId);
-              return;
             } catch (err: any) {
               lastError = err.message;
-              throw err;
             } finally {
               clearTimeout(timeoutId);
             }
