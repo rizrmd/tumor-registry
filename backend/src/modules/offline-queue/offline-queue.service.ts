@@ -228,6 +228,12 @@ export class OfflineQueueService implements OnModuleInit {
   }
 
   async runFullSync() {
+    if (this.isSyncing) {
+      this.logger.log('Sync already in progress, skipping background run');
+      return { status: 'ALREADY_RUNNING' };
+    }
+
+    this.isSyncing = true;
     this.logger.log('Starting full sync (Push + Pull + Files)');
 
     const result: any = {
@@ -272,6 +278,8 @@ export class OfflineQueueService implements OnModuleInit {
       result.status = 'PARTIAL';
       result.errors.push(error.message);
       return result;
+    } finally {
+      this.isSyncing = false;
     }
   }
 
@@ -1340,14 +1348,16 @@ export class OfflineQueueService implements OnModuleInit {
         this.prisma.offlineDataQueue.count({ where: { status: 'CONFLICT' } }),
       ]);
 
-      // Get pull statistics
-      const syncStates = await this.prisma.offlineSyncState.findMany();
-      const pulledSynced = syncStates.reduce((acc, curr) => acc + curr.totalItemsSynced, 0);
+      // Get pull statistics - count actual records in key tables for "validity"
+      const [patientCount, visitCount] = await Promise.all([
+        this.prisma.patient.count(),
+        this.prisma.followUpVisit.count(),
+      ]);
 
       return {
         pending,
         processing,
-        synced: pushedSynced + pulledSynced,
+        synced: pushedSynced + patientCount + visitCount,
         failed,
         conflict,
         needsAttention: failed + conflict,

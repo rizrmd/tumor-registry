@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { syncService } from '@/services/sync.service';
@@ -296,7 +297,7 @@ export function Layout({ children }: LayoutProps) {
                         </svg>
                       </button>
                     ) : (
-                      <a
+                      <Link
                         href={item.href}
                         className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg group ${isActive
                           ? 'bg-emerald-100 text-emerald-700'
@@ -306,7 +307,7 @@ export function Layout({ children }: LayoutProps) {
                       >
                         <span className="mr-3 text-lg">{item.icon}</span>
                         {item.name}
-                      </a>
+                      </Link>
                     )}
 
                     {/* Submenu items */}
@@ -320,7 +321,7 @@ export function Layout({ children }: LayoutProps) {
                           .map((subitem: any) => {
                             const isSubActive = pathname === subitem.href;
                             return (
-                              <a
+                              <Link
                                 key={subitem.name}
                                 href={subitem.href}
                                 className={`flex items-center px-3 py-2 text-sm rounded-lg ${isSubActive
@@ -330,7 +331,7 @@ export function Layout({ children }: LayoutProps) {
                                 onClick={() => setIsMobileMenuOpen(false)}
                               >
                                 {subitem.name}
-                              </a>
+                              </Link>
                             );
                           })}
                       </div>
@@ -420,20 +421,20 @@ export function Layout({ children }: LayoutProps) {
                 {/* Profile dropdown */}
                 {isProfileMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
-                    <a
+                    <Link
                       href="/profile"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsProfileMenuOpen(false)}
                     >
                       Profil Saya
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/settings"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsProfileMenuOpen(false)}
                     >
                       Pengaturan
-                    </a>
+                    </Link>
                     <hr className="my-1 border-gray-200" />
                     <button
                       type="button"
