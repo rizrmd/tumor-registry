@@ -1,8 +1,8 @@
 import { Controller, Post, Body, UseGuards, Logger, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { JwtAuthGuard } from '../modules/auth/guards/jwt.guard';
 import { RemoteConfigService } from './remote-config.service';
-import { JwtPayload } from '@/auth/interfaces/jwt-payload.interface';
+import { JwtPayload } from '../modules/auth/interfaces/jwt-payload.interface';
 
 interface UpdateTokenDto {
   jwtToken: string;
@@ -13,7 +13,7 @@ interface UpdateTokenDto {
 export class RemoteConfigController {
   private readonly logger = new Logger(RemoteConfigController.name);
 
-  constructor(private readonly remoteConfigService: RemoteConfigService) {}
+  constructor(private readonly remoteConfigService: RemoteConfigService) { }
 
   @Post('update-token')
   @UseGuards(JwtAuthGuard)
@@ -36,12 +36,12 @@ export class RemoteConfigController {
     // Update the stored token for remote sync
     this.remoteConfigService.setJwtToken(dto.jwtToken);
     this.remoteConfigService.clearCache();
-    
+
     this.logger.log(`Remote sync token updated for user: ${req.user.email}`);
-    
+
     // Try to fetch config with new token
     const config = await this.remoteConfigService.fetchRemoteDbConfig();
-    
+
     if (config?.enabled) {
       this.logger.log('Remote sync configured successfully');
       return {
@@ -67,7 +67,7 @@ export class RemoteConfigController {
   async getStatus() {
     const isEnabled = this.remoteConfigService.isRemoteDbEnabled();
     const url = this.remoteConfigService.getRemoteDbUrl();
-    
+
     return {
       enabled: isEnabled,
       hasUrl: !!url,
