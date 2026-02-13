@@ -311,7 +311,7 @@ func main() {
 		Width:  1280,
 		Height: 800,
 		AssetServer: &assetserver.Options{
-			Assets:  handler,
+			Assets:  nil, // Force Wails to use ONLY our custom Handler
 			Handler: handler,
 		},
 		BackgroundColour: &options.RGBA{R: 255, G: 255, B: 255, A: 255},

@@ -16,8 +16,19 @@ Set-Location ..
 if (Test-Path "desktop/frontend/dist") {
     Remove-Item -Path "desktop/frontend/dist" -Recurse -Force
 }
-New-Item -ItemType Directory -Path "desktop/frontend/dist" -Force | Out-Null
+$null = New-Item -ItemType Directory -Path "desktop/frontend/dist" -Force 
 Copy-Item -Path "frontend/out/*" -Destination "desktop/frontend/dist" -Recurse -Force
+
+# Clean up conflicting directories that cause trailing slash errors
+Write-Host "Cleaning up conflicting directories..." -ForegroundColor Yellow
+$distPath = "desktop/frontend/dist"
+Get-ChildItem -Path $distPath -Directory | ForEach-Object {
+    $dirName = $_.Name
+    if (Test-Path "$distPath/$dirName.html") {
+        Write-Host "Removing conflicting directory: $dirName" -ForegroundColor Gray
+        Remove-Item -Path $_.FullName -Recurse -Force
+    }
+}
 
 # Build Wails
 Write-Host "Building Wails Executable..." -ForegroundColor Yellow
