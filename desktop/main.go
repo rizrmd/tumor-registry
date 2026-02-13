@@ -307,9 +307,10 @@ func main() {
 	app := NewApp()
 	handler := NewAssetHandler()
 	err := wails.Run(&options.App{
-		Title:  "INAMSOS - Tumor Registry",
-		Width:  1280,
-		Height: 800,
+		Title:            "INAMSOS - Tumor Registry",
+		Width:            1280,
+		Height:           800,
+		WindowStartState: options.Maximised,
 		AssetServer: &assetserver.Options{
 			Assets:  nil, // Force Wails to use ONLY our custom Handler
 			Handler: handler,
