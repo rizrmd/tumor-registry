@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -49,59 +50,64 @@ func (h *AssetHandler) Open(name string) (fs.File, error) {
 }
 
 func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	origPath := r.URL.Path
-	path := strings.TrimPrefix(origPath, "/")
+	path := strings.TrimPrefix(r.URL.Path, "/")
 
-	// If root path or empty, explicitly serve login or index
+	// If root path or empty, explicitly serve login.html or index.html
 	if path == "" {
-		if _, err := fs.Stat(h.assets, "login.html"); err == nil {
-			r.URL.Path = "/login.html"
-			h.handler.ServeHTTP(w, r)
-			return
+		path = "login.html"
+		if _, err := fs.Stat(h.assets, "login.html"); err != nil {
+			path = "index.html"
 		}
-		r.URL.Path = "/index.html"
-		h.handler.ServeHTTP(w, r)
-		return
 	}
 
-	// 1. Try with .html extension first (Common for Next.js static exports)
-	// This captures routes like /patients and serves patients.html
-	htmlPath := path + ".html"
-	if _, err := fs.Stat(h.assets, htmlPath); err == nil {
-		r.URL.Path = "/" + htmlPath
-		h.handler.ServeHTTP(w, r)
-		return
+	// Logic to avoid "directory requested without trailing slash" error:
+	// 1. Always check if a .html version of the path exists
+	fileToServe := ""
+	if strings.HasSuffix(path, ".html") {
+		fileToServe = path
+	} else {
+		htmlPath := path + ".html"
+		if _, err := fs.Stat(h.assets, htmlPath); err == nil {
+			fileToServe = htmlPath
+		}
 	}
 
-	// 2. Try exact path
-	if info, err := fs.Stat(h.assets, path); err == nil {
-		if info.IsDir() {
-			// If it's a directory, force it to index.html if it exists
-			// This prevents http.FileServer from trying to redirect and causing the error
-			indexPath := filepath.ToSlash(filepath.Join(path, "index.html"))
-			if _, err := fs.Stat(h.assets, indexPath); err == nil {
-				r.URL.Path = "/" + indexPath
-				h.handler.ServeHTTP(w, r)
-				return
+	// 2. If it's a directory, check for index.html
+	if fileToServe == "" {
+		if info, err := fs.Stat(h.assets, path); err == nil {
+			if info.IsDir() {
+				indexPath := filepath.ToSlash(filepath.Join(path, "index.html"))
+				if _, err := fs.Stat(h.assets, indexPath); err == nil {
+					fileToServe = indexPath
+				}
+			} else {
+				fileToServe = path
 			}
-			// Directory but no index.html -> fallback to login
-			r.URL.Path = "/login.html"
-			h.handler.ServeHTTP(w, r)
-			return
 		}
-		// Exact file (JS, CSS, Images), serve it
-		h.handler.ServeHTTP(w, r)
-		return
 	}
 
-	// 3. Fallback to login.html for any unknown routes (SPA routing support)
-	if _, err := fs.Stat(h.assets, "login.html"); err == nil {
-		r.URL.Path = "/login.html"
-		h.handler.ServeHTTP(w, r)
-		return
+	// 3. Final fallback to login.html for SPA routing
+	if fileToServe == "" {
+		fileToServe = "login.html"
 	}
 
-	// Absolute fallback
+	// 4. If it's an HTML file, serve it MANUALLY using http.ServeContent
+	// to bypass http.FileServer's redirect logic
+	if strings.HasSuffix(fileToServe, ".html") {
+		f, err := h.assets.Open(fileToServe)
+		if err == nil {
+			defer f.Close()
+			if info, err := f.Stat(); err == nil {
+				if rs, ok := f.(io.ReadSeeker); ok {
+					w.Header().Set("Content-Type", "text/html; charset=utf-8")
+					http.ServeContent(w, r, fileToServe, info.ModTime(), rs)
+					return
+				}
+			}
+		}
+	}
+
+	// For non-html files (JS, CSS, Images), use the standard handler
 	h.handler.ServeHTTP(w, r)
 }
 
