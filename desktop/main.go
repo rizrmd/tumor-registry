@@ -4,7 +4,6 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -51,64 +50,88 @@ func (h *AssetHandler) Open(name string) (fs.File, error) {
 
 func (h *AssetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
+	// Log the request
+	fmt.Printf("[AssetHandler] Request: %s\n", r.URL.Path)
 
-	// If root path or empty, explicitly serve login.html or index.html
 	if path == "" {
 		path = "login.html"
-		if _, err := fs.Stat(h.assets, "login.html"); err != nil {
-			path = "index.html"
+	}
+
+	// 1. Array of paths to try (in order)
+	tryPaths := []string{
+		path,
+		path + ".html",
+		filepath.ToSlash(filepath.Join(path, "index.html")),
+	}
+
+	// For specific routes that look like Spa routes (no extension), prioritize .html
+	if !strings.Contains(filepath.Base(path), ".") {
+		tryPaths = []string{
+			path + ".html",
+			filepath.ToSlash(filepath.Join(path, "index.html")),
+			path,
 		}
 	}
 
-	// Logic to avoid "directory requested without trailing slash" error:
-	// 1. Always check if a .html version of the path exists
-	fileToServe := ""
-	if strings.HasSuffix(path, ".html") {
-		fileToServe = path
-	} else {
-		htmlPath := path + ".html"
-		if _, err := fs.Stat(h.assets, htmlPath); err == nil {
-			fileToServe = htmlPath
-		}
-	}
+	var content []byte
+	var err error
+	var finalPath string
 
-	// 2. If it's a directory, check for index.html
-	if fileToServe == "" {
-		if info, err := fs.Stat(h.assets, path); err == nil {
-			if info.IsDir() {
-				indexPath := filepath.ToSlash(filepath.Join(path, "index.html"))
-				if _, err := fs.Stat(h.assets, indexPath); err == nil {
-					fileToServe = indexPath
-				}
-			} else {
-				fileToServe = path
-			}
-		}
-	}
-
-	// 3. Final fallback to login.html for SPA routing
-	if fileToServe == "" {
-		fileToServe = "login.html"
-	}
-
-	// 4. If it's an HTML file, serve it MANUALLY using http.ServeContent
-	// to bypass http.FileServer's redirect logic
-	if strings.HasSuffix(fileToServe, ".html") {
-		f, err := h.assets.Open(fileToServe)
+	for _, p := range tryPaths {
+		content, err = fs.ReadFile(assets, "frontend/dist/"+p)
 		if err == nil {
-			defer f.Close()
-			if info, err := f.Stat(); err == nil {
-				if rs, ok := f.(io.ReadSeeker); ok {
-					w.Header().Set("Content-Type", "text/html; charset=utf-8")
-					http.ServeContent(w, r, fileToServe, info.ModTime(), rs)
-					return
-				}
-			}
+			finalPath = p
+			break
 		}
 	}
 
-	// For non-html files (JS, CSS, Images), use the standard handler
-	h.handler.ServeHTTP(w, r)
+	// 2. Final Fallback to login.html (SPA Behavior)
+	if err != nil {
+		content, err = fs.ReadFile(assets, "frontend/dist/login.html")
+		if err == nil {
+			finalPath = "login.html"
+		} else {
+			fmt.Printf("[AssetHandler] CRITICAL: login.html not found, falling back to original handler for %s\n", r.URL.Path)
+			h.handler.ServeHTTP(w, r)
+			return
+		}
+	}
+
+	fmt.Printf("[AssetHandler] Serving %s for %s\n", finalPath, r.URL.Path)
+
+	// 3. Set Content-Type manually based on extension
+	ext := filepath.Ext(finalPath)
+	ctype := "text/plain"
+	switch ext {
+	case ".html":
+		ctype = "text/html; charset=utf-8"
+	case ".js":
+		ctype = "application/javascript"
+	case ".css":
+		ctype = "text/css"
+	case ".svg":
+		ctype = "image/svg+xml"
+	case ".png":
+		ctype = "image/png"
+	case ".jpg", ".jpeg":
+		ctype = "image/jpeg"
+	case ".gif":
+		ctype = "image/gif"
+	case ".ico":
+		ctype = "image/x-icon"
+	case ".json":
+		ctype = "application/json"
+	case ".woff":
+		ctype = "font/woff"
+	case ".woff2":
+		ctype = "font/woff2"
+	case ".ttf":
+		ctype = "font/ttf"
+	}
+
+	w.Header().Set("Content-Type", ctype)
+	w.WriteHeader(http.StatusOK)
+	w.Write(content)
 }
 
 // App struct
