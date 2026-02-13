@@ -1,29 +1,29 @@
-# INAMSOS Rebuild & Clean Script
+# INAMSOS Rebuild & Clean Script (Final Version)
 
 Write-Host "--- INAMSOS Master Build & Repair ---" -ForegroundColor Cyan
 
-# 1. Cleanup
-Write-Host "[1/6] Cleaning up running processes and old files..." -ForegroundColor Yellow
-$processes = @("INAMSOS", "node", "postgres")
-foreach ($p in $processes) {
+# 1. Cleanup & Hard Reset
+Write-Host "[1/6] Hard Reset: Cleaning up ALL processes and old versions..." -ForegroundColor Yellow
+
+# Kill all potential locking processes
+$p_list = @("INAMSOS", "node", "postgres")
+foreach ($p in $p_list) {
     Get-Process "$p*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }
 taskkill /F /IM INAMSOS.exe /T 2>$null
 taskkill /F /IM node.exe /T 2>$null
 taskkill /F /IM postgres.exe /T 2>$null
 
-# Wait and try harder to clear the root exe
-Start-Sleep -s 3
-if (Test-Path "INAMSOS.exe") {
-    Write-Host "Trying to rename existing EXE to release lock..." -ForegroundColor Gray
-    $oldExe = "INAMSOS_old_$(Get-Date -Format 'HHmmss').exe"
-    Rename-Item "INAMSOS.exe" $oldExe -ErrorAction SilentlyContinue
-    Remove-Item "INAMSOS.exe" -Force -ErrorAction SilentlyContinue
-}
+# Wait for process handles to close
+Start-Sleep -s 4
 
-# If it still exists, we have a problem
+# Delete all existing executables to avoid confusion
+Write-Host "Removing old executable files..." -ForegroundColor Gray
+Get-ChildItem -Path . -Filter "INAMSOS*.exe" -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
+
+# Verify root is clear
 if (Test-Path "INAMSOS.exe") {
-     Write-Host "CRITICAL ERROR: Could not remove INAMSOS.exe. Please close the app manually and try again." -ForegroundColor Red
+     Write-Host "CRITICAL ERROR: 'INAMSOS.exe' is still locked. Please restart your computer." -ForegroundColor Red
      exit
 }
 
@@ -31,7 +31,7 @@ if (Test-Path "INAMSOS.exe") {
 Write-Host "[2/6] Building Backend..." -ForegroundColor Yellow
 Set-Location backend
 npm run build
-if ($LASTEXITCODE -ne 0) { Write-Host "Backend Build Failed!" -ForegroundColor Red; exit }
+if ($LASTEXITCODE -ne 0) { Write-Host "Backend Build Failed!" -ForegroundColor Red; Set-Location ..; exit }
 Set-Location ..
 
 # 3. Build Frontend
@@ -39,7 +39,7 @@ Write-Host "[3/6] Building Frontend..." -ForegroundColor Yellow
 Set-Location frontend
 $env:NEXT_PUBLIC_STATIC_EXPORT="true"
 npm run build
-if ($LASTEXITCODE -ne 0) { Write-Host "Frontend Build Failed!" -ForegroundColor Red; exit }
+if ($LASTEXITCODE -ne 0) { Write-Host "Frontend Build Failed!" -ForegroundColor Red; Set-Location ..; exit }
 Set-Location ..
 
 # 4. Sync Assets to Desktop App
@@ -48,35 +48,37 @@ if (Test-Path "desktop/frontend/dist") {
     Remove-Item -Path "desktop/frontend/dist" -Recurse -Force
 }
 New-Item -ItemType Directory -Path "desktop/frontend/dist" -Force
+# Important: ensure we copy the content of the out folder
 Copy-Item -Path "frontend/out/*" -Destination "desktop/frontend/dist" -Recurse -Force
 
 # 5. Build Wails Executable
 Write-Host "[5/6] Building Wails Application..." -ForegroundColor Yellow
 Set-Location desktop
-# Build to its default location first
 wails build
-if ($LASTEXITCODE -ne 0) { Write-Host "Wails Build Failed!" -ForegroundColor Red; exit }
+if ($LASTEXITCODE -ne 0) { Write-Host "Wails Build Failed!" -ForegroundColor Red; Set-Location ..; exit }
 Set-Location ..
 
-# 6. Finalization
-Write-Host "[6/6] Finalizing..." -ForegroundColor Yellow
-if (Test-Path "desktop/build/INAMSOS.exe") {
-    Write-Host "Updating root INAMSOS.exe..." -ForegroundColor Green
-    Copy-Item -Path "desktop/build/INAMSOS.exe" -Destination "INAMSOS.exe" -Force
+# 6. Finalization & Cleanup
+Write-Host "[6/6] Finalizing: Moving executable to root..." -ForegroundColor Yellow
+$buildExe = "desktop/build/INAMSOS.exe"
+if (-not (Test-Path $buildExe)) {
+    $buildExe = "desktop/build/bin/INAMSOS.exe"
+}
+
+if (Test-Path $buildExe) {
+    Move-Item -Path $buildExe -Destination "INAMSOS.exe" -Force
+    Write-Host "Success: Updated INAMSOS.exe in root." -ForegroundColor Green
 } else {
-    Write-Host "ERROR: Built executable not found in desktop/build!" -ForegroundColor Red
+    Write-Host "ERROR: Built executable not found!" -ForegroundColor Red
     exit
 }
 
-# Double check timestamp
-$newTime = (Get-Item "INAMSOS.exe").LastWriteTime
-Write-Host "New Executable Timestamp: $newTime" -ForegroundColor White
-
-# Cleanup temp build files
-Write-Host "Cleaning up temporary files..." -ForegroundColor Gray
-Remove-Item -Path "test-*.js", "debug-*.js", "*.log" -ErrorAction SilentlyContinue
+# Final cleanup of build folders and logs to keep it clean (Only 1 EXE rule)
+Write-Host "Cleaning up extra files..." -ForegroundColor Gray
+Remove-Item -Path "test-*.js", "debug-*.js", "*.log" -ErrorAction SilentlyContinue 
 Remove-Item -Path "desktop/frontend/dist" -Recurse -Force -ErrorAction SilentlyContinue
 
-Write-Host "--- BUILD SUCCESSFUL ---" -ForegroundColor Green
+Write-Host "Active Executable: INAMSOS.exe ($( (GCI INAMSOS.exe).LastWriteTime ))" -ForegroundColor Green
+Write-Host "--- SYSTEM REFRESHED & READY ---" -ForegroundColor Green
 Write-Host "Launching INAMSOS..." -ForegroundColor Cyan
 Start-Process ".\INAMSOS.exe"

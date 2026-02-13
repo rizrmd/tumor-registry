@@ -43,7 +43,7 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
   const { login } = useAuth();
   const router = useRouter();
 
-  // Backend Health Check
+  // Backend Health Check - More aggressive for Wails desktop app
   useEffect(() => {
     let isMounted = true;
     let checkInterval: NodeJS.Timeout;
@@ -55,68 +55,80 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
         setHealthCheckCount(attemptCount);
       }
 
-      try {
-        // Try to ping backend public status endpoint with longer timeout
-        // baseURL ends with /api/v1/, so we use 'status' to get /api/v1/status
-        await apiClient.get('status', { timeout: 10000 });
-        if (isMounted) {
-          console.log('[HealthCheck] Backend is ready!');
-          setIsBackendReady(true);
-          setBackendStatus('Sistem Siap');
-          clearInterval(checkInterval);
-        }
-      } catch (error: any) {
-        console.error('[HealthCheck] Backend not ready (attempt ' + attemptCount + '):', error.message);
+      // Try multiple URLs and methods for maximum compatibility
+      const urls = [
+        'http://127.0.0.1:3001/api/v1/status',
+        'http://localhost:3001/api/v1/status',
+        'status', // API Client handles baseURL
+      ];
 
-        // If 127.0.0.1 failed, try localhost directly as a fallback with no-cors
-        if (isMounted && error.message?.includes('Network Error') || error.message?.includes('timeout')) {
-          try {
-            const response = await fetch('http://127.0.0.1:3001/api/v1/status', {
-              method: 'GET',
-              mode: 'cors',
-              headers: { 'Accept': 'application/json' },
-            });
-            if (response.ok || response.status === 200) {
-              console.log('[HealthCheck] Fallback successful');
+      let lastError = '';
+
+      for (const url of urls) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+          if (url.startsWith('http')) {
+            // Direct fetch for absolute URLs
+            try {
+              await fetch(url, {
+                method: 'GET',
+                mode: 'no-cors', // No CORS mode for desktop app
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal,
+              });
+
+              // With no-cors mode, if fetch doesn't throw, the server is reachable
+              console.log('[HealthCheck] Backend is ready! URL:', url);
+              if (isMounted) {
+                setIsBackendReady(true);
+                setBackendStatus('Sistem Siap');
+                clearInterval(checkInterval);
+              }
+              clearTimeout(timeoutId);
+              return;
+            } catch (err: any) {
+              lastError = err.message;
+              throw err;
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          } else {
+            // Use apiClient for relative URLs
+            // Note: apiClient baseURL already includes /api/v1/, so we just need 'status'
+            await apiClient.get(url, { timeout: 5000 });
+            console.log('[HealthCheck] Backend is ready! URL:', url);
+            if (isMounted) {
               setIsBackendReady(true);
               setBackendStatus('Sistem Siap');
               clearInterval(checkInterval);
-              return;
             }
-          } catch (e) {
-            console.log('[HealthCheck] Fallback also failed:', e);
+            return;
           }
+        } catch (e: any) {
+          console.log('[HealthCheck] Failed for URL:', url, 'Error:', e.message);
+          if (!lastError) lastError = e.message;
+          continue; // Try next URL
         }
+      }
 
-        // If we get an error but it's a 401/403, it means the server IS up
-        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-          if (isMounted) {
-            console.log('[HealthCheck] Backend responding but unauthorized - marking as ready');
-            setIsBackendReady(true);
-            setBackendStatus('Sistem Siap');
-            clearInterval(checkInterval);
-          }
-        } else if (isMounted) {
-          // Actual network error (connection refused) or timeout - keep trying
-          setIsBackendReady(false);
-          const detail = error.message === 'Network Error' ? 'Menghubungkan...' : error.message;
-          setBackendStatus(`Menunggu sistem... (${attemptCount})`);
-        }
+      // All URLs failed - set not ready and keep trying
+      if (isMounted) {
+        setIsBackendReady(false);
+        setBackendStatus(`Menunggu sistem... (${attemptCount}) Error: ${lastError.substring(0, 20)}...`);
       }
     };
 
-    // Initial check after a short delay to let browser initialize
-    const initialDelay = setTimeout(() => {
-      console.log('[HealthCheck] Starting health checks...');
-      checkBackendHealth();
-    }, 2000);
+    // Start immediately without delay for faster startup
+    console.log('[HealthCheck] Starting health checks...');
+    checkBackendHealth();
 
-    // Poll every 3 seconds until backend is ready (increased from 2 seconds for less aggressive polling)
-    checkInterval = setInterval(checkBackendHealth, 3000);
+    // Poll every 2 seconds until backend is ready
+    checkInterval = setInterval(checkBackendHealth, 2000);
 
     return () => {
       isMounted = false;
-      clearTimeout(initialDelay);
       clearInterval(checkInterval);
     };
   }, []);
