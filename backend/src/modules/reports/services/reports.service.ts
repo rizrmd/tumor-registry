@@ -701,12 +701,21 @@ export class ReportsService {
   }
 
   private async initializeScheduledReports(): Promise<void> {
-    const scheduledReports = await this.prisma.scheduledReport.findMany({
-      where: { isActive: true },
-    });
+    try {
+      const scheduledReports = await this.prisma.scheduledReport.findMany({
+        where: { isActive: true },
+      });
 
-    for (const report of scheduledReports) {
-      this.scheduleReportJob(report);
+      for (const report of scheduledReports) {
+        this.scheduleReportJob(report);
+      }
+
+      this.logger.log(`Initialized ${scheduledReports.length} scheduled reports`);
+    } catch (error) {
+      this.logger.warn(
+        'Could not initialize scheduled reports (database may not be ready yet). ' +
+        'Reports will not be scheduled automatically. Error: ' + error.message,
+      );
     }
   }
 
