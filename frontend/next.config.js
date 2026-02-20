@@ -9,6 +9,11 @@ const nextConfig = {
     domains: ['localhost'],
     unoptimized: true,
   },
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['inamsos.medxamion.com', 'localhost:3000'],
+    },
+  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '',
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'INAMSOS',
