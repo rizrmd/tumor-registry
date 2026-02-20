@@ -5,7 +5,7 @@
 # ============================================
 # Stage 1: Build Frontend (Next.js)
 # ============================================
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 # Install build dependencies
 RUN apk add --no-cache libc6-compat
@@ -43,7 +43,7 @@ RUN npm run build
 # ============================================
 # Stage 2: Build Backend Dependencies
 # ============================================
-FROM node:18-alpine AS backend-deps
+FROM node:20-alpine AS backend-deps
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -75,7 +75,7 @@ RUN npm run build
 # ============================================
 # Stage 3: Production Image
 # ============================================
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 # Build arguments
 ARG NODE_ENV=production
