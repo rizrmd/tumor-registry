@@ -1,6 +1,5 @@
 # Production Dockerfile for INAMSOS (Unified Frontend + Backend + Nginx)
 # Multi-stage build: Frontend → Backend → Production
-# Note: Backend must be built locally first with `cd backend && npm run build`
 
 # ============================================
 # Stage 1: Build Frontend (Next.js)
