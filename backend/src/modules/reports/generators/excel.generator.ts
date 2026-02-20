@@ -77,7 +77,7 @@ export class ExcelGenerator {
         break;
       case 'chart':
         if (options.includeCharts) {
-          await this.processChartWorksheet(worksheet, section, data, options);
+          await this.processChartDataWorksheet(worksheet, section, data, options);
         } else {
           await this.processChartDataWorksheet(worksheet, section, data, options);
         }
@@ -131,7 +131,7 @@ export class ExcelGenerator {
       rowIndex++;
       for (const [key, value] of Object.entries(section.content.metadata)) {
         worksheet.getCell(`A${rowIndex}`).value = key;
-        worksheet.getCell(`B${rowIndex}`).value = value;
+        worksheet.getCell(`B${rowIndex}`).value = value as ExcelJS.CellValue;
         worksheet.getCell(`A${rowIndex}`).font = { bold: true };
         rowIndex++;
       }
@@ -257,20 +257,19 @@ export class ExcelGenerator {
       this.applyConditionalFormatting(worksheet, section.content.conditionalFormatting, headers);
     }
 
-    // Add table border
-    const tableRange = worksheet.getRange(
-      rowIndex,
-      1,
-      rowIndex + tableData.length,
-      headers.length,
-    );
-    tableRange.border = {
-      top: { style: 'thin' },
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' },
-      inside: { style: 'thin' },
-    };
+    // Add table border (cell by cell, as ExcelJS Worksheet has no getRange)
+    const borderEndRow = rowIndex + tableData.length;
+    for (let r = rowIndex; r <= borderEndRow; r++) {
+      for (let c = 1; c <= headers.length; c++) {
+        const cell = worksheet.getCell(r, c);
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      }
+    }
   }
 
   private async processChartDataWorksheet(
