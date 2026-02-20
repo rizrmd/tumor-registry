@@ -3,8 +3,8 @@ const isDev = process.env.NODE_ENV !== 'production';
 const isStaticExport = process.env.NEXT_PUBLIC_STATIC_EXPORT === 'true';
 
 const nextConfig = {
-  // Only use static export for production builds when explicitly enabled
-  output: isStaticExport ? 'export' : undefined,
+  // Use standalone output for efficient Docker builds, or static export if explicitly enabled
+  output: isStaticExport ? 'export' : 'standalone',
   images: {
     domains: ['localhost'],
     unoptimized: true,
