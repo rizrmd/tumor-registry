@@ -146,8 +146,8 @@ ENV NODE_ENV=production \
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD curl -f http://localhost:3000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
+    CMD curl -f http://localhost:3001/api/v1/system-administration/health || exit 1
 
 # Switch to non-root user
 USER nodejs
