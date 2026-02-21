@@ -46,8 +46,7 @@ trap cleanup EXIT INT TERM
 # Start Next.js standalone server on port 3000
 # -------------------------------------------------------
 echo "Starting Next.js frontend on port ${FRONTEND_PORT}..."
-export PORT=${FRONTEND_PORT}
-cd /app/frontend && node server.js &
+cd /app/frontend && PORT=${FRONTEND_PORT} node server.js &
 NEXTJS_PID=$!
 
 # Wait for Next.js to start
@@ -66,4 +65,4 @@ fi
 # Start NestJS backend on port 3001 (internal)
 # -------------------------------------------------------
 echo "Starting NestJS backend on port ${BACKEND_PORT}..."
-cd /app && exec node dist/main.js
+cd /app && PORT=${BACKEND_PORT} exec node dist/main.js
