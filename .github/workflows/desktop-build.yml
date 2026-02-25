@@ -106,6 +106,7 @@ jobs:
           cd desktop/build/bin
           ditto -c -k --keepParent INAMSOS.app INAMSOS-macos-universal.zip
           rm -rf INAMSOS.app
+          shasum -a 256 INAMSOS-macos-universal.zip > INAMSOS-macos-universal.zip.sha256
 
       - name: Package Linux Binary
         if: runner.os == 'Linux'
@@ -113,6 +114,7 @@ jobs:
           cd desktop/build/bin
           tar zcvf INAMSOS-linux-amd64.tar.gz INAMSOS
           rm INAMSOS
+          sha256sum INAMSOS-linux-amd64.tar.gz > INAMSOS-linux-amd64.tar.gz.sha256
 
       - name: Package Windows Binary
         if: runner.os == 'Windows'
@@ -120,6 +122,31 @@ jobs:
         run: |
           Set-Location desktop/build/bin
           Rename-Item INAMSOS.exe INAMSOS-windows-amd64.exe
+
+      - name: Sign Windows Binary
+        if: runner.os == 'Windows' && secrets.WINDOWS_CERT_PFX_BASE64 != '' && secrets.WINDOWS_CERT_PASSWORD != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP "codesign-cert.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERT_PFX_BASE64))
+          & signtool.exe sign /f $certPath /p $env:WINDOWS_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 desktop/build/bin/INAMSOS-windows-amd64.exe
+          Remove-Item $certPath -Force
+
+      - name: Verify Windows Signature
+        if: runner.os == 'Windows' && secrets.WINDOWS_CERT_PFX_BASE64 != '' && secrets.WINDOWS_CERT_PASSWORD != ''
+        shell: pwsh
+        run: |
+          & signtool.exe verify /pa /v desktop/build/bin/INAMSOS-windows-amd64.exe
+
+      - name: Generate Windows SHA256
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash desktop/build/bin/INAMSOS-windows-amd64.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  INAMSOS-windows-amd64.exe" | Out-File -FilePath desktop/build/bin/INAMSOS-windows-amd64.exe.sha256 -Encoding ascii
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
