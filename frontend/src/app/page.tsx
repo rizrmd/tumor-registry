@@ -2,13 +2,47 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWails } from '@/hooks/useWails';
 import Link from 'next/link';
 
 export default function HomePage() {
+  const { isWailsAvailable } = useWails();
+
+  if (!isWailsAvailable) {
+    return <WebLandingPage />;
+  }
+
   return (
     <ProtectedRoute>
       <AuthenticatedHome />
     </ProtectedRoute>
+  );
+}
+
+function WebLandingPage() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold text-primary-600">INAMSOS</h1>
+              <span className="ml-2 text-sm text-gray-500">
+                Indonesia National Musculoskeletal Tumor Registry
+              </span>
+            </div>
+            <nav className="flex items-center space-x-4">
+              <Link
+                href="/login"
+                className="bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Login
+              </Link>
+            </nav>
+          </div>
+        </div>
+      </header>
+    </div>
   );
 }
 
@@ -112,7 +146,7 @@ function AuthenticatedHome() {
                 Data Requests
               </Link>
               <Link
-                href="/reports"
+                href="/_reports"
                 className="block w-full text-center bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Reports
