@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFormContext } from '../FormContext';
+import apiClient from '@/services/api.config';
 
 /**
  * Section 1: Center & Pathology Type Selection
@@ -38,6 +39,27 @@ interface Section1Data {
   pathologyTypeName?: string; // For convenience
 }
 
+const DEFAULT_PATHOLOGY_TYPES: PathologyType[] = [
+  {
+    id: 'fallback-bone-tumor',
+    name: 'Bone Tumor',
+    code: 'bone_tumor',
+    description: 'Primary bone tumor',
+  },
+  {
+    id: 'fallback-soft-tissue-tumor',
+    name: 'Soft Tissue Tumor',
+    code: 'soft_tissue_tumor',
+    description: 'Soft tissue tumor',
+  },
+  {
+    id: 'fallback-metastatic-bone-disease',
+    name: 'Metastatic Bone Disease',
+    code: 'metastatic_bone_disease',
+    description: 'Secondary/metastatic bone disease',
+  },
+];
+
 export function Section1CenterPathology() {
   const { getSection, updateSection } = useFormContext();
   const [centers, setCenters] = useState<Center[]>([]);
@@ -52,49 +74,56 @@ export function Section1CenterPathology() {
     loadData();
   }, []);
 
+  const normalizeCenters = (payload: any): Center[] => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.centers)) return payload.centers;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.centers)) return payload.data.centers;
+    return [];
+  };
+
+  const normalizePathologyTypes = (payload: any): PathologyType[] => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  };
+
   const loadData = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
-      const token = localStorage.getItem('token');
-
       // Fetch centers and pathology types in parallel
-      const [centersRes, pathologyRes] = await Promise.all([
-        fetch(`${apiUrl}/centers`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }),
-        fetch(`${apiUrl}/pathology-types`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }),
+      const [centersResult, pathologyResult] = await Promise.allSettled([
+        apiClient.get('centers'),
+        apiClient.get('pathology-types'),
       ]);
 
-      if (!centersRes.ok || !pathologyRes.ok) {
-        const centersError = !centersRes.ok ? await centersRes.text() : null;
-        const pathologyError = !pathologyRes.ok ? await pathologyRes.text() : null;
-        console.error('Centers response:', centersError);
-        console.error('Pathology response:', pathologyError);
-        throw new Error('Failed to load data');
+      const centersList =
+        centersResult.status === 'fulfilled'
+          ? normalizeCenters(centersResult.value.data)
+          : [];
+
+      let pathologyList =
+        pathologyResult.status === 'fulfilled'
+          ? normalizePathologyTypes(pathologyResult.value.data)
+          : [];
+
+      if (pathologyList.length === 0) {
+        pathologyList = DEFAULT_PATHOLOGY_TYPES;
+        console.warn('[Section1] Pathology endpoint unavailable, using fallback options');
       }
 
-      const centersData = await centersRes.json();
-      const pathologyData = await pathologyRes.json();
+      if (centersList.length === 0) {
+        throw new Error('Centers data unavailable');
+      }
 
-      // API returns array directly, not wrapped in {data: ...}
-      setCenters(Array.isArray(centersData) ? centersData : (centersData.data || []));
-      setPathologyTypes(Array.isArray(pathologyData) ? pathologyData : (pathologyData.data || []));
+      setCenters(centersList);
+      setPathologyTypes(pathologyList);
 
       // Pre-fill user's center if not already set
-      const centers = Array.isArray(centersData) ? centersData : (centersData.data || []);
-      if (!sectionData.centerId && centers.length > 0) {
-        const userCenter = centers[0]; // First center is typically user's center
+      if (!sectionData.centerId && centersList.length > 0) {
+        const userCenter = centersList[0];
         updateSection('section1', {
           ...sectionData,
           centerId: userCenter.id,
@@ -102,7 +131,7 @@ export function Section1CenterPathology() {
       }
     } catch (err) {
       console.error('Error loading section 1 data:', err);
-      setError('Gagal memuat data. Silakan coba lagi.');
+      setError('Gagal memuat data pusat/patologi. Silakan login ulang lalu coba lagi.');
     } finally {
       setIsLoading(false);
     }
