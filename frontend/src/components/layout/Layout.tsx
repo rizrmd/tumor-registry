@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { syncService } from '@/services/sync.service';
+import { useWails } from '@/hooks/useWails';
 import toast from 'react-hot-toast';
 
 interface LayoutProps {
@@ -14,6 +15,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { user, logout, isLoading } = useAuth();
+  const { isWailsAvailable } = useWails();
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -446,7 +448,7 @@ export function Layout({ children }: LayoutProps) {
             {/* Sync Indicator and User menu */}
             <div className="flex items-center space-x-4">
               {/* Sync Indicator */}
-              <SyncIndicator />
+              {isWailsAvailable && <SyncIndicator />}
 
               <div className="relative">
                 <button

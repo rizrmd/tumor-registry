@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSync } from '@/contexts/SyncContext';
+import { useWails } from '@/hooks/useWails';
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { statistics, isSyncing, triggerFullSync } = useSync();
+  const { isWailsAvailable } = useWails();
 
   return (
     <Layout>
@@ -56,7 +58,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Sync Management */}
-        {statistics && (
+        {isWailsAvailable && statistics && (
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
