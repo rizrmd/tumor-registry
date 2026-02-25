@@ -21,6 +21,11 @@ export function Layout({ children }: LayoutProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const latestReleaseLinks = {
+    windows: 'https://github.com/rizrmd/tumor-registry/releases/latest/download/INAMSOS.exe',
+    macos: 'https://github.com/rizrmd/tumor-registry/releases/latest/download/INAMSOS-macos-universal.zip',
+    linux: 'https://github.com/rizrmd/tumor-registry/releases/latest/download/INAMSOS-linux-amd64.tar.gz',
+  };
 
   const handleLogout = async () => {
     try {
@@ -341,6 +346,50 @@ export function Layout({ children }: LayoutProps) {
               })
             )}
           </nav>
+
+          {/* Latest release downloads */}
+          <div className="px-4 pb-4">
+            <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Download Versi Terbaru
+              </p>
+              <div className="mt-2 space-y-2">
+                <a
+                  href={latestReleaseLinks.windows}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 text-gray-500 fill-current">
+                    <path d="M1 3.5 11 2v9H1zm11 0L23 2v9H12zM1 12h10v10L1 20.5zm11 0h11v8.5L12 22z" />
+                  </svg>
+                  Windows
+                </a>
+                <a
+                  href={latestReleaseLinks.macos}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 text-gray-500 fill-current">
+                    <path d="M16.37 1.43c.05 1.14-.35 2.2-1.01 2.97-.68.8-1.8 1.41-2.9 1.33-.14-1.1.36-2.28 1.02-3 .72-.8 1.92-1.4 2.89-1.3Zm3.4 16.2c-.53 1.21-.79 1.75-1.47 2.8-.95 1.45-2.29 3.25-3.95 3.27-1.47.02-1.85-.95-3.84-.94-1.99.01-2.4.96-3.86.95-1.66-.02-2.92-1.64-3.87-3.09-2.66-4.04-2.94-8.77-1.3-11.29 1.16-1.78 3-2.82 4.72-2.82 1.76 0 2.86.96 4.3.96 1.4 0 2.26-.96 4.28-.96 1.53 0 3.16.84 4.32 2.3-3.78 2.08-3.16 7.44.67 8.82Z" />
+                  </svg>
+                  macOS
+                </a>
+                <a
+                  href={latestReleaseLinks.linux}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 text-gray-500 fill-current">
+                    <path d="M14.62 8.35c-.42.28-.86.52-1.33.73a.97.97 0 0 1-.39.09c-.32 0-.64-.23-.88-.74a3.04 3.04 0 0 1-.26-1.28c0-.31.04-.59.13-.82.08-.23.2-.4.34-.52.15-.12.32-.18.52-.18.17 0 .34.05.49.16.16.1.29.25.4.44.11.18.2.4.27.65.07.25.1.52.1.82 0 .12 0 .24-.02.35.22-.13.44-.27.65-.43.18-.13.36-.2.53-.2.22 0 .38.11.5.32.1.18.16.4.16.65 0 .29-.07.55-.2.78-.14.24-.34.43-.61.58ZM9.28 8.19c.2.16.42.3.65.43-.01-.11-.02-.23-.02-.35 0-.3.03-.57.1-.82.07-.25.16-.47.27-.65.11-.19.24-.34.4-.44a.83.83 0 0 1 .49-.16c.2 0 .37.06.52.18.14.12.26.3.34.52.09.23.13.51.13.82 0 .46-.09.89-.26 1.28-.24.51-.56.74-.88.74a.97.97 0 0 1-.39-.09 7.08 7.08 0 0 1-1.33-.73c-.27-.15-.47-.34-.61-.58a1.53 1.53 0 0 1-.2-.78c0-.25.06-.47.16-.65.12-.21.28-.32.5-.32.17 0 .35.07.53.2Zm9.41 6.99c0 3.06-1.64 5.31-3.9 5.31-.74 0-1.43-.23-2.03-.66-.24-.17-.5-.26-.76-.26s-.52.09-.76.26c-.6.43-1.29.66-2.03.66-2.26 0-3.9-2.25-3.9-5.31 0-1.22.27-2.37.75-3.32.67-1.32 1.78-2.2 3.1-2.2.84 0 1.52.28 2.1.76.2.17.44.25.68.25s.48-.08.68-.25c.58-.48 1.26-.76 2.1-.76 1.32 0 2.43.88 3.1 2.2.48.95.75 2.1.75 3.32Z" />
+                  </svg>
+                  Linux
+                </a>
+              </div>
+            </div>
+          </div>
 
           {/* User info */}
           <div className="border-t border-gray-200 p-4">
