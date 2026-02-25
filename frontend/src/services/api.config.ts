@@ -6,20 +6,15 @@ function isWailsEnvironment(): boolean {
   if (typeof window === 'undefined') return false;
 
   const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
 
-  // Wails v2 specific indicators
+  // Wails/desktop specific indicators only
   const isWailsProtocol = protocol === 'wails:' || protocol === 'app:';
-  const hasWailsObjects = !!((window as any).go || (window as any).runtime || (window as any).wails);
+  const hasWailsBindings = !!((window as any).go?.main?.App || (window as any).wails);
   const isLocalFile = protocol === 'file:';
+  const isWailsHost = window.location.hostname.includes('wails.localhost');
 
-  // Local development or custom local hostnames
-  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('wails.localhost');
-
-  // If we are not on a standard http/https public domain, it's likely the desktop app
-  const isNotStandardWeb = protocol !== 'http:' && protocol !== 'https:';
-
-  return isWailsProtocol || hasWailsObjects || isLocalFile || isLocal || isNotStandardWeb;
+  // Important: localhost web dev must remain web mode.
+  return isWailsProtocol || hasWailsBindings || isLocalFile || isWailsHost;
 }
 
 // Determine API base URL
