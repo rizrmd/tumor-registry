@@ -24,9 +24,9 @@ export function Layout({ children }: LayoutProps) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const latestReleaseLinks = {
-    windows: 'https://github.com/rizrmd/tumor-registry/releases/latest/download/INAMSOS.exe',
-    macos: 'https://github.com/rizrmd/tumor-registry/releases/latest/download/INAMSOS-macos-universal.zip',
-    linux: 'https://github.com/rizrmd/tumor-registry/releases/latest/download/INAMSOS-linux-amd64.tar.gz',
+    windows: 'https://github.com/rizrmd/tumor-registry/releases/download/v1.3.6/INAMSOS.exe',
+    macos: 'https://github.com/rizrmd/tumor-registry/releases/download/v1.3.5/INAMSOS-macos-universal.zip',
+    linux: 'https://github.com/rizrmd/tumor-registry/releases/download/v1.3.5/INAMSOS-linux-amd64.tar.gz',
   };
 
   const handleLogout = async () => {
@@ -353,7 +353,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="px-4 pb-4">
             <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                Download Versi Terbaru
+                Unduh Versi Desktop
               </p>
               <div className="mt-2 space-y-2">
                 <a
