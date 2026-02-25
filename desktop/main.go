@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/wailsapp/wails/v2"
@@ -223,7 +222,7 @@ func (a *App) startPostgreSQL(appDir string) {
 	}
 	log.Println("Starting PostgreSQL...")
 	cmd := exec.Command(postgresExe, "start", "-D", dataDir, "-l", logFile, "-w", "-o", "-p 54321")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	applyPlatformSysProcAttr(cmd)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("[ERROR] Failed to start PostgreSQL: %v\nOutput: %s", err, string(output))
@@ -259,7 +258,7 @@ func (a *App) startBackend(appDir string) {
 	os.Setenv("DATABASE_URL", dbURL)
 	os.Setenv("DATABASE_PORT", "54321")
 	a.backendCmd = exec.Command(nodeExe, backendScript)
-	a.backendCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	applyPlatformSysProcAttr(a.backendCmd)
 	a.backendCmd.Dir = filepath.Dir(backendScript)
 	logPath := filepath.Join(appDir, "logs", "backend.log")
 	logFile, err := os.Create(logPath)
@@ -298,7 +297,7 @@ func (a *App) shutdown(ctx context.Context) {
 			postgresExe = filepath.Join(postgresDir, "pg_ctl")
 		}
 		stopCmd := exec.Command(postgresExe, "stop", "-D", dataDir, "-m", "fast")
-		stopCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		applyPlatformSysProcAttr(stopCmd)
 		stopCmd.Run()
 	}
 }
