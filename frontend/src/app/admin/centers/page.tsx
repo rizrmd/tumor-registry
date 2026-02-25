@@ -77,6 +77,15 @@ export default function AdminCentersPage() {
     'Bali',
   ];
 
+  const getErrorMessage = (error: any, fallback: string) => {
+    return (
+      error?.response?.data?.error?.message ||
+      error?.response?.data?.message ||
+      error?.message ||
+      fallback
+    );
+  };
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       window.location.href = '/login';
@@ -120,7 +129,7 @@ export default function AdminCentersPage() {
       setCenters(transformedCenters);
     } catch (error: any) {
       console.error('Error fetching centers:', error);
-      setError(error.response?.data?.message || 'Gagal memuat data pusat');
+      setError(getErrorMessage(error, 'Gagal memuat data pusat'));
       alert('Gagal memuat data pusat. Silakan coba lagi.');
     } finally {
       setLoading(false);
@@ -238,7 +247,7 @@ export default function AdminCentersPage() {
       await fetchStatistics();
     } catch (error: any) {
       console.error('Error toggling center status:', error);
-      const errorMessage = error.response?.data?.message || 'Gagal mengubah status pusat';
+      const errorMessage = getErrorMessage(error, 'Gagal mengubah status pusat');
       alert(errorMessage);
     }
   };
@@ -264,7 +273,7 @@ export default function AdminCentersPage() {
       await fetchStatistics();
     } catch (error: any) {
       console.error('Error creating center:', error);
-      const errorMessage = error.response?.data?.message || 'Gagal menambahkan pusat';
+      const errorMessage = getErrorMessage(error, 'Gagal menambahkan pusat');
       alert(errorMessage);
     }
   };
@@ -290,7 +299,7 @@ export default function AdminCentersPage() {
       await fetchStatistics();
     } catch (error: any) {
       console.error('Error updating center:', error);
-      const errorMessage = error.response?.data?.message || 'Gagal memperbarui pusat';
+      const errorMessage = getErrorMessage(error, 'Gagal memperbarui pusat');
       alert(errorMessage);
     }
   };

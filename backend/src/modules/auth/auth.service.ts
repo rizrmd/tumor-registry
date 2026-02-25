@@ -200,6 +200,56 @@ export class AuthService {
     }
   }
 
+  async forgotPassword(email: string) {
+    const user = await this.usersService.findByEmail(email);
+
+    // Return success response even if user does not exist to prevent account enumeration
+    if (!user) {
+      return {
+        message: 'If the email is registered, a password reset link has been sent.',
+      };
+    }
+
+    const resetToken = this.jwtService.sign(
+      { userId: user.id, email: user.email, purpose: 'password_reset' },
+      { expiresIn: '1h' },
+    );
+
+    await this.emailService.sendPasswordResetEmail(user.email, resetToken);
+
+    return {
+      message: 'If the email is registered, a password reset link has been sent.',
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+
+      if (payload.purpose !== 'password_reset') {
+        throw new BadRequestException('Invalid password reset token');
+      }
+
+      const user = await this.usersService.findById(payload.userId);
+      if (!user || user.email !== payload.email) {
+        throw new BadRequestException('Invalid password reset token');
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      });
+
+      await this.revokeAllUserTokens(user.id);
+
+      return { message: 'Password has been reset successfully' };
+    } catch (error) {
+      throw new BadRequestException('Invalid or expired password reset token');
+    }
+  }
+
   async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
