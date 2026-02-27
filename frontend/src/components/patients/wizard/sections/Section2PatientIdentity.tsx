@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFormContext } from '../FormContext';
+import apiClient from '@/services/api.config';
 
 /**
  * Section 2: Patient Identity & Demographics (ANONYMIZED)
@@ -107,7 +108,7 @@ export function Section2PatientIdentity() {
   // Load regencies when province changes
   useEffect(() => {
     if (sectionData.provinceId) {
-      loadRegencies(sectionData.provinceId);
+      loadRegencies(sectionData.provinceId, sectionData.regencyId);
     } else {
       setRegencies([]);
       setDistricts([]);
@@ -118,7 +119,7 @@ export function Section2PatientIdentity() {
   // Load districts when regency changes
   useEffect(() => {
     if (sectionData.regencyId) {
-      loadDistricts(sectionData.regencyId);
+      loadDistricts(sectionData.regencyId, sectionData.districtId);
     } else {
       setDistricts([]);
       setVillages([]);
@@ -128,24 +129,23 @@ export function Section2PatientIdentity() {
   // Load villages when district changes
   useEffect(() => {
     if (sectionData.districtId) {
-      loadVillages(sectionData.districtId);
+      loadVillages(sectionData.districtId, sectionData.villageId);
     } else {
       setVillages([]);
     }
   }, [sectionData.districtId]);
 
+  const normalizeList = <T,>(payload: any): T[] => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  };
+
   const loadProvinces = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
-      const response = await fetch(`${apiUrl}/regions/provinces`);
-
-      if (!response.ok) {
-        throw new Error('Failed to load provinces');
-      }
-
-      const data = await response.json();
-      setProvinces(Array.isArray(data) ? data : (data.data || []));
+      const response = await apiClient.get('regions/provinces');
+      setProvinces(normalizeList<Province>(response.data));
     } catch (error) {
       console.error('Error loading provinces:', error);
       setProvinces([]);
@@ -154,51 +154,60 @@ export function Section2PatientIdentity() {
     }
   };
 
-  const loadRegencies = async (provinceId: string) => {
+  const loadRegencies = async (provinceId: string, currentRegencyId?: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
-      const response = await fetch(`${apiUrl}/regions/provinces/${provinceId}/regencies`);
+      const response = await apiClient.get(`regions/provinces/${provinceId}/regencies`);
+      const data = normalizeList<Regency>(response.data);
+      setRegencies(data);
 
-      if (!response.ok) {
-        throw new Error('Failed to load regencies');
+      // Keep previous valid selection; otherwise auto-select first option.
+      if (data.length > 0 && !data.some((r) => r.id === currentRegencyId)) {
+        const nextRegencyId = data[0].id;
+        updateSection('section2', {
+          ...sectionData,
+          regencyId: nextRegencyId,
+          districtId: '',
+          villageId: '',
+        });
       }
-
-      const data = await response.json();
-      setRegencies(Array.isArray(data) ? data : (data.data || []));
     } catch (error) {
       console.error('Error loading regencies:', error);
       setRegencies([]);
     }
   };
 
-  const loadDistricts = async (regencyId: string) => {
+  const loadDistricts = async (regencyId: string, currentDistrictId?: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
-      const response = await fetch(`${apiUrl}/regions/regencies/${regencyId}/districts`);
+      const response = await apiClient.get(`regions/regencies/${regencyId}/districts`);
+      const data = normalizeList<District>(response.data);
+      setDistricts(data);
 
-      if (!response.ok) {
-        throw new Error('Failed to load districts');
+      if (data.length > 0 && !data.some((d) => d.id === currentDistrictId)) {
+        const nextDistrictId = data[0].id;
+        updateSection('section2', {
+          ...sectionData,
+          districtId: nextDistrictId,
+          villageId: '',
+        });
       }
-
-      const data = await response.json();
-      setDistricts(Array.isArray(data) ? data : (data.data || []));
     } catch (error) {
       console.error('Error loading districts:', error);
       setDistricts([]);
     }
   };
 
-  const loadVillages = async (districtId: string) => {
+  const loadVillages = async (districtId: string, currentVillageId?: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
-      const response = await fetch(`${apiUrl}/regions/districts/${districtId}/villages`);
+      const response = await apiClient.get(`regions/districts/${districtId}/villages`);
+      const data = normalizeList<Village>(response.data);
+      setVillages(data);
 
-      if (!response.ok) {
-        throw new Error('Failed to load villages');
+      if (data.length > 0 && !data.some((v) => v.id === currentVillageId)) {
+        updateSection('section2', {
+          ...sectionData,
+          villageId: data[0].id,
+        });
       }
-
-      const data = await response.json();
-      setVillages(Array.isArray(data) ? data : (data.data || []));
     } catch (error) {
       console.error('Error loading villages:', error);
       setVillages([]);
@@ -219,12 +228,7 @@ export function Section2PatientIdentity() {
   };
 
   const updateField = <K extends keyof Section2Data>(field: K, value: Section2Data[K]) => {
-    updateSection('section2', {
-      ...sectionData,
-      [field]: value,
-    });
-
-    // Clear dependent fields when parent changes
+    // Cascade reset dependent fields when parent changes
     if (field === 'provinceId') {
       updateSection('section2', {
         ...sectionData,
@@ -245,6 +249,11 @@ export function Section2PatientIdentity() {
         ...sectionData,
         districtId: value,
         villageId: '',
+      });
+    } else {
+      updateSection('section2', {
+        ...sectionData,
+        [field]: value,
       });
     }
   };

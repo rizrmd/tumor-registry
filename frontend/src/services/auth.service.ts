@@ -5,6 +5,10 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
@@ -163,6 +167,16 @@ class AuthService {
       oldPassword,
       newPassword,
     });
+  }
+
+  /**
+   * Request password reset
+   */
+  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+    const response = await apiClient.post<ForgotPasswordResponse>('auth/forgot-password', {
+      email,
+    });
+    return response.data;
   }
 }
 

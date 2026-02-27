@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginRequest } from '@/types/auth';
@@ -345,9 +346,9 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
           </div>
 
           <div className="text-sm">
-            <a href="#" className="font-medium text-emerald-600 hover:text-emerald-500">
+            <Link href="/forgot-password" className="font-medium text-emerald-600 hover:text-emerald-500">
               Lupa password?
-            </a>
+            </Link>
           </div>
         </div>
 
