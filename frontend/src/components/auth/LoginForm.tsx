@@ -222,7 +222,7 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
         </p>
       </div>
 
-      <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+      <form className="mt-8 space-y-6 relative" onSubmit={handleSubmit}>
         {loginError && (
           <div className="rounded-lg bg-red-50 p-4 border border-red-200">
             <div className="flex">
@@ -305,7 +305,7 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
                   } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm`}
                 placeholder="••••••••"
               />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center z-20">
                 <button
                   type="button"
                   className="text-gray-400 hover:text-gray-500 focus:outline-none"
@@ -330,7 +330,7 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between relative z-20 mt-4">
           <div className="flex items-center">
             <input
               id="remember-me"
@@ -338,21 +338,21 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+              className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded cursor-pointer"
             />
-            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 cursor-pointer select-none">
               Ingat saya
             </label>
           </div>
 
-          <div className="text-sm">
-            <Link href="/forgot-password" className="font-medium text-emerald-600 hover:text-emerald-500">
+          <div className="text-sm z-30 relative">
+            <Link href="/forgot-password" className="font-medium text-emerald-600 hover:text-emerald-500 hover:underline block p-2 cursor-pointer relative z-30">
               Lupa password?
             </Link>
           </div>
         </div>
 
-        <div>
+        <div className="mt-6 relative z-10">
           <button
             type="submit"
             disabled={isSubmitting}
