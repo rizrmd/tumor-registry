@@ -27,9 +27,7 @@ jobs:
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Skip intentionally
-        if: steps.check.outputs.should_run != 'true'
-        run: |
-          echo "This run is intentionally skipped because it is not a version tag."
+        run: echo "Evaluating if we should build... ${{ steps.check.outputs.should_run }}"
 
   build:
     name: Build ${{ matrix.os }}
