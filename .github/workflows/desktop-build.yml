@@ -175,9 +175,9 @@ jobs:
 
   release:
     name: Create Release
-    needs: build
+    needs: [check-trigger, build]
     runs-on: ubuntu-22.04
-    if: startsWith(github.ref, 'refs/tags/')
+    if: always() && needs.check-trigger.outputs.should_run == 'true' && startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Download all artifacts
