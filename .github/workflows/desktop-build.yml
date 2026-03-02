@@ -4,8 +4,8 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - '!**'
+    branches-ignore:
+      - '**'
   workflow_dispatch:
 
 permissions:
