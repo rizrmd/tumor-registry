@@ -25,14 +25,13 @@ CREATE TABLE "system"."villages" (
   "name" TEXT NOT NULL,
   "type" TEXT NOT NULL,  -- 'KELURAHAN' or 'DESA'
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "villages_districtCode_fkey" FOREIGN KEY ("districtCode")
-    REFERENCES "system"."districts"("code")
-    ON DELETE CASCADE ON UPDATE CASCADE
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX "villages_districtCode_idx" ON "system"."villages"("districtCode");
 ```
+
+**Note**: Foreign key constraint on `districtCode` is intentionally omitted because IndoArea 2024 data has 7,288 districts while the emsifa API (used for provinces/regencies/districts import) has only 7,215 districts. The 73 extra districts in IndoArea would cause FK violations.
 
 ### 2. Import Script
 
@@ -62,22 +61,35 @@ unzip -o IndoArea-19-04-2024.zip
 
 2. Ensure the database is running and accessible via `DATABASE_URL` environment variable
 
-### Steps
+### Production Deployment (Recommended)
 
-1. **Apply the migration**:
+For production servers, use the pre-generated SQL dump for faster deployment:
+
+1. **Apply the migration** (creates villages table):
 ```bash
 cd /home/yopi/Projects/INAMSOS FIX/tumor-registry/backend
-npx prisma migrate deploy
+psql "$DATABASE_URL" -f prisma/migrations/20260314000000_add_villages_table/migration.sql
 ```
 
-Or run the SQL directly:
+2. **Import villages data** (runs SQL dump with 84,210 villages):
 ```bash
-psql "$DATABASE_URL" -f prisma/migrations/20260314000000_add_villages_table/migration.sql
+psql "$DATABASE_URL" -f prisma/migrations/20260314000000_add_villages_table/villages_data.sql
+```
+
+3. **Restart the backend application** to load the new data
+
+### Local Development (Alternative)
+
+For local development or when you need to regenerate the data:
+
+1. **Generate SQL dump** (optional - already included in repo):
+```bash
+cd /home/yopi/Projects/INAMSOS FIX/tumor-registry/backend
+node scripts/generate-villages-sql.js
 ```
 
 2. **Run the import script**:
 ```bash
-cd /home/yopi/Projects/INAMSOS FIX/tumor-registry/backend
 node scripts/import-villages.js
 ```
 
