@@ -68,6 +68,9 @@ COPY backend/tsconfig.json ./
 COPY backend/nest-cli.json ./
 COPY backend/src ./src
 
+# Copy scripts directory (for deployment scripts)
+COPY backend/scripts ./scripts
+
 # Build backend
 RUN npm run build
 
@@ -122,7 +125,8 @@ COPY --from=backend-deps --chown=nodejs:nodejs /app/prisma ./prisma
 # Copy backend package files and built source
 COPY --chown=nodejs:nodejs backend/package*.json ./
 COPY --from=backend-deps --chown=nodejs:nodejs /app/dist_user ./dist
-COPY --chown=nodejs:nodejs backend/src ./src
+COPY --from=backend-deps --chown=nodejs:nodejs /app/prisma ./prisma
+COPY --from=backend-deps --chown=nodejs:nodejs /app/scripts ./scripts
 
 # Copy Next.js standalone build
 COPY --from=frontend-builder --chown=nodejs:nodejs /frontend/.next/standalone ./frontend

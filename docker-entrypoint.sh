@@ -62,6 +62,21 @@ if [ $? -ne 0 ]; then
 fi
 
 # -------------------------------------------------------
+# Deploy villages data if table exists but is empty
+# -------------------------------------------------------
+if [ -f "/app/scripts/deploy-villages.js" ]; then
+  echo "Checking villages data..."
+  VILLAGES_COUNT=$(node /app/scripts/check-villages-count.js 2>/dev/null || echo "0")
+
+  if [ "$VILLAGES_COUNT" = "0" ] || [ "$VILLAGES_COUNT" = "" ]; then
+    echo "Villages table is empty or doesn't exist, running deployment..."
+    node /app/scripts/deploy-villages.js
+  else
+    echo "Villages data already exists ($VILLAGES_COUNT records), skipping deployment."
+  fi
+fi
+
+# -------------------------------------------------------
 # Start NestJS backend on port 3001 (internal)
 # -------------------------------------------------------
 echo "Starting NestJS backend on port ${BACKEND_PORT}..."
