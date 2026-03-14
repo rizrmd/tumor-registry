@@ -65,18 +65,26 @@ unzip -o IndoArea-19-04-2024.zip
 
 For production servers, use the pre-generated SQL dump for faster deployment:
 
-1. **Apply the migration** (creates villages table):
+**Option A: Using Node.js script (Recommended for containers without psql)**
+
+1. **Pull latest code and install dependencies**:
 ```bash
-cd /home/yopi/Projects/INAMSOS FIX/tumor-registry/backend
-psql "$DATABASE_URL" -f prisma/migrations/20260314000000_add_villages_table/migration.sql
+cd /app  # or your backend directory
+git pull origin main
+npm install
 ```
 
-2. **Import villages data** (runs SQL dump with 84,210 villages):
+2. **Run the deployment script**:
 ```bash
-psql "$DATABASE_URL" -f prisma/migrations/20260314000000_add_villages_table/villages_data.sql
+node scripts/deploy-villages.js
 ```
 
-3. **Restart the backend application** to load the new data
+This script will:
+- Create the `villages` table
+- Import all 84,210 villages
+- Verify the import count
+
+**Option B: Using psql CLI (if available)**
 
 ### Local Development (Alternative)
 
