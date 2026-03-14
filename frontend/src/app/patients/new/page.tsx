@@ -36,6 +36,17 @@ function NewPatientContent() {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Clear any existing draft when starting a new patient registration
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      // Clear form draft
+      localStorage.removeItem('patient-form-draft');
+      // Also clear any legacy draft key
+      localStorage.removeItem('patient-draft');
+      console.log('Cleared existing drafts for new patient registration');
+    }
+  }, [isLoading, isAuthenticated]);
+
   if (isLoading) {
     return (
       <Layout>
@@ -178,7 +189,8 @@ function NewPatientContent() {
         </div>
       </div>
 
-      <FormProvider autoSaveInterval={120000}>
+      {/* Clear draft before mounting FormProvider */}
+      <FormProvider autoSaveInterval={120000} autoLoadDraft={false}>
         <MultiStepWizard
           sections={sections}
           onComplete={handleComplete}

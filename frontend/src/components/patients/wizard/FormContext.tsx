@@ -63,6 +63,7 @@ interface FormProviderProps {
   autoSaveInterval?: number; // milliseconds, default 120000 (2 minutes)
   draftKey?: string; // localStorage key for draft, default 'patient-form-draft'
   onAutoSave?: (data: FormState) => Promise<void>; // Optional API auto-save
+  autoLoadDraft?: boolean; // Whether to automatically load draft on mount, default true
 }
 
 export const FormProvider: React.FC<FormProviderProps> = ({
@@ -70,6 +71,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({
   autoSaveInterval = 120000, // 2 minutes
   draftKey = 'patient-form-draft',
   onAutoSave,
+  autoLoadDraft = true,
 }) => {
   const [formData, setFormData] = useState<FormState>({});
   const [sectionValidation, setSectionValidationState] = useState<{
@@ -83,10 +85,12 @@ export const FormProvider: React.FC<FormProviderProps> = ({
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const initialDataRef = useRef<FormState>({});
 
-  // Load draft on mount
+  // Load draft on mount (only if autoLoadDraft is enabled)
   useEffect(() => {
-    loadDraft();
-  }, []);
+    if (autoLoadDraft) {
+      loadDraft();
+    }
+  }, [autoLoadDraft]);
 
   // Auto-save effect
   useEffect(() => {
