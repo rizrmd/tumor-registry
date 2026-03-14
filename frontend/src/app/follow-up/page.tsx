@@ -351,7 +351,7 @@ export default function FollowUpProtocolPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        onClick={() => router.push(`/patients/${visit.patientId}`)}
+                        onClick={() => router.push(`/patients/view?id=${visit.patientId}`)}
                         className="text-blue-600 hover:text-blue-900 mr-3"
                       >
                         View Patient
