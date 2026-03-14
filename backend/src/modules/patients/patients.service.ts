@@ -110,10 +110,22 @@ export class PatientsService {
     }
   }
 
-  async findById(id: string, includeMedicalHistory = false): Promise<any> {
+  async findById(id: string, includeMedicalHistory = false, includeInactive = false): Promise<any> {
     try {
+      // Log for debugging 404 issues
+      this.logger.log(`[findById] Searching for patient with ID: ${id}, includeInactive: ${includeInactive}`);
+
+      const where: any = { id };
+
+      // Add isActive filter by default for consistency with findAll
+      // This prevents showing inactive patients unless explicitly requested
+      if (includeInactive === false) {
+        where.isActive = true;
+        this.logger.log(`[findById] Using isActive filter for ID: ${id}`);
+      }
+
       const patient = await this.prisma.patient.findUnique({
-        where: { id },
+        where,
         include: {
           Center: true,
           ...(includeMedicalHistory && {
@@ -178,9 +190,13 @@ export class PatientsService {
         },
       });
 
+      // Debug logging
       if (!patient) {
+        this.logger.error(`[findById] Patient NOT found with ID: ${id} (possibly inactive or deleted)`);
         throw new NotFoundException(`Patient with ID ${id} not found`);
       }
+
+      this.logger.log(`[findById] Patient found: ${patient.anonymousId} (${patient.inamsosRecordNumber}), isActive: ${patient.isActive}`);
 
       // Calculate age
       const age = this.calculateAge(patient.dateOfBirth, patient.dateOfDeath);

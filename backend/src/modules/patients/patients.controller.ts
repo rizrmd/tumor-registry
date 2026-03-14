@@ -79,12 +79,15 @@ export class PatientsController {
   @ApiResponse({ status: 200, description: 'Patient retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Patient not found' })
   @ApiQuery({ name: 'includeMedicalHistory', required: false, type: Boolean })
+  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean, description: 'Include inactive/deleted patients' })
   async findById(
     @Param('id') id: string,
     @Query('includeMedicalHistory') includeMedicalHistory?: string,
+    @Query('includeInactive') includeInactive?: string,
   ) {
     const include = includeMedicalHistory === 'true';
-    return await this.patientsService.findById(id, include);
+    const includeInactiveBool = includeInactive === 'true';
+    return await this.patientsService.findById(id, include, includeInactiveBool);
   }
 
   @Get('nik/:nik')
@@ -197,7 +200,7 @@ export class PatientsController {
     const patient = await this.patientsService.findById(id, true);
     return {
       patientId: id,
-      patientName: patient.name,
+      patientName: patient.anonymousId,
       vitalSigns: patient.vitalSigns || [],
     };
   }
@@ -209,7 +212,7 @@ export class PatientsController {
     const patient = await this.patientsService.findById(id, true);
     return {
       patientId: id,
-      patientName: patient.name,
+      patientName: patient.anonymousId,
       diagnoses: patient.diagnoses || [],
     };
   }
@@ -221,7 +224,7 @@ export class PatientsController {
     const patient = await this.patientsService.findById(id, true);
     return {
       patientId: id,
-      patientName: patient.name,
+      patientName: patient.anonymousId,
       medications: patient.medications || [],
     };
   }
@@ -233,7 +236,7 @@ export class PatientsController {
     const patient = await this.patientsService.findById(id, true);
     return {
       patientId: id,
-      patientName: patient.name,
+      patientName: patient.anonymousId,
       allergies: patient.allergies || [],
     };
   }
@@ -248,7 +251,7 @@ export class PatientsController {
     const patient = await this.patientsService.findById(id, true);
     return {
       patientId: id,
-      patientName: patient.name,
+      patientName: patient.anonymousId,
       visits: patient.visits || [],
     };
   }
@@ -260,7 +263,7 @@ export class PatientsController {
     const patient = await this.patientsService.findById(id, true);
     return {
       patientId: id,
-      patientName: patient.name,
+      patientName: patient.anonymousId,
       insuranceInfos: patient.insuranceInfos || [],
     };
   }
