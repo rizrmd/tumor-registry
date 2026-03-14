@@ -99,22 +99,6 @@ export const Section2Identity: React.FC<Section2Props> = ({
           {errors.nik && <p className="mt-1 text-sm text-red-500">{errors.nik}</p>}
         </div>
 
-        {/* Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Full Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => updateFormData('name', e.target.value)}
-            placeholder="Enter patient's full name"
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-500' : 'border-gray-300'
-              }`}
-          />
-          {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
-        </div>
-
         {/* Date of Birth & Place */}
         <div className="grid grid-cols-2 gap-6">
           <div>

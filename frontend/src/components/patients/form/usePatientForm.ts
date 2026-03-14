@@ -8,11 +8,10 @@ export interface PatientFormData {
   residentName?: string;
   inputDate?: string;
 
-  // Section 2: Patient Identity
+  // Section 2: Patient Identity (ANONYMIZED - no name field)
   tumorRegistryNumber?: string;
   hospitalRecordNumber: string;
   nik: string;
-  name: string;
   dateOfBirth: string;
   placeOfBirth: string;
   gender: string;
@@ -126,7 +125,6 @@ export const usePatientForm = () => {
     pathologyType: '',
     hospitalRecordNumber: '',
     nik: '',
-    name: '',
     dateOfBirth: '',
     placeOfBirth: '',
     gender: '',
@@ -183,7 +181,6 @@ export const usePatientForm = () => {
           if (!formData.nik) newErrors.nik = 'NIK is required';
           if (formData.nik && formData.nik.length !== 16)
             newErrors.nik = 'NIK must be 16 digits';
-          if (!formData.name) newErrors.name = 'Name is required';
           if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
           if (!formData.gender) newErrors.gender = 'Gender is required';
           break;
@@ -252,7 +249,6 @@ export const usePatientForm = () => {
       pathologyType: '',
       hospitalRecordNumber: '',
       nik: '',
-      name: '',
       dateOfBirth: '',
       placeOfBirth: '',
       gender: '',

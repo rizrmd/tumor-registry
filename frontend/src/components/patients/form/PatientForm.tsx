@@ -145,7 +145,6 @@ export const PatientForm: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div><span className="font-medium">Medical Record:</span> {formData.hospitalRecordNumber || '-'}</div>
                   <div><span className="font-medium">NIK:</span> {formData.nik || '-'}</div>
-                  <div><span className="font-medium">Name:</span> {formData.name || '-'}</div>
                   <div><span className="font-medium">DOB:</span> {formData.dateOfBirth || '-'}</div>
                   <div><span className="font-medium">Gender:</span> {formData.gender || '-'}</div>
                   <div><span className="font-medium">Phone:</span> {formData.phoneNumber || '-'}</div>
