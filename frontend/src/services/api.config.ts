@@ -6,12 +6,27 @@ function isWailsEnvironment(): boolean {
   if (typeof window === 'undefined') return false;
 
   const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
 
   // Wails/desktop specific indicators only
   const isWailsProtocol = protocol === 'wails:' || protocol === 'app:';
   const hasWailsBindings = !!((window as any).go?.main?.App || (window as any).wails);
   const isLocalFile = protocol === 'file:';
-  const isWailsHost = window.location.hostname.includes('wails.localhost');
+  const isWailsHost = hostname.includes('wails.localhost');
+
+  // IMPORTANT: Explicitly exclude production/staging domains
+  // These should NEVER use localhost API URLs
+  const productionDomains = [
+    'inamsos.com',
+    'www.inamsos.com',
+    'inamsos.medxamion.com',
+    'www.inamsos.medxamion.com',
+  ];
+
+  // If hostname matches a production domain, never treat as Wails environment
+  if (productionDomains.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+    return false;
+  }
 
   // Important: localhost web dev must remain web mode.
   return isWailsProtocol || hasWailsBindings || isLocalFile || isWailsHost;
@@ -32,6 +47,7 @@ function getApiBaseUrl(): string {
   }
 
   // Default: use relative path for web deployments
+  console.log('[API] Using relative API path for web deployment');
   return '/api/v1/';
 }
 

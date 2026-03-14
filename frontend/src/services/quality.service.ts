@@ -1,6 +1,27 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
+// Helper function to get API base URL based on environment
+function getApiBaseUrl(): string {
+  if (typeof window === 'undefined') return '';
+
+  const hostname = window.location.hostname;
+  const productionDomains = [
+    'inamsos.com',
+    'www.inamsos.com',
+    'inamsos.medxamion.com',
+    'www.inamsos.medxamion.com',
+  ];
+
+  // Use relative URL for production domains
+  if (productionDomains.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+    return '/api/v1';
+  }
+
+  // Use env var or default localhost for development
+  return process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
+}
+
+const API_URL = getApiBaseUrl();
 
 export interface QualityScore {
   score: number;

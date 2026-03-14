@@ -25,7 +25,14 @@ export default function DashboardPage() {
     const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem('token');
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
+
+        // Get API URL based on environment
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+        const productionDomains = ['inamsos.com', 'www.inamsos.com', 'inamsos.medxamion.com', 'www.inamsos.medxamion.com'];
+        const API_URL = productionDomains.some(domain => hostname === domain || hostname.endsWith('.' + domain))
+          ? '/api/v1'
+          : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1');
+
         const response = await fetch(`${API_URL}/national-dashboard/summary`, {
           headers: {
             'Authorization': `Bearer ${token}`,

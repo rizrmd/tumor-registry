@@ -3,8 +3,28 @@
  * Handles all patient-related API calls for the INAMSOS registry
  */
 import { Patient } from '@/types/patient';
+import apiClient from './api.config';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
+// Helper to get base URL for direct fetch calls (when needed)
+function getBaseUrl(): string {
+  if (typeof window === 'undefined') return '';
+
+  // Production domains should always use relative URLs
+  const hostname = window.location.hostname;
+  const productionDomains = [
+    'inamsos.com',
+    'www.inamsos.com',
+    'inamsos.medxamion.com',
+    'www.inamsos.medxamion.com',
+  ];
+
+  if (productionDomains.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+    return ''; // Use relative URLs
+  }
+
+  // For development/Wails, use the env var or localhost
+  return process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+}
 
 // Types matching backend DTOs
 export interface CreatePatientPayload {
@@ -238,6 +258,7 @@ async function apiCall<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getAuthToken();
+  const baseUrl = getBaseUrl();
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -248,7 +269,10 @@ async function apiCall<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  // Use relative URL for production, absolute for dev/Wails
+  const url = baseUrl ? `${baseUrl}${endpoint}` : endpoint;
+
+  const response = await fetch(url, {
     ...options,
     headers,
   });

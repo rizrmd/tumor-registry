@@ -50,18 +50,28 @@ export function LoginForm({ onSuccess, onError }: LoginFormProps) {
     let checkInterval: NodeJS.Timeout;
     let attemptCount = 0;
 
+    // Detect if running in production (inamsos.com domains)
+    const isProduction = typeof window !== 'undefined' && (
+      window.location.hostname === 'inamsos.com' ||
+      window.location.hostname === 'www.inamsos.com' ||
+      window.location.hostname === 'inamsos.medxamion.com' ||
+      window.location.hostname === 'www.inamsos.medxamion.com'
+    );
+
     const checkBackendHealth = async () => {
       attemptCount++;
       if (isMounted) {
         setHealthCheckCount(attemptCount);
       }
 
-      // Try multiple URLs and methods for maximum compatibility
-      const urls = [
-        'http://127.0.0.1:3001/api/v1/status',
-        'http://localhost:3001/api/v1/status',
-        'status', // API Client handles baseURL
-      ];
+      // In production, only use relative URL to avoid CORS issues and unnecessary localhost requests
+      const urls = isProduction
+        ? ['status'] // Only use relative URL in production
+        : [
+            'http://127.0.0.1:3001/api/v1/status',
+            'http://localhost:3001/api/v1/status',
+            'status', // API Client handles baseURL
+          ];
 
       let lastError = '';
 

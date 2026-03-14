@@ -96,7 +96,12 @@ export function Section5DiagnosisLocation() {
   const loadBoneLocations = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
+      // Use relative URL for production deployments
+      const apiUrl = typeof window !== 'undefined' && (
+        window.location.hostname === 'inamsos.com' ||
+        window.location.hostname === 'www.inamsos.com' ||
+        window.location.hostname === 'inamsos.medxamion.com'
+      ) ? '/api/v1' : (process.env.NEXT_PUBLIC_API_URL || '/api/v1');
       const response = await fetch(`${apiUrl}/locations/bone`);
 
       if (!response.ok) {
@@ -116,7 +121,12 @@ export function Section5DiagnosisLocation() {
   const loadSoftTissueLocations = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api/v1';
+      // Use relative URL for production deployments
+      const apiUrl = typeof window !== 'undefined' && (
+        window.location.hostname === 'inamsos.com' ||
+        window.location.hostname === 'www.inamsos.com' ||
+        window.location.hostname === 'inamsos.medxamion.com'
+      ) ? '/api/v1' : (process.env.NEXT_PUBLIC_API_URL || '/api/v1');
       const response = await fetch(`${apiUrl}/locations/soft-tissue`);
 
       if (!response.ok) {
