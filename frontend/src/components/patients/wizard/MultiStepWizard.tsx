@@ -242,22 +242,6 @@ export const MultiStepWizard: React.FC<MultiStepWizardProps> = ({
 
   return (
     <div className={`min-h-screen bg-gray-50 ${className}`}>
-      {/* Auto-save indicator */}
-      {lastSaved && (
-        <div className="fixed top-4 right-4 z-50 bg-white px-4 py-2 rounded-lg shadow-md text-sm text-gray-600 flex items-center space-x-2">
-          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <span>
-            Last saved: {lastSaved.toLocaleTimeString()}
-          </span>
-        </div>
-      )}
-
       <div className="max-w-7xl mx-auto">
         <div className="flex">
           {/* Sidebar Navigation */}
@@ -332,6 +316,18 @@ export const MultiStepWizard: React.FC<MultiStepWizardProps> = ({
 
               {/* Save Draft Button */}
               <div className="mt-8 pt-6 border-t border-gray-200">
+                {lastSaved && (
+                  <div className="mb-3 text-xs text-gray-500 flex items-center space-x-1">
+                    <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Terakhir disimpan: {lastSaved.toLocaleTimeString()}</span>
+                  </div>
+                )}
                 <button
                   onClick={handleSaveDraft}
                   disabled={!hasUnsavedChanges}
