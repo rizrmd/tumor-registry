@@ -324,9 +324,6 @@ export const validateSection2 = (data: SectionData): SectionValidation => {
     if (nikFormatError) errors.push(nikFormatError);
   }
 
-  const nameError = validateRequired(data.name, 'Name');
-  if (nameError) errors.push(nameError);
-
   const dobError = validateRequired(data.dateOfBirth, 'Date of Birth');
   if (dobError) errors.push(dobError);
   else {
