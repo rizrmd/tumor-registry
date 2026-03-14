@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS "system"."villages" (
+  "code" TEXT PRIMARY KEY,
+  "districtCode" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "type" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "villages_districtCode_fkey" FOREIGN KEY ("districtCode") REFERENCES "system"."districts"("code") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "villages_districtCode_idx" ON "system"."villages"("districtCode");

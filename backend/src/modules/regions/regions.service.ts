@@ -67,11 +67,19 @@ export class RegionsService {
   }
 
   async findVillagesByDistrictId(districtId: string): Promise<Village[]> {
-    // Villages are not loaded into DB yet. Return stable placeholders so existing UI still works.
-    return [
-      { id: `${districtId}001`, code: `${districtId}001`, name: 'KELURAHAN SATU', districtId, type: 'KELURAHAN' },
-      { id: `${districtId}002`, code: `${districtId}002`, name: 'KELURAHAN DUA', districtId, type: 'KELURAHAN' },
-      { id: `${districtId}003`, code: `${districtId}003`, name: 'DESA TIGA', districtId, type: 'DESA' },
-    ];
+    const rows = await this.prisma.$queryRawUnsafe<
+      Array<{ code: string; districtCode: string; name: string; type: string }>
+    >(
+      'SELECT "code", "districtCode", "name", "type" FROM "system"."villages" WHERE "districtCode" = $1 ORDER BY "code" ASC',
+      districtId,
+    );
+
+    return rows.map((row) => ({
+      id: row.code,
+      code: row.code,
+      name: row.name,
+      districtId: row.districtCode,
+      type: row.type as 'KELURAHAN' | 'DESA',
+    }));
   }
 }
