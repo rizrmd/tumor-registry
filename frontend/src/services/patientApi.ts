@@ -332,7 +332,8 @@ export async function updatePatient(
  * Get a single patient by ID
  */
 export async function getPatient(id: string): Promise<Patient> {
-  return apiCall<Patient>(`/patients/${id}?includeInactive=true`);
+  const response = await apiClient.get(`/patients/${id}?includeInactive=true`);
+  return response.data;
 }
 
 /**
