@@ -10,8 +10,8 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
 } from '@nestjs/common';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ConsentService } from './consent.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
@@ -128,7 +128,7 @@ export class ConsentController {
   @ApiResponse({ status: 200, description: 'Consent retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Consent not found' })
   @RequirePermissions('PATIENTS_READ')
-  async findById(@Param('id', ParseUUIDPipe) id: string) {
+  async findById(@Param('id', ParseCuidPipe) id: string) {
     return await this.consentService.findById(id);
   }
 
@@ -140,7 +140,7 @@ export class ConsentController {
   @RequirePermissions('PATIENTS_UPDATE')
   @AuditLog('UPDATE', 'consent')
   async updateConsent(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updateConsentDto: {
       description?: string;
       isConsented?: boolean;
@@ -169,7 +169,7 @@ export class ConsentController {
   @RequirePermissions('PATIENTS_UPDATE')
   @AuditLog('REVOKE', 'consent')
   async revokeConsent(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body('reason') reason: string,
   ) {
     return await this.consentService.revokeConsent(id, reason, 'current-user-id');

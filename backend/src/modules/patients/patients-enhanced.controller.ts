@@ -10,7 +10,6 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +22,7 @@ import {
 import { PatientsEnhancedService } from './patients-enhanced.service';
 import { CreatePatientDto, UpdatePatientDto, PatientDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 
 @ApiTags('Patients')
 @ApiBearerAuth()
@@ -125,19 +125,19 @@ export class PatientsEnhancedController {
 
   @Get(':id/summary')
   @ApiOperation({ summary: 'Get comprehensive patient summary with all musculoskeletal data' })
-  @ApiParam({ name: 'id', description: 'Patient UUID' })
+  @ApiParam({ name: 'id', description: 'Patient CUID' })
   @ApiResponse({
     status: 200,
     description: 'Patient summary retrieved successfully with diagnosis, clinical data, MSTS scores, follow-ups, treatments, and CPC conferences',
   })
   @ApiResponse({ status: 404, description: 'Patient not found' })
-  async getPatientSummary(@Param('id', ParseUUIDPipe) id: string) {
+  async getPatientSummary(@Param('id', ParseCuidPipe) id: string) {
     return this.patientsService.getPatientSummary(id);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get patient by ID' })
-  @ApiParam({ name: 'id', description: 'Patient UUID' })
+  @ApiParam({ name: 'id', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Patient retrieved successfully', type: PatientDto })
   @ApiResponse({ status: 404, description: 'Patient not found' })
   @ApiQuery({
@@ -147,7 +147,7 @@ export class PatientsEnhancedController {
     description: 'Include all MSTS scores, follow-ups, treatments, and CPC conferences',
   })
   async findById(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Query('includeFullHistory') includeFullHistory?: string,
   ): Promise<PatientDto> {
     const include = includeFullHistory === 'true';
@@ -156,12 +156,12 @@ export class PatientsEnhancedController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update patient information' })
-  @ApiParam({ name: 'id', description: 'Patient UUID' })
+  @ApiParam({ name: 'id', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Patient updated successfully', type: PatientDto })
   @ApiResponse({ status: 404, description: 'Patient not found' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updateDto: UpdatePatientDto,
   ): Promise<PatientDto> {
     return this.patientsService.update(id, updateDto);
@@ -169,10 +169,10 @@ export class PatientsEnhancedController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Soft delete patient (set isActive = false)' })
-  @ApiParam({ name: 'id', description: 'Patient UUID' })
+  @ApiParam({ name: 'id', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Patient deleted successfully' })
   @ApiResponse({ status: 404, description: 'Patient not found' })
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<PatientDto> {
+  async remove(@Param('id', ParseCuidPipe) id: string): Promise<PatientDto> {
     return this.patientsService.remove(id);
   }
 }

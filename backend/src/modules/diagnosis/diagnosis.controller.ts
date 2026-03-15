@@ -10,7 +10,6 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { DiagnosisService } from './diagnosis.service';
@@ -18,6 +17,7 @@ import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { RequirePermissions } from '@/auth/decorators/permissions.decorator';
 import { AuditLog } from '@/common/decorators/audit-log.decorator';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 import { DiagnosisType, DiagnosisSeverity, DiagnosisStatus } from '@prisma/client';
 
 @ApiTags('Diagnosis')
@@ -104,7 +104,7 @@ export class DiagnosisController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   async findByPatientId(
-    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @Param('patientId', ParseCuidPipe) patientId: string,
     @Query('diagnosisType') diagnosisType?: DiagnosisType,
     @Query('status') status?: DiagnosisStatus,
     @Query('includeInactive') includeInactive?: string,
@@ -123,41 +123,41 @@ export class DiagnosisController {
 
   @Get('patient/:patientId/active')
   @ApiOperation({ summary: 'Get active diagnoses for a patient' })
-  @ApiParam({ name: 'patientId', description: 'Patient ID' })
+  @ApiParam({ name: 'patientId', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Active diagnoses retrieved successfully' })
   @RequirePermissions('PATIENTS_READ')
-  async getActiveDiagnosesByPatient(@Param('patientId', ParseUUIDPipe) patientId: string) {
+  async getActiveDiagnosesByPatient(@Param('patientId', ParseCuidPipe) patientId: string) {
     return await this.diagnosisService.getActiveDiagnosesByPatient(patientId);
   }
 
   @Get('patient/:patientId/primary')
   @ApiOperation({ summary: 'Get primary diagnoses for a patient' })
-  @ApiParam({ name: 'patientId', description: 'Patient ID' })
+  @ApiParam({ name: 'patientId', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Primary diagnoses retrieved successfully' })
   @RequirePermissions('PATIENTS_READ')
-  async getPrimaryDiagnosesByPatient(@Param('patientId', ParseUUIDPipe) patientId: string) {
+  async getPrimaryDiagnosesByPatient(@Param('patientId', ParseCuidPipe) patientId: string) {
     return await this.diagnosisService.getPrimaryDiagnosesByPatient(patientId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get diagnosis by ID' })
-  @ApiParam({ name: 'id', description: 'Diagnosis ID' })
+  @ApiParam({ name: 'id', description: 'Diagnosis CUID' })
   @ApiResponse({ status: 200, description: 'Diagnosis retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Diagnosis not found' })
   @RequirePermissions('MEDICAL_RECORDS_READ')
-  async findById(@Param('id', ParseUUIDPipe) id: string) {
+  async findById(@Param('id', ParseCuidPipe) id: string) {
     return await this.diagnosisService.findById(id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update diagnosis' })
-  @ApiParam({ name: 'id', description: 'Diagnosis ID' })
+  @ApiParam({ name: 'id', description: 'Diagnosis CUID' })
   @ApiResponse({ status: 200, description: 'Diagnosis updated successfully' })
   @ApiResponse({ status: 404, description: 'Diagnosis not found' })
   @RequirePermissions('MEDICAL_RECORDS_UPDATE')
   @AuditLog('UPDATE', 'diagnosis')
   async updateDiagnosis(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updateDiagnosisDto: {
       diagnosisName?: string;
       severity?: DiagnosisSeverity;
@@ -180,13 +180,13 @@ export class DiagnosisController {
 
   @Put(':id/resolve')
   @ApiOperation({ summary: 'Mark diagnosis as resolved' })
-  @ApiParam({ name: 'id', description: 'Diagnosis ID' })
+  @ApiParam({ name: 'id', description: 'Diagnosis CUID' })
   @ApiResponse({ status: 200, description: 'Diagnosis resolved successfully' })
   @ApiResponse({ status: 404, description: 'Diagnosis not found' })
   @RequirePermissions('MEDICAL_RECORDS_UPDATE')
   @AuditLog('RESOLVE', 'diagnosis')
   async resolveDiagnosis(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() resolveDto: {
       resolutionDate: string;
       notes?: string;

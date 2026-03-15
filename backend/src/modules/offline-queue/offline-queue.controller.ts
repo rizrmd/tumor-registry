@@ -9,12 +9,13 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
   Req,
 } from '@nestjs/common';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { OfflineQueueService } from './offline-queue.service';
 import { FileSyncService } from './file-sync.service';
+import { MedicalRecordService } from '@/modules/medical-record/medical-record.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt.guard';
 import { SyncOfflineDataDto } from './dto/sync-offline-data.dto';
 import { ResolveConflictDto } from './dto/resolve-conflict.dto';
@@ -26,6 +27,7 @@ export class OfflineQueueController {
   constructor(
     private readonly offlineQueueService: OfflineQueueService,
     private readonly fileSyncService: FileSyncService,
+    private readonly medicalRecordService: MedicalRecordService,
   ) { }
 
   @Post('sync')
@@ -65,19 +67,19 @@ export class OfflineQueueController {
 
   @Put(':id/retry')
   @ApiOperation({ summary: 'Retry failed queue item' })
-  @ApiParam({ name: 'id', description: 'Queue Item ID' })
+  @ApiParam({ name: 'id', description: 'Queue Item CUID' })
   @ApiResponse({ status: 200, description: 'Queue item retried successfully' })
-  async retry(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+  async retry(@Param('id', ParseCuidPipe) id: string, @Req() req: any) {
     const userId = req.user.userId;
     return await this.offlineQueueService.processQueueItem(id, userId);
   }
 
   @Put(':id/resolve-conflict')
   @ApiOperation({ summary: 'Resolve data conflict' })
-  @ApiParam({ name: 'id', description: 'Queue Item ID' })
+  @ApiParam({ name: 'id', description: 'Queue Item CUID' })
   @ApiResponse({ status: 200, description: 'Conflict resolved successfully' })
   async resolveConflict(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() resolveDto: ResolveConflictDto,
     @Req() req: any,
   ) {
@@ -147,5 +149,72 @@ export class OfflineQueueController {
   @ApiResponse({ status: 200, description: 'Stuck items reset' })
   async resetProcessingItems(@Req() req: any) {
     return await this.offlineQueueService.resetStuckItems();
+  }
+
+  // ==================== NATIONAL REGISTRATION NUMBER ENDPOINTS ====================
+
+  @Post('registration/reserve-block')
+  @ApiOperation({ summary: 'Reserve sequence block for offline desktop use' })
+  @ApiResponse({ status: 200, description: 'Sequence block reserved successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request' })
+  async reserveSequenceBlock(
+    @Body() body: { centerId: string; deviceId: string; blockSize?: number },
+    @Req() req: any
+  ) {
+    const { centerId, deviceId, blockSize = 100 } = body;
+    const result = await this.medicalRecordService.reserveSequenceBlock(centerId, deviceId, blockSize);
+    return {
+      success: true,
+      blockStart: result.start,
+      blockEnd: result.end,
+      reservedBy: req.user.userId,
+      reservedAt: new Date().toISOString()
+    };
+  }
+
+  @Post('registration/generate-temp')
+  @ApiOperation({ summary: 'Generate temporary registration number for offline use' })
+  @ApiResponse({ status: 200, description: 'Temporary number generated' })
+  @ApiResponse({ status: 400, description: 'Invalid center or device' })
+  async generateTemporaryNumber(
+    @Body() body: { centerId: string; deviceId: string; localSequence: number },
+  ) {
+    const { centerId, deviceId, localSequence } = body;
+    const tempNumber = await this.medicalRecordService.generateTemporaryNumber(centerId, deviceId, localSequence);
+    return {
+      success: true,
+      tempNumber,
+      generatedAt: new Date().toISOString()
+    };
+  }
+
+  @Post('registration/convert')
+  @ApiOperation({ summary: 'Convert temporary number to final national number' })
+  @ApiResponse({ status: 200, description: 'Number converted successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid temporary number' })
+  async convertTemporaryToFinal(
+    @Body() body: { tempNumber: string; centerId: string },
+  ) {
+    const { tempNumber, centerId } = body;
+    const result = await this.medicalRecordService.convertTemporaryToFinal(tempNumber, centerId);
+    return {
+      success: true,
+      tempNumber: result.mapping.temp,
+      finalNumber: result.finalNumber,
+      convertedAt: result.mapping.convertedAt
+    };
+  }
+
+  @Get('registration/current-sequence')
+  @ApiOperation({ summary: 'Get current national sequence for a year' })
+  @ApiResponse({ status: 200, description: 'Current sequence retrieved' })
+  @ApiQuery({ name: 'year', required: false, type: Number })
+  async getCurrentSequence(@Query('year') year?: string) {
+    const targetYear = year ? parseInt(year) : undefined;
+    const sequence = await this.medicalRecordService.getCurrentNationalSequence(targetYear);
+    return {
+      year: targetYear || new Date().getFullYear(),
+      currentSequence: sequence
+    };
   }
 }

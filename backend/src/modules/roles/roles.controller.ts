@@ -10,8 +10,8 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
 } from '@nestjs/common';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { RolesService } from './roles.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
@@ -53,13 +53,13 @@ export class RolesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get role by ID' })
-  @ApiParam({ name: 'id', description: 'Role ID' })
+  @ApiParam({ name: 'id', description: 'Role CUID' })
   @ApiResponse({ status: 200, description: 'Role retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Role not found' })
   @RequirePermissions('ROLES_READ')
   @ApiQuery({ name: 'includePermissions', required: false, type: Boolean })
   async findById(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Query('includePermissions') includePermissions?: string,
   ) {
     const include = includePermissions === 'true';
@@ -68,10 +68,10 @@ export class RolesController {
 
   @Get(':id/permissions')
   @ApiOperation({ summary: 'Get role permissions' })
-  @ApiParam({ name: 'id', description: 'Role ID' })
+  @ApiParam({ name: 'id', description: 'Role CUID' })
   @ApiResponse({ status: 200, description: 'Role permissions retrieved successfully' })
   @RequirePermissions('ROLES_READ')
-  async getRolePermissions(@Param('id', ParseUUIDPipe) id: string) {
+  async getRolePermissions(@Param('id', ParseCuidPipe) id: string) {
     return await this.rolesService.getRolePermissions(id);
   }
 
@@ -95,14 +95,14 @@ export class RolesController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update role' })
-  @ApiParam({ name: 'id', description: 'Role ID' })
+  @ApiParam({ name: 'id', description: 'Role CUID' })
   @ApiResponse({ status: 200, description: 'Role updated successfully' })
   @ApiResponse({ status: 404, description: 'Role not found' })
   @ApiResponse({ status: 403, description: 'Cannot modify system roles' })
   @RequirePermissions('ROLES_UPDATE')
   @AuditLog('UPDATE', 'role')
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updateRoleDto: {
       name?: string;
       description?: string;
@@ -115,13 +115,13 @@ export class RolesController {
 
   @Put(':id/permissions')
   @ApiOperation({ summary: 'Update role permissions' })
-  @ApiParam({ name: 'id', description: 'Role ID' })
+  @ApiParam({ name: 'id', description: 'Role CUID' })
   @ApiResponse({ status: 200, description: 'Role permissions updated successfully' })
   @ApiResponse({ status: 404, description: 'Role not found' })
   @RequirePermissions('ROLES_UPDATE')
   @AuditLog('UPDATE', 'role_permissions')
   async updateRolePermissions(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updatePermissionsDto: {
       permissionCodes: string[];
     },
@@ -132,14 +132,14 @@ export class RolesController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete role' })
-  @ApiParam({ name: 'id', description: 'Role ID' })
+  @ApiParam({ name: 'id', description: 'Role CUID' })
   @ApiResponse({ status: 204, description: 'Role deleted successfully' })
   @ApiResponse({ status: 404, description: 'Role not found' })
   @ApiResponse({ status: 403, description: 'Cannot delete system roles or roles with active users' })
   @RequirePermissions('ROLES_DELETE')
   @HttpCode(HttpStatus.NO_CONTENT)
   @AuditLog('DELETE', 'role')
-  async delete(@Param('id', ParseUUIDPipe) id: string) {
+  async delete(@Param('id', ParseCuidPipe) id: string) {
     await this.rolesService.delete(id);
   }
 }

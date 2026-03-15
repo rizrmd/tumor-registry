@@ -9,9 +9,9 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
   Req,
 } from '@nestjs/common';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { PeerReviewService } from './peer-review.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt.guard';
@@ -72,16 +72,16 @@ export class PeerReviewController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get peer review details by ID' })
-  @ApiParam({ name: 'id', description: 'Peer Review ID' })
+  @ApiParam({ name: 'id', description: 'Peer Review CUID' })
   @ApiResponse({ status: 200, description: 'Peer review retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Peer review not found' })
-  async findById(@Param('id', ParseUUIDPipe) id: string) {
+  async findById(@Param('id', ParseCuidPipe) id: string) {
     return await this.peerReviewService.findById(id);
   }
 
   @Put(':id/assign')
   @ApiOperation({ summary: 'Assign peer review to a reviewer' })
-  @ApiParam({ name: 'id', description: 'Peer Review ID' })
+  @ApiParam({ name: 'id', description: 'Peer Review CUID' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -92,7 +92,7 @@ export class PeerReviewController {
   })
   @ApiResponse({ status: 200, description: 'Peer review assigned successfully' })
   async assign(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body('assignedTo') assignedTo: string,
     @Req() req: any,
   ) {
@@ -102,10 +102,10 @@ export class PeerReviewController {
 
   @Post(':id/comments')
   @ApiOperation({ summary: 'Add threaded comment to peer review' })
-  @ApiParam({ name: 'id', description: 'Peer Review ID' })
+  @ApiParam({ name: 'id', description: 'Peer Review CUID' })
   @ApiResponse({ status: 201, description: 'Comment added successfully' })
   async addComment(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() commentDto: AddPeerCommentDto,
     @Req() req: any,
   ) {
@@ -115,10 +115,10 @@ export class PeerReviewController {
 
   @Put('comments/:commentId/resolve')
   @ApiOperation({ summary: 'Mark comment as resolved' })
-  @ApiParam({ name: 'commentId', description: 'Comment ID' })
+  @ApiParam({ name: 'commentId', description: 'Comment CUID' })
   @ApiResponse({ status: 200, description: 'Comment resolved successfully' })
   async resolveComment(
-    @Param('commentId', ParseUUIDPipe) commentId: string,
+    @Param('commentId', ParseCuidPipe) commentId: string,
     @Req() req: any,
   ) {
     const userId = req.user.userId;
@@ -127,10 +127,10 @@ export class PeerReviewController {
 
   @Post(':id/approve')
   @ApiOperation({ summary: 'Approve peer review' })
-  @ApiParam({ name: 'id', description: 'Peer Review ID' })
+  @ApiParam({ name: 'id', description: 'Peer Review CUID' })
   @ApiResponse({ status: 200, description: 'Peer review approved successfully' })
   async approve(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() completeDto: CompleteReviewDto,
     @Req() req: any,
   ) {
@@ -140,10 +140,10 @@ export class PeerReviewController {
 
   @Post(':id/reject')
   @ApiOperation({ summary: 'Reject peer review with reasons' })
-  @ApiParam({ name: 'id', description: 'Peer Review ID' })
+  @ApiParam({ name: 'id', description: 'Peer Review CUID' })
   @ApiResponse({ status: 200, description: 'Peer review rejected successfully' })
   async reject(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() completeDto: CompleteReviewDto,
     @Req() req: any,
   ) {
@@ -153,7 +153,7 @@ export class PeerReviewController {
 
   @Post(':id/recognition')
   @ApiOperation({ summary: 'Award recognition for quality review' })
-  @ApiParam({ name: 'id', description: 'Peer Review ID' })
+  @ApiParam({ name: 'id', description: 'Peer Review CUID' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -168,7 +168,7 @@ export class PeerReviewController {
   })
   @ApiResponse({ status: 201, description: 'Recognition awarded successfully' })
   async awardRecognition(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body('reviewerId') reviewerId: string,
     @Body('recognitionType') recognitionType: string,
     @Body('title') title: string,

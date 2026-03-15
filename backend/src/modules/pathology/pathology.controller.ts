@@ -10,7 +10,6 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +22,7 @@ import {
 import { PathologyService } from './pathology.service';
 import { CreatePathologyReportDto, UpdatePathologyReportDto, PathologyStatus } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 
 @ApiTags('Pathology')
 @ApiBearerAuth()
@@ -95,29 +95,29 @@ export class PathologyController {
 
   @Get('patient/:patientId')
   @ApiOperation({ summary: 'Get all pathology reports for a patient' })
-  @ApiParam({ name: 'patientId', description: 'Patient UUID' })
+  @ApiParam({ name: 'patientId', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Pathology reports retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Patient not found' })
-  async findByPatient(@Param('patientId', ParseUUIDPipe) patientId: string) {
+  async findByPatient(@Param('patientId', ParseCuidPipe) patientId: string) {
     return this.pathologyService.findByPatient(patientId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get pathology report by ID' })
-  @ApiParam({ name: 'id', description: 'Pathology report UUID' })
+  @ApiParam({ name: 'id', description: 'Pathology report CUID' })
   @ApiResponse({ status: 200, description: 'Pathology report retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Pathology report not found' })
-  async findById(@Param('id', ParseUUIDPipe) id: string) {
+  async findById(@Param('id', ParseCuidPipe) id: string) {
     return this.pathologyService.findById(id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update pathology report' })
-  @ApiParam({ name: 'id', description: 'Pathology report UUID' })
+  @ApiParam({ name: 'id', description: 'Pathology report CUID' })
   @ApiResponse({ status: 200, description: 'Pathology report updated successfully' })
   @ApiResponse({ status: 404, description: 'Pathology report not found' })
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updateDto: UpdatePathologyReportDto,
   ) {
     return this.pathologyService.update(id, updateDto);
@@ -125,10 +125,10 @@ export class PathologyController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete pathology report' })
-  @ApiParam({ name: 'id', description: 'Pathology report UUID' })
+  @ApiParam({ name: 'id', description: 'Pathology report CUID' })
   @ApiResponse({ status: 200, description: 'Pathology report deleted successfully' })
   @ApiResponse({ status: 404, description: 'Pathology report not found' })
-  async delete(@Param('id', ParseUUIDPipe) id: string) {
+  async delete(@Param('id', ParseCuidPipe) id: string) {
     return this.pathologyService.delete(id);
   }
 }

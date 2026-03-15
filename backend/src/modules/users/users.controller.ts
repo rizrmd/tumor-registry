@@ -11,10 +11,10 @@ import {
   HttpStatus,
   HttpCode,
   Request,
-  ParseUUIDPipe,
   ValidationPipe,
   BadRequestException,
 } from '@nestjs/common';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 import {
   ApiTags,
   ApiOperation,
@@ -59,7 +59,7 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'User profile retrieved successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @RequirePermissions('USERS_READ')
-  async getProfile(@Param('id', ParseUUIDPipe) id: string) {
+  async getProfile(@Param('id', ParseCuidPipe) id: string) {
     const user = await this.usersService.findById(id);
 
     if (!user) {
@@ -79,7 +79,7 @@ export class UsersController {
   @ApiParam({ name: 'centerId', description: 'Center ID', type: String })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
   @RequirePermissions('USERS_READ')
-  async getUsersByCenter(@Param('centerId', ParseUUIDPipe) centerId: string) {
+  async getUsersByCenter(@Param('centerId', ParseCuidPipe) centerId: string) {
     const allUsers = await this.usersService.findAll();
 
     // Filter users by center
@@ -129,7 +129,7 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @RequirePermissions('USERS_READ')
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+  async findOne(@Param('id', ParseCuidPipe) id: string) {
     const user = await this.usersService.findById(id);
 
     if (!user) {
@@ -173,7 +173,7 @@ export class UsersController {
   @RequirePermissions('USERS_UPDATE')
   @AuditLog('UPDATE', 'user', { includeBody: true })
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
     updateUserDto: UpdateUserDto,
     @Request() req: any,
@@ -194,7 +194,7 @@ export class UsersController {
   @RequirePermissions('USERS_UPDATE')
   @AuditLog('UPDATE', 'user_status')
   async toggleStatus(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body(new ValidationPipe()) toggleStatusDto: ToggleStatusDto,
     @Request() req: any,
   ) {
@@ -217,7 +217,7 @@ export class UsersController {
   @RequirePermissions('USERS_UPDATE')
   @AuditLog('UPDATE', 'user_role')
   async updateRole(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() body: { roleCode: string },
     @Request() req: any,
   ) {
@@ -236,7 +236,7 @@ export class UsersController {
   @RequirePermissions('USERS_DELETE')
   @AuditLog('DELETE', 'user')
   async delete(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Request() req: any,
   ) {
     const deletedById = req.user.id;

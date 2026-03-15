@@ -13,9 +13,9 @@ import {
   Res,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
   Req,
 } from '@nestjs/common';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { MedicalImagingService } from './medical-imaging.service';
@@ -92,20 +92,20 @@ export class MedicalImagingController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get medical image metadata by ID' })
-  @ApiParam({ name: 'id', description: 'Image ID' })
+  @ApiParam({ name: 'id', description: 'Image CUID' })
   @ApiResponse({ status: 200, description: 'Image retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Image not found' })
-  async findById(@Param('id', ParseUUIDPipe) id: string) {
+  async findById(@Param('id', ParseCuidPipe) id: string) {
     return await this.medicalImagingService.findById(id);
   }
 
   @Get(':id/file')
   @ApiOperation({ summary: 'Download original image file' })
-  @ApiParam({ name: 'id', description: 'Image ID' })
+  @ApiParam({ name: 'id', description: 'Image CUID' })
   @ApiResponse({ status: 200, description: 'Image file retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Image not found' })
   async getImageFile(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Res() res: any,
   ) {
     const { filePath, mimeType, fileName } = await this.medicalImagingService.getImageFile(id);
@@ -119,11 +119,11 @@ export class MedicalImagingController {
 
   @Get(':id/thumbnail')
   @ApiOperation({ summary: 'Get image thumbnail' })
-  @ApiParam({ name: 'id', description: 'Image ID' })
+  @ApiParam({ name: 'id', description: 'Image CUID' })
   @ApiResponse({ status: 200, description: 'Thumbnail retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Thumbnail not found' })
   async getThumbnail(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Res() res: any,
   ) {
     const { filePath, mimeType } = await this.medicalImagingService.getThumbnail(id);
@@ -137,11 +137,11 @@ export class MedicalImagingController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update medical image metadata' })
-  @ApiParam({ name: 'id', description: 'Image ID' })
+  @ApiParam({ name: 'id', description: 'Image CUID' })
   @ApiResponse({ status: 200, description: 'Image updated successfully' })
   @ApiResponse({ status: 404, description: 'Image not found' })
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updateDto: UpdateImageDto,
     @Req() req: any,
   ) {
@@ -151,11 +151,11 @@ export class MedicalImagingController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete medical image (soft delete)' })
-  @ApiParam({ name: 'id', description: 'Image ID' })
+  @ApiParam({ name: 'id', description: 'Image CUID' })
   @ApiResponse({ status: 200, description: 'Image deleted successfully' })
   @ApiResponse({ status: 404, description: 'Image not found' })
   async delete(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Req() req: any,
   ) {
     const userId = req.user.userId;
@@ -164,7 +164,7 @@ export class MedicalImagingController {
 
   @Put(':id/categorize')
   @ApiOperation({ summary: 'Change image category' })
-  @ApiParam({ name: 'id', description: 'Image ID' })
+  @ApiParam({ name: 'id', description: 'Image CUID' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -175,7 +175,7 @@ export class MedicalImagingController {
   })
   @ApiResponse({ status: 200, description: 'Image categorized successfully' })
   async categorize(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body('category') category: string,
     @Req() req: any,
   ) {
@@ -185,7 +185,7 @@ export class MedicalImagingController {
 
   @Post(':id/annotations')
   @ApiOperation({ summary: 'Add annotations to image' })
-  @ApiParam({ name: 'id', description: 'Image ID' })
+  @ApiParam({ name: 'id', description: 'Image CUID' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -196,7 +196,7 @@ export class MedicalImagingController {
   })
   @ApiResponse({ status: 200, description: 'Annotations added successfully' })
   async addAnnotations(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body('annotations') annotations: any,
     @Req() req: any,
   ) {

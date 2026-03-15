@@ -10,10 +10,10 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
   Req,
   ForbiddenException,
 } from '@nestjs/common';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CentersService } from './centers.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
@@ -81,12 +81,12 @@ export class CentersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get center by ID (Public - no auth required)' })
-  @ApiParam({ name: 'id', description: 'Center ID' })
+  @ApiParam({ name: 'id', description: 'Center CUID' })
   @ApiResponse({ status: 200, description: 'Center retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Center not found' })
   @ApiQuery({ name: 'includeUsers', required: false, type: Boolean })
   async findById(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Query('includeUsers') includeUsers?: string,
   ) {
     const include = includeUsers === 'true';
@@ -96,10 +96,10 @@ export class CentersController {
   @Get(':id/users')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiOperation({ summary: 'Get center users' })
-  @ApiParam({ name: 'id', description: 'Center ID' })
+  @ApiParam({ name: 'id', description: 'Center CUID' })
   @ApiResponse({ status: 200, description: 'Center users retrieved successfully' })
   @RequirePermissions('USERS_READ')
-  async getCenterUsers(@Param('id', ParseUUIDPipe) id: string) {
+  async getCenterUsers(@Param('id', ParseCuidPipe) id: string) {
     return await this.centersService.getCenterUsers(id);
   }
 
@@ -126,14 +126,14 @@ export class CentersController {
   @Put(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiOperation({ summary: 'Update center' })
-  @ApiParam({ name: 'id', description: 'Center ID' })
+  @ApiParam({ name: 'id', description: 'Center CUID' })
   @ApiResponse({ status: 200, description: 'Center updated successfully' })
   @ApiResponse({ status: 404, description: 'Center not found' })
   @ApiResponse({ status: 409, description: 'Cannot modify default center' })
   @RequirePermissions('CENTERS_UPDATE')
   @AuditLog('UPDATE', 'center')
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updateCenterDto: {
       name?: string;
       province?: string;
@@ -148,39 +148,39 @@ export class CentersController {
   @Put(':id/activate')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiOperation({ summary: 'Activate center' })
-  @ApiParam({ name: 'id', description: 'Center ID' })
+  @ApiParam({ name: 'id', description: 'Center CUID' })
   @ApiResponse({ status: 200, description: 'Center activated successfully' })
   @ApiResponse({ status: 404, description: 'Center not found' })
   @RequirePermissions('CENTERS_UPDATE')
   @AuditLog('ACTIVATE', 'center')
-  async activate(@Param('id', ParseUUIDPipe) id: string) {
+  async activate(@Param('id', ParseCuidPipe) id: string) {
     return await this.centersService.activate(id);
   }
 
   @Put(':id/deactivate')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiOperation({ summary: 'Deactivate center' })
-  @ApiParam({ name: 'id', description: 'Center ID' })
+  @ApiParam({ name: 'id', description: 'Center CUID' })
   @ApiResponse({ status: 200, description: 'Center deactivated successfully' })
   @ApiResponse({ status: 404, description: 'Center not found' })
   @ApiResponse({ status: 409, description: 'Cannot deactivate default center' })
   @RequirePermissions('CENTERS_UPDATE')
   @AuditLog('DEACTIVATE', 'center')
-  async deactivate(@Param('id', ParseUUIDPipe) id: string) {
+  async deactivate(@Param('id', ParseCuidPipe) id: string) {
     return await this.centersService.deactivate(id);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiOperation({ summary: 'Delete center' })
-  @ApiParam({ name: 'id', description: 'Center ID' })
+  @ApiParam({ name: 'id', description: 'Center CUID' })
   @ApiResponse({ status: 204, description: 'Center deleted successfully' })
   @ApiResponse({ status: 404, description: 'Center not found' })
   @ApiResponse({ status: 409, description: 'Cannot delete default center or centers with active users' })
   @RequirePermissions('CENTERS_DELETE')
   @HttpCode(HttpStatus.NO_CONTENT)
   @AuditLog('DELETE', 'center')
-  async delete(@Param('id', ParseUUIDPipe) id: string) {
+  async delete(@Param('id', ParseCuidPipe) id: string) {
     await this.centersService.delete(id);
   }
 
@@ -190,13 +190,13 @@ export class CentersController {
   @Put(':id/remote-db-config')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiOperation({ summary: 'Update remote database config for a center (Admin)' })
-  @ApiParam({ name: 'id', description: 'Center ID' })
+  @ApiParam({ name: 'id', description: 'Center CUID' })
   @ApiResponse({ status: 200, description: 'Remote DB config updated successfully' })
   @ApiResponse({ status: 404, description: 'Center not found' })
   @RequirePermissions('CENTERS_UPDATE')
   @AuditLog('UPDATE', 'center_remote_config')
   async updateRemoteDbConfig(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() configDto: {
       remoteDbUrl?: string | null;
       remoteDbApiKey?: string | null;

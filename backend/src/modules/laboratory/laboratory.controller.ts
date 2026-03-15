@@ -10,7 +10,6 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +22,7 @@ import {
 import { LaboratoryService } from './laboratory.service';
 import { CreateLabResultDto, UpdateLabResultDto, LabTestType, LabResultStatus } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 
 @ApiTags('Laboratory')
 @ApiBearerAuth()
@@ -101,7 +101,7 @@ export class LaboratoryController {
     enum: LabTestType,
   })
   async findByPatient(
-    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @Param('patientId', ParseCuidPipe) patientId: string,
     @Query('testType') testType?: string,
   ) {
     return this.laboratoryService.findByPatient(patientId, testType);
@@ -109,41 +109,41 @@ export class LaboratoryController {
 
   @Get('patient/:patientId/tumor-markers')
   @ApiOperation({ summary: 'Get tumor markers for a patient with trends' })
-  @ApiParam({ name: 'patientId', description: 'Patient UUID' })
+  @ApiParam({ name: 'patientId', description: 'Patient CUID' })
   @ApiResponse({
     status: 200,
     description: 'Tumor markers retrieved successfully with trend analysis',
   })
   @ApiResponse({ status: 404, description: 'Patient not found' })
-  async getTumorMarkers(@Param('patientId', ParseUUIDPipe) patientId: string) {
+  async getTumorMarkers(@Param('patientId', ParseCuidPipe) patientId: string) {
     return this.laboratoryService.getTumorMarkers(patientId);
   }
 
   @Get('patient/:patientId/abnormal')
   @ApiOperation({ summary: 'Get abnormal lab results for a patient' })
-  @ApiParam({ name: 'patientId', description: 'Patient UUID' })
+  @ApiParam({ name: 'patientId', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Abnormal results retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Patient not found' })
-  async getAbnormalResults(@Param('patientId', ParseUUIDPipe) patientId: string) {
+  async getAbnormalResults(@Param('patientId', ParseCuidPipe) patientId: string) {
     return this.laboratoryService.getAbnormalResults(patientId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get lab result by ID' })
-  @ApiParam({ name: 'id', description: 'Lab result UUID' })
+  @ApiParam({ name: 'id', description: 'Lab result CUID' })
   @ApiResponse({ status: 200, description: 'Lab result retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Lab result not found' })
-  async findById(@Param('id', ParseUUIDPipe) id: string) {
+  async findById(@Param('id', ParseCuidPipe) id: string) {
     return this.laboratoryService.findById(id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update lab result' })
-  @ApiParam({ name: 'id', description: 'Lab result UUID' })
+  @ApiParam({ name: 'id', description: 'Lab result CUID' })
   @ApiResponse({ status: 200, description: 'Lab result updated successfully' })
   @ApiResponse({ status: 404, description: 'Lab result not found' })
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body() updateDto: UpdateLabResultDto,
   ) {
     return this.laboratoryService.update(id, updateDto);
@@ -151,10 +151,10 @@ export class LaboratoryController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete lab result' })
-  @ApiParam({ name: 'id', description: 'Lab result UUID' })
+  @ApiParam({ name: 'id', description: 'Lab result CUID' })
   @ApiResponse({ status: 200, description: 'Lab result deleted successfully' })
   @ApiResponse({ status: 404, description: 'Lab result not found' })
-  async delete(@Param('id', ParseUUIDPipe) id: string) {
+  async delete(@Param('id', ParseCuidPipe) id: string) {
     return this.laboratoryService.delete(id);
   }
 

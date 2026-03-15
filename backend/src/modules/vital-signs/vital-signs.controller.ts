@@ -10,7 +10,6 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { VitalSignsService } from './vital-signs.service';
@@ -18,6 +17,7 @@ import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
 import { PermissionsGuard } from '@/auth/guards/permissions.guard';
 import { RequirePermissions } from '@/auth/decorators/permissions.decorator';
 import { AuditLog } from '@/common/decorators/audit-log.decorator';
+import { ParseCuidPipe } from '@/common/pipes/cuid.pipe';
 
 @ApiTags('Vital Signs')
 @Controller('vital-signs')
@@ -74,7 +74,7 @@ export class VitalSignsController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   async getVitalSignsByPatient(
-    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @Param('patientId', ParseCuidPipe) patientId: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('limit') limit?: string,
@@ -91,22 +91,22 @@ export class VitalSignsController {
 
   @Get('patient/:patientId/latest')
   @ApiOperation({ summary: 'Get latest vital signs for patient' })
-  @ApiParam({ name: 'patientId', description: 'Patient ID' })
+  @ApiParam({ name: 'patientId', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Latest vital signs retrieved successfully' })
   @RequirePermissions('PATIENTS_READ')
-  async getLatestVitalSigns(@Param('patientId', ParseUUIDPipe) patientId: string) {
+  async getLatestVitalSigns(@Param('patientId', ParseCuidPipe) patientId: string) {
     return await this.vitalSignsService.getLatestVitalSign(patientId);
   }
 
   @Get('patient/:patientId/trends')
   @ApiOperation({ summary: 'Get vital signs trends for patient' })
-  @ApiParam({ name: 'patientId', description: 'Patient ID' })
+  @ApiParam({ name: 'patientId', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Vital signs trends retrieved successfully' })
   @RequirePermissions('PATIENTS_READ')
   @ApiQuery({ name: 'parameter', required: true, description: 'Vital sign parameter to trend (e.g., temperature, heartRate)' })
   @ApiQuery({ name: 'days', required: false, type: Number, description: 'Number of days to analyze' })
   async getVitalSignsTrends(
-    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @Param('patientId', ParseCuidPipe) patientId: string,
     @Query('parameter') parameter: string,
     @Query('days') days?: string,
   ) {
@@ -119,12 +119,12 @@ export class VitalSignsController {
 
   @Get('patient/:patientId/abnormal')
   @ApiOperation({ summary: 'Get abnormal vital signs for patient' })
-  @ApiParam({ name: 'patientId', description: 'Patient ID' })
+  @ApiParam({ name: 'patientId', description: 'Patient CUID' })
   @ApiResponse({ status: 200, description: 'Abnormal vital signs retrieved successfully' })
   @RequirePermissions('PATIENTS_READ')
   @ApiQuery({ name: 'hours', required: false, type: Number, description: 'Number of hours to look back' })
   async getAbnormalVitalSigns(
-    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @Param('patientId', ParseCuidPipe) patientId: string,
     @Query('hours') hours?: string,
   ) {
     return await this.vitalSignsService.getVitalSignAlertsForPatient(
