@@ -97,4 +97,15 @@ export class UpdateCenterDto {
   @IsOptional()
   @IsBoolean({ message: 'Status aktif harus berupa boolean' })
   isActive?: boolean;
+
+  // NEW: National Registration Configuration (can be updated)
+  @IsOptional()
+  @IsString({ message: 'Kode registrasi harus berupa string' })
+  @Matches(/^\d{2}$/, { message: 'Kode registrasi harus 2 digit numerik (01-99)' })
+  registrationCode?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Prefix nomor temporary harus berupa string' })
+  @MaxLength(1, { message: 'Prefix maksimal 1 karakter' })
+  tempNumberPrefix?: string;
 }
