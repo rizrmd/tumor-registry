@@ -99,4 +99,15 @@ export class CreateCenterDto {
   @IsArray({ message: 'Layanan harus berupa array' })
   @IsString({ each: true, message: 'Setiap layanan harus berupa string' })
   services: string[];
+
+  // NEW: National Registration Configuration
+  @IsOptional()
+  @IsString({ message: 'Kode registrasi harus berupa string' })
+  @Matches(/^\d{2}$/, { message: 'Kode registrasi harus 2 digit numerik (01-99)' })
+  registrationCode?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Prefix nomor temporary harus berupa string' })
+  @MaxLength(1, { message: 'Prefix maksimal 1 karakter' })
+  tempNumberPrefix?: string;
 }
