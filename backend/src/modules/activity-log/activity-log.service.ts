@@ -31,9 +31,8 @@ export class ActivityLogService {
                     userAgent: data.userAgent,
                     requestMethod: data.requestMethod,
                     requestPath: data.requestPath,
-                    description: data.description,
+                    // description field removed - not in database schema
                     // Optionally populate denormalized fields if actorId is provided but User record might be deleted later
-                    // changesAfter: data.description ? { description: data.description } : undefined,
                 },
             });
         } catch (error) {
