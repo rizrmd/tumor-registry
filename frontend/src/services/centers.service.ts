@@ -35,7 +35,7 @@ export interface CreateCenterDto {
   name: string;
   code: string;
   mrPrefix?: string;  // Legacy
-  registrationCode: string;  // NEW: Required 2-digit numeric (01-99)
+  registrationCode?: string;  // NEW: 2-digit numeric (01-99)
   tempNumberPrefix?: string;  // NEW: Optional, default 'T'
   province: string;
   regency?: string;
