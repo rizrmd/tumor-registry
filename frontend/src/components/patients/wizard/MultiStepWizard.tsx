@@ -153,13 +153,35 @@ export const MultiStepWizard: React.FC<MultiStepWizardProps> = ({
 
   /**
    * Jump to specific section
+   * Validates current section before allowing navigation to later sections
    */
-  const handleGoToSection = (sectionId: string) => {
-    const index = visibleSections.findIndex(s => s.id === sectionId);
-    if (index !== -1) {
-      setCurrentSectionIndex(index);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleGoToSection = async (sectionId: string) => {
+    const targetIndex = visibleSections.findIndex(s => s.id === sectionId);
+    if (targetIndex === -1) return;
+
+    // Only validate if trying to go forward to a later section
+    if (targetIndex > currentSectionIndex) {
+      // Validate all sections between current and target
+      for (let i = currentSectionIndex; i < targetIndex; i++) {
+        const section = visibleSections[i];
+        if (section.validate) {
+          const sectionData = getSection(section.id);
+          const validation = await Promise.resolve(section.validate(sectionData, getAllData()));
+          setSectionValidation(section.id, validation);
+
+          if (!validation.isValid && !section.isOptional) {
+            // Show error and stop navigation
+            alert(`Bagian "${section.title}" belum lengkap. Mohon isi semua field yang wajib diisi.`);
+            setCurrentSectionIndex(i); // Go to the first invalid section
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+          }
+        }
+      }
     }
+
+    setCurrentSectionIndex(targetIndex);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   /**

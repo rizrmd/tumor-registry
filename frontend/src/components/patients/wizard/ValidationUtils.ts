@@ -309,30 +309,42 @@ export const validateSection1 = (data: SectionData): SectionValidation => {
 export const validateSection2 = (data: SectionData): SectionValidation => {
   const errors: ValidationError[] = [];
 
-  // Required fields
-  const mrnError = validateRequired(data.hospitalRecordNumber, 'Medical Record Number');
+  // Required fields - NIK is optional (can be empty for privacy)
+  const mrnError = validateRequired(data.hospitalRecordNumber, 'No. RM Rumah Sakit');
   if (mrnError) errors.push(mrnError);
   else {
     const mrnFormatError = validateMedicalRecordNumber(data.hospitalRecordNumber);
     if (mrnFormatError) errors.push(mrnFormatError);
   }
 
-  const nikError = validateRequired(data.nik, 'NIK');
-  if (nikError) errors.push(nikError);
-  else {
+  // NIK is optional but validated if provided
+  if (data.nik) {
     const nikFormatError = validateNIK(data.nik);
     if (nikFormatError) errors.push(nikFormatError);
   }
 
-  const dobError = validateRequired(data.dateOfBirth, 'Date of Birth');
+  const dobError = validateRequired(data.dateOfBirth, 'Tanggal Lahir');
   if (dobError) errors.push(dobError);
   else {
     const dobFormatError = validateDateOfBirth(data.dateOfBirth);
     if (dobFormatError) errors.push(dobFormatError);
   }
 
-  const genderError = validateRequired(data.gender, 'Gender');
+  const genderError = validateRequired(data.gender, 'Jenis Kelamin');
   if (genderError) errors.push(genderError);
+
+  // Address fields are required
+  const provinceError = validateRequired(data.provinceId, 'Provinsi');
+  if (provinceError) errors.push(provinceError);
+
+  const regencyError = validateRequired(data.regencyId, 'Kabupaten/Kota');
+  if (regencyError) errors.push(regencyError);
+
+  const districtError = validateRequired(data.districtId, 'Kecamatan');
+  if (districtError) errors.push(districtError);
+
+  const villageError = validateRequired(data.villageId, 'Kelurahan/Desa');
+  if (villageError) errors.push(villageError);
 
   // Optional but validated if present
   if (data.email) {
@@ -356,6 +368,10 @@ export const validateSection2 = (data: SectionData): SectionValidation => {
  */
 export const validateSection3 = (data: SectionData): SectionValidation => {
   const errors: ValidationError[] = [];
+
+  // Required fields
+  const chiefComplaintError = validateRequired(data.chiefComplaint, 'Keluhan Utama');
+  if (chiefComplaintError) errors.push(chiefComplaintError);
 
   // Optional section, but validate format if provided
   if (data.karnofskysScore) {
@@ -385,7 +401,25 @@ export const validateSection3 = (data: SectionData): SectionValidation => {
 export const validateSection4 = (data: SectionData): SectionValidation => {
   const errors: ValidationError[] = [];
 
-  // Optional section, validate dates if provided
+  // At least one diagnostic investigation is required
+  const hasLabData = data.laboratory && Object.keys(data.laboratory).some(key => 
+    data.laboratory[key] !== null && data.laboratory[key] !== undefined && data.laboratory[key] !== ''
+  );
+  const hasRadiologyData = data.radiology && Object.keys(data.radiology).some(key => 
+    data.radiology[key] !== null && data.radiology[key] !== undefined && data.radiology[key] !== ''
+  );
+  const hasPathologyData = data.pathology && Object.keys(data.pathology).some(key => 
+    data.pathology[key] !== null && data.pathology[key] !== undefined && data.pathology[key] !== ''
+  );
+
+  if (!hasLabData && !hasRadiologyData && !hasPathologyData) {
+    errors.push({
+      field: 'diagnostics',
+      message: 'Minimal satu pemeriksaan penunjang (laboratorium, radiologi, atau patologi) harus diisi',
+    });
+  }
+
+  // Validate dates if provided
   if (data.biopsyDate) {
     const dateError = validateDate(data.biopsyDate, 'Biopsy Date', { futureAllowed: false });
     if (dateError) errors.push(dateError);
@@ -403,22 +437,24 @@ export const validateSection4 = (data: SectionData): SectionValidation => {
  */
 export const validateSection5 = (data: SectionData, section1Data: SectionData): SectionValidation => {
   const errors: ValidationError[] = [];
-  const pathologyType = section1Data.pathologyType;
+  const pathologyType = section1Data?.pathologyType;
+
+  // WHO Classification is always required
+  const whoClassificationError = validateRequired(data.whoClassificationId, 'Klasifikasi WHO');
+  if (whoClassificationError) errors.push(whoClassificationError);
+
+  // Tumor side/laterality is always required
+  const tumorSideError = validateRequired(data.tumorSide, 'Sisi/Lateralitas Tumor');
+  if (tumorSideError) errors.push(tumorSideError);
 
   // Conditional validation based on pathology type
-  if (pathologyType === 'bone_tumor' || pathologyType === 'BONE_TUMOR') {
-    const boneError = validateRequired(data.whoBoneTumorId, 'WHO Bone Tumor Classification');
-    if (boneError) errors.push(boneError);
-
-    const locationError = validateRequired(data.boneLocationId, 'Bone Location');
+  if (pathologyType === 'bone_tumor' || pathologyType === 'BONE_TUMOR' || pathologyType === 'bone') {
+    const locationError = validateRequired(data.boneLocationId, 'Lokasi Tulang');
     if (locationError) errors.push(locationError);
   }
 
-  if (pathologyType === 'soft_tissue_tumor' || pathologyType === 'SOFT_TISSUE_TUMOR') {
-    const softTissueError = validateRequired(data.whoSoftTissueTumorId, 'WHO Soft Tissue Tumor Classification');
-    if (softTissueError) errors.push(softTissueError);
-
-    const locationError = validateRequired(data.softTissueLocationId, 'Soft Tissue Location');
+  if (pathologyType === 'soft_tissue_tumor' || pathologyType === 'SOFT_TISSUE_TUMOR' || pathologyType === 'soft_tissue') {
+    const locationError = validateRequired(data.softTissueLocationId, 'Lokasi Jaringan Lunak');
     if (locationError) errors.push(locationError);
   }
 
@@ -434,20 +470,68 @@ export const validateSection5 = (data: SectionData, section1Data: SectionData): 
 export const validateSection6 = (data: SectionData): SectionValidation => {
   const errors: ValidationError[] = [];
 
-  // Enneking Stage or AJCC Stage required
-  if (!data.ennekingStage && !data.ajccStage) {
+  // Staging system selection is required
+  if (!data.stagingSystem) {
     errors.push({
-      field: 'staging',
-      message: 'Staging: Minimal satu staging system (Enneking atau AJCC) harus diisi',
+      field: 'stagingSystem',
+      message: 'Sistem staging harus dipilih (Enneking, AJCC, atau Keduanya)',
     });
   }
 
-  // Histopathology Grade required
-  if (!data.histopathologyGrade) {
-    errors.push({
-      field: 'histopathologyGrade',
-      message: 'Histopathology Grade harus diisi',
-    });
+  // Enneking validation
+  if (data.stagingSystem === 'ENNEKING' || data.stagingSystem === 'BOTH') {
+    if (!data.enneking?.grade) {
+      errors.push({
+        field: 'ennekingGrade',
+        message: 'Grade Enneking harus diisi',
+      });
+    }
+    if (!data.enneking?.site) {
+      errors.push({
+        field: 'ennekingSite',
+        message: 'Lokasi/Site Enneking harus diisi',
+      });
+    }
+    if (!data.enneking?.metastasis) {
+      errors.push({
+        field: 'ennekingMetastasis',
+        message: 'Status metastasis Enneking harus diisi',
+      });
+    }
+  }
+
+  // AJCC validation
+  if (data.stagingSystem === 'AJCC' || data.stagingSystem === 'BOTH') {
+    if (!data.ajcc?.t) {
+      errors.push({
+        field: 'ajccT',
+        message: 'T (Primary Tumor) AJCC harus diisi',
+      });
+    }
+    if (!data.ajcc?.n) {
+      errors.push({
+        field: 'ajccN',
+        message: 'N (Regional Lymph Nodes) AJCC harus diisi',
+      });
+    }
+    if (!data.ajcc?.m) {
+      errors.push({
+        field: 'ajccM',
+        message: 'M (Distant Metastasis) AJCC harus diisi',
+      });
+    }
+    if (!data.ajcc?.grade) {
+      errors.push({
+        field: 'ajccGrade',
+        message: 'Grade Histologi AJCC harus diisi',
+      });
+    }
+    if (!data.ajcc?.stage) {
+      errors.push({
+        field: 'ajccStage',
+        message: 'Overall Stage AJCC harus diisi',
+      });
+    }
   }
 
   return {

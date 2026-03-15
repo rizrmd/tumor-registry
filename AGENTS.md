@@ -454,9 +454,21 @@ Environment Variables:
 # 1. Access Coolify dashboard at: https://cf.avolut.com
 # 2. Select application: uk80oo8804g4w0co444cgso4
 # 3. Click "Deploy" or "Redeploy"
+# 4. Wait for deployment to complete (check container status)
 ```
 
-**Option 2: Via SSH (Manual)**
+**Option 2: Via Git Push (Auto-deploy)**
+```bash
+# 1. Commit changes to git
+git add .
+git commit -m "fix: your changes"
+git push origin main
+
+# 2. Coolify will auto-trigger deployment if webhook configured
+# 3. Check deployment status in Coolify dashboard
+```
+
+**Option 3: Via SSH (Manual)**
 ```bash
 # 1. SSH to Coolify server
 ssh riz@cf.avolut.com
@@ -473,7 +485,7 @@ docker exec -i coolify-db psql -U coolify -d coolify \
 docker exec -i coolify-db psql -U coolify -d coolify \
   -c "UPDATE applications SET updated_at = NOW() WHERE uuid = 'uk80oo8804g4w0co444cgso4';"
 
-# 5. Or insert deployment queue manually
+# 5. Or insert deployment queue manually (RECOMMENDED)
 docker exec -i coolify-db psql -U coolify -d coolify \
   -c "INSERT INTO application_deployment_queues \
     (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id) \
@@ -483,11 +495,26 @@ docker exec -i coolify-db psql -U coolify -d coolify \
 docker exec -i coolify-db psql -U coolify -d coolify \
   -c "SELECT status, commit, updated_at FROM application_deployment_queues \
     WHERE application_id = '125' ORDER BY created_at DESC LIMIT 1;"
+
+# 7. Check if container is running
+docker ps --filter 'name=uk80oo8804g4w0co444cgso4'
+
+# 8. Check container logs
+docker logs uk80oo8804g4w0co444cgso4-CONTAINER_ID --tail 100
 ```
 
-**Option 3: Direct Docker (Emergency)**
+**Option 4: Force Rebuild Deployment**
 ```bash
-# Only if Coolify deployment fails
+# If normal deployment fails, force rebuild:
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "INSERT INTO application_deployment_queues \
+    (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id, force_rebuild) \
+    VALUES (125, gen_random_uuid(), 'COMMIT_HASH', 'queued', false, NOW(), NOW(), 'inamsos', 1, true);"
+```
+
+**Option 5: Direct Docker (Emergency)**
+```bash
+# Only if Coolify deployment fails completely
 # Build locally and run with Coolify env vars
 cd ~/tumor-registry
 docker build -t tumor-registry:latest .
@@ -539,6 +566,33 @@ NEXT_PUBLIC_VERSION=1.3.6
    - Check Docker build logs in Coolify
    - Ensure node_modules are not cached incorrectly
    - Verify Dockerfile syntax
+
+4. **Deployment Stuck in "Queued"**
+   - Check Horizon queue worker: `docker exec coolify php artisan horizon:status`
+   - Clear stuck queues: `docker exec coolify php artisan queue:clear`
+   - Restart Horizon: `docker exec coolify php artisan horizon:terminate`
+   - Check for failed jobs: `docker exec coolify php artisan queue:monitor redis`
+
+5. **Migration Issues (Schema Drift)**
+   - If Prisma schema differs from database:
+   ```bash
+   # SSH to server and run directly on database:
+   ssh riz@cf.avolut.com
+   
+   # Check migration status
+   docker exec CONTAINER_ID npx prisma migrate status
+   
+   # Apply migrations manually if needed
+   docker exec CONTAINER_ID npx prisma migrate deploy
+   
+   # Or fix directly via psql:
+   PGPASSWORD=password psql -h HOST -U USER -d DATABASE -c "ALTER TABLE..."
+   ```
+
+6. **Container Not Starting**
+   - Check container logs: `docker logs CONTAINER_ID --tail 100`
+   - Verify environment variables: `docker exec CONTAINER_ID env`
+   - Check health endpoint: `curl http://localhost:3001/api/v1/health`
 
 ---
 
@@ -722,10 +776,149 @@ bun run db:generate
 | Server | cf.avolut.com |
 | SSH | `riz@cf.avolut.com` |
 | App ID | `uk80oo8804g4w0co444cgso4` |
+| App DB ID | `125` |
 | Dashboard | https://cf.avolut.com |
 | Production URL | https://inamsos.medxamion.com |
+| Health Check | https://inamsos.com/api/v1/health |
+
+### Quick Deployment Commands
+
+```bash
+# SSH to server
+ssh riz@cf.avolut.com
+
+# Check application status
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "SELECT name, status FROM applications WHERE uuid = 'uk80oo8804g4w0co444cgso4';"
+
+# Trigger deployment
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "UPDATE applications SET updated_at = NOW() WHERE uuid = 'uk80oo8804g4w0co444cgso4';"
+
+# Check container status
+docker ps --filter 'name=uk80oo8804g4w0co444cgso4'
+
+# View logs
+docker logs $(docker ps --filter 'name=uk80oo8804g4w0co444cgso4' --format '{{.Names}}') --tail 50
+
+# Restart container
+docker restart $(docker ps --filter 'name=uk80oo8804g4w0co444cgso4' --format '{{.Names}}')
+```
+
+### Prisma Migration on Production
+
+```bash
+# SSH to server
+ssh riz@cf.avolut.com
+
+# Get container name
+CONTAINER=$(docker ps --filter 'name=uk80oo8804g4w0co444cgso4' --format '{{.Names}}')
+
+# Check migration status
+docker exec $CONTAINER npx prisma migrate status
+
+# Deploy migrations
+docker exec $CONTAINER npx prisma migrate deploy
+
+# Generate Prisma client (if schema changed)
+docker exec $CONTAINER npx prisma generate
+
+# Restart container after migration
+docker restart $CONTAINER
+```
+
+### Database Direct Access (Emergency)
+
+```bash
+# SSH to server
+ssh riz@cf.avolut.com
+
+# Get DATABASE_URL from container
+docker exec $(docker ps --filter 'name=uk80oo8804g4w0co444cgso4' --format '{{.Names}}') env | grep DATABASE_URL
+
+# Run SQL directly via psql (password from env)
+PGPASSWORD=your_password psql -h 107.155.75.50 -p 5389 -U postgres -d tmr-reg -c "SELECT * FROM system."User" LIMIT 5;"
+```
 
 ---
 
 *Last Updated: 2026-03-15*
 *Version: 1.3.6*
+
+---
+
+## Deployment Guide
+
+### Prerequisites
+- SSH access to server: `riz@cf.avolut.com`
+- Coolify dashboard access: https://cf.avolut.com
+- Application UUID: `uk80oo8804g4w0co444cgso4`
+
+### Standard Deployment Flow
+
+1. **Push code to git**
+   ```bash
+   git add .
+   git commit -m "feat: your changes"
+   git push origin main
+   ```
+
+2. **Trigger deployment via Coolify Dashboard**
+   - Go to https://cf.avolut.com
+   - Select application INAMSOS
+   - Click "Redeploy" or "Deploy"
+
+3. **Verify deployment**
+   ```bash
+   ssh riz@cf.avolut.com
+   docker ps --filter 'name=uk80oo8804g4w0co444cgso4'
+   ```
+
+4. **Check application health**
+   ```bash
+   curl https://inamsos.com/api/v1/health
+   ```
+
+### Migration Deployment
+
+**IMPORTANT**: When adding new Prisma migrations:
+
+1. Create migration in development:
+   ```bash
+   cd backend
+   npx prisma migrate dev --name your_migration_name
+   ```
+
+2. Commit the migration file:
+   ```bash
+   git add prisma/migrations/
+   git commit -m "feat: add migration for X"
+   git push
+   ```
+
+3. Deploy to production:
+   ```bash
+   # After deployment, verify migration applied:
+   ssh riz@cf.avolut.com
+   CONTAINER=$(docker ps --filter 'name=uk80oo8804g4w0co444cgso4' --format '{{.Names}}')
+   docker exec $CONTAINER npx prisma migrate status
+   ```
+
+4. If migration fails (Schema Drift):
+   ```bash
+   # Option 1: Fix via container
+   docker exec $CONTAINER npx prisma migrate deploy
+   
+   # Option 2: Fix via psql (emergency)
+   PGPASSWORD=password psql -h HOST -p PORT -U USER -d DB -c "ALTER TABLE..."
+   ```
+
+### Common Deployment Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Container stuck in "queued" | Horizon queue blocked | `docker exec coolify php artisan queue:clear` |
+| 500 error after deploy | Missing DB columns | Run `prisma migrate deploy` or psql fix |
+| Container won't start | Port conflict | Check `FRONTEND_PORT` and `BACKEND_PORT` env |
+| Health check failing | App not ready | Check logs: `docker logs CONTAINER --tail 50` |
+| Database connection error | Wrong DATABASE_URL | Verify external host in connection string |
