@@ -45,6 +45,9 @@ model Center {
   // NEW: National Registration Configuration
   registrationCode     String?                      @unique @db.VarChar(2)  // 2 digit: 01-99
   tempNumberPrefix     String?                      @default("T") @db.VarChar(1)  // Prefix for temp numbers
+  
+  // Desktop sequence blocks for offline number reservation
+  desktopSequenceBlocks DesktopSequenceBlock[]
 
   @@map("centers")
   @@schema("system")
