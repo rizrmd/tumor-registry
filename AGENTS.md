@@ -411,7 +411,7 @@ NODE_ENV=production
 
 ## Build & Deployment
 
-### Coolify Deployment (Production)
+### Coolify Deployment (Production, Terminal-First)
 
 **Target Server**: `riz@cf.avolut.com`
 **App ID**: `uk80oo8804g4w0co444cgso4`
@@ -447,17 +447,83 @@ Environment Variables:
     - MINIO_ENDPOINT
 ```
 
-#### Deploy Steps
+#### Deployment Workflow
 
-**Option 1: Via Coolify Dashboard (Recommended)**
+Use SSH as the default deployment path. Do not rely on the Coolify UI for routine deploys.
+
+**Quickstart via repo script**
 ```bash
-# 1. Access Coolify dashboard at: https://cf.avolut.com
-# 2. Select application: uk80oo8804g4w0co444cgso4
-# 3. Click "Deploy" or "Redeploy"
-# 4. Wait for deployment to complete (check container status)
+# Queue deploy, wait for final status, then run health checks
+./scripts/deploy-coolify.sh release
 ```
 
-**Option 2: Via Git Push (Auto-deploy)**
+Available commands:
+```bash
+./scripts/deploy-coolify.sh help
+
+# Useful manual subcommands
+./scripts/deploy-coolify.sh app
+./scripts/deploy-coolify.sh env
+./scripts/deploy-coolify.sh deploy
+./scripts/deploy-coolify.sh status
+./scripts/deploy-coolify.sh watch
+./scripts/deploy-coolify.sh verify
+```
+
+**Option 1: Deploy via SSH to Coolify (Recommended)**
+```bash
+# 1. SSH to the Coolify server
+ssh riz@cf.avolut.com
+
+# 2. Set the app UUID once for the session
+export COOLIFY_APP_UUID=uk80oo8804g4w0co444cgso4
+
+# 3. Resolve the internal Coolify application metadata dynamically
+docker exec -i coolify-db psql -U coolify -d coolify -At \
+  -c "SELECT id || '|' || uuid || '|' || name || '|' || COALESCE(fqdn, '') \
+      FROM applications WHERE uuid = '${COOLIFY_APP_UUID}' LIMIT 1;"
+
+# 4. Verify required environment variables without hardcoding resource IDs
+docker exec -i coolify-db psql -U coolify -d coolify -At \
+  -c "SELECT e.key
+      FROM environment_variables e
+      JOIN applications a
+        ON a.id = e.resourceable_id
+      WHERE a.uuid = '${COOLIFY_APP_UUID}'
+        AND e.is_preview = false
+      ORDER BY e.key;"
+
+# 5. Queue a new deployment directly in Coolify
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "INSERT INTO application_deployment_queues
+      (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id)
+      SELECT a.id, gen_random_uuid(), COALESCE(a.git_commit_sha, 'manual'), 'queued', false, NOW(), NOW(), a.name, a.server_id
+      FROM applications a
+      WHERE a.uuid = '${COOLIFY_APP_UUID}';"
+
+# 6. Watch the latest deployment status
+watch -n 2 "docker exec -i coolify-db psql -U coolify -d coolify -c \"
+  SELECT q.status, q.commit, q.created_at, q.updated_at
+  FROM application_deployment_queues q
+  JOIN applications a ON a.id = q.application_id
+  WHERE a.uuid = '${COOLIFY_APP_UUID}'
+  ORDER BY q.created_at DESC
+  LIMIT 5;\""
+```
+
+**Option 2: Single-command deploy from local machine**
+```bash
+ssh riz@cf.avolut.com '
+export COOLIFY_APP_UUID=uk80oo8804g4w0co444cgso4
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "INSERT INTO application_deployment_queues
+      (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id)
+      SELECT a.id, gen_random_uuid(), COALESCE(a.git_commit_sha, '\''manual'\''), '\''queued'\'', false, NOW(), NOW(), a.name, a.server_id
+      FROM applications a
+      WHERE a.uuid = '\''${COOLIFY_APP_UUID}'\'';"'
+```
+
+**Option 3: Via Git Push (Auto-deploy if webhook is configured)**
 ```bash
 # 1. Commit changes to git
 git add .
@@ -465,56 +531,25 @@ git commit -m "fix: your changes"
 git push origin main
 
 # 2. Coolify will auto-trigger deployment if webhook configured
-# 3. Check deployment status in Coolify dashboard
-```
-
-**Option 3: Via SSH (Manual)**
-```bash
-# 1. SSH to Coolify server
-ssh riz@cf.avolut.com
-
-# 2. Query Coolify database for application info
-docker exec -i coolify-db psql -U coolify -d coolify \
-  -c "SELECT uuid, name, status, fqdn FROM applications WHERE uuid = 'uk80oo8804g4w0co444cgso4';"
-
-# 3. Check environment variables
-docker exec -i coolify-db psql -U coolify -d coolify \
-  -c "SELECT key FROM environment_variables WHERE resourceable_id = 125 AND is_preview = false ORDER BY key;"
-
-# 4. Trigger deployment by updating application timestamp
-docker exec -i coolify-db psql -U coolify -d coolify \
-  -c "UPDATE applications SET updated_at = NOW() WHERE uuid = 'uk80oo8804g4w0co444cgso4';"
-
-# 5. Or insert deployment queue manually (RECOMMENDED)
-docker exec -i coolify-db psql -U coolify -d coolify \
-  -c "INSERT INTO application_deployment_queues \
-    (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id) \
-    VALUES (125, gen_random_uuid(), 'COMMIT_HASH', 'queued', false, NOW(), NOW(), 'inamsos', 1);"
-
-# 6. Check deployment status
-docker exec -i coolify-db psql -U coolify -d coolify \
-  -c "SELECT status, commit, updated_at FROM application_deployment_queues \
-    WHERE application_id = '125' ORDER BY created_at DESC LIMIT 1;"
-
-# 7. Check if container is running
-docker ps --filter 'name=uk80oo8804g4w0co444cgso4'
-
-# 8. Check container logs
-docker logs uk80oo8804g4w0co444cgso4-CONTAINER_ID --tail 100
+# 3. Use ./scripts/deploy-coolify.sh status or watch to confirm progress
 ```
 
 **Option 4: Force Rebuild Deployment**
 ```bash
-# If normal deployment fails, force rebuild:
+# If normal deployment fails, force rebuild without hardcoded IDs
+ssh riz@cf.avolut.com
+export COOLIFY_APP_UUID=uk80oo8804g4w0co444cgso4
 docker exec -i coolify-db psql -U coolify -d coolify \
-  -c "INSERT INTO application_deployment_queues \
-    (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id, force_rebuild) \
-    VALUES (125, gen_random_uuid(), 'COMMIT_HASH', 'queued', false, NOW(), NOW(), 'inamsos', 1, true);"
+  -c "INSERT INTO application_deployment_queues
+      (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id, force_rebuild)
+      SELECT a.id, gen_random_uuid(), COALESCE(a.git_commit_sha, 'manual'), 'queued', false, NOW(), NOW(), a.name, a.server_id, true
+      FROM applications a
+      WHERE a.uuid = '${COOLIFY_APP_UUID}';"
 ```
 
-**Option 5: Direct Docker (Emergency)**
+**Option 5: Direct Docker (Emergency only, bypasses Coolify)**
 ```bash
-# Only if Coolify deployment fails completely
+# Only if Coolify deployment fails
 # Build locally and run with Coolify env vars
 cd ~/tumor-registry
 docker build -t tumor-registry:latest .
@@ -527,12 +562,25 @@ docker run -d --name inamsos-emergency \
 
 #### Environment Variables (Coolify)
 
-Set via Coolify dashboard:
+Manage these in Coolify, but audit them from SSH:
+
+```bash
+ssh riz@cf.avolut.com '
+export COOLIFY_APP_UUID=uk80oo8804g4w0co444cgso4
+docker exec -i coolify-db psql -U coolify -d coolify -c "
+  SELECT e.key, CASE WHEN e.value IS NULL OR e.value = '\'''\'' THEN '\''<empty>'\'' ELSE '\''<set>'\'' END AS status
+  FROM environment_variables e
+  JOIN applications a ON a.id = e.resourceable_id
+  WHERE a.uuid = '\''${COOLIFY_APP_UUID}'\''
+    AND e.is_preview = false
+  ORDER BY e.key;"'
+```
+
+Expected production values:
 
 ```bash
 # Application
 NODE_ENV=production
-PORT=3001
 FRONTEND_PORT=3000
 BACKEND_PORT=3001
 HOSTNAME=0.0.0.0
@@ -553,7 +601,7 @@ NEXT_PUBLIC_VERSION=1.3.6
 #### Troubleshooting Coolify Deployment
 
 1. **Port Mismatch Warning**
-   - Do NOT set global `PORT` env variable
+   - Do NOT set global `PORT` env variable unless the container entrypoint explicitly requires it
    - Set `FRONTEND_PORT=3000` and `BACKEND_PORT=3001` separately
    - Coolify exposes port 3000, backend runs on 3001 internally
 
@@ -567,32 +615,57 @@ NEXT_PUBLIC_VERSION=1.3.6
    - Ensure node_modules are not cached incorrectly
    - Verify Dockerfile syntax
 
-4. **Deployment Stuck in "Queued"**
-   - Check Horizon queue worker: `docker exec coolify php artisan horizon:status`
-   - Clear stuck queues: `docker exec coolify php artisan queue:clear`
-   - Restart Horizon: `docker exec coolify php artisan horizon:terminate`
-   - Check for failed jobs: `docker exec coolify php artisan queue:monitor redis`
+4. **Deployment Queued But Never Starts**
+   - Check latest queue entries from SSH and confirm status changes from `queued` to `in_progress`
+   - If the queue is stuck, inspect the Coolify worker/Horizon process on `cf.avolut.com`
+   - Verify Coolify worker/container is healthy on `cf.avolut.com`
+   - Requeue deployment instead of editing rows manually
 
-5. **Migration Issues (Schema Drift)**
-   - If Prisma schema differs from database:
-   ```bash
-   # SSH to server and run directly on database:
-   ssh riz@cf.avolut.com
-   
-   # Check migration status
-   docker exec CONTAINER_ID npx prisma migrate status
-   
-   # Apply migrations manually if needed
-   docker exec CONTAINER_ID npx prisma migrate deploy
-   
-   # Or fix directly via psql:
-   PGPASSWORD=password psql -h HOST -U USER -d DATABASE -c "ALTER TABLE..."
-   ```
+5. **Wrong Resource ID / Hardcoded IDs**
+   - Never hardcode `application_id` or `resourceable_id`
+   - Always resolve IDs by `applications.uuid = 'uk80oo8804g4w0co444cgso4'`
 
-6. **Container Not Starting**
+6. **Migration Issues (Schema Drift)**
+   - Check migration status inside the app container: `docker exec CONTAINER_ID npx prisma migrate status`
+   - Apply production migrations manually if needed: `docker exec CONTAINER_ID npx prisma migrate deploy`
+   - Only modify schema directly via `psql` if you understand the drift and have a rollback path
+
+7. **Container Not Starting**
    - Check container logs: `docker logs CONTAINER_ID --tail 100`
    - Verify environment variables: `docker exec CONTAINER_ID env`
    - Check health endpoint: `curl http://localhost:3001/api/v1/health`
+
+#### Post-Deploy Verification
+
+```bash
+# Production health check
+curl -fsS https://inamsos.medxamion.com/api/v1/health
+
+# Response headers
+curl -I https://inamsos.medxamion.com
+
+# Confirm latest deployment record from server
+ssh riz@cf.avolut.com '
+export COOLIFY_APP_UUID=uk80oo8804g4w0co444cgso4
+docker exec -i coolify-db psql -U coolify -d coolify -c "
+  SELECT q.status, q.commit, q.created_at, q.updated_at
+  FROM application_deployment_queues q
+  JOIN applications a ON a.id = q.application_id
+  WHERE a.uuid = '\''${COOLIFY_APP_UUID}'\''
+  ORDER BY q.created_at DESC
+  LIMIT 1;"'
+```
+
+#### Suggested SSH Aliases
+
+Add these locally if you deploy often:
+
+```bash
+alias inamsos-coolify='ssh riz@cf.avolut.com'
+alias inamsos-deploy="ssh riz@cf.avolut.com 'export COOLIFY_APP_UUID=uk80oo8804g4w0co444cgso4 && docker exec -i coolify-db psql -U coolify -d coolify -c \"INSERT INTO application_deployment_queues (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id) SELECT a.id, gen_random_uuid(), COALESCE(a.git_commit_sha, '\''manual'\''), '\''queued'\'', false, NOW(), NOW(), a.name, a.server_id FROM applications a WHERE a.uuid = '\''\${COOLIFY_APP_UUID}'\'';\"'"
+```
+
+Prefer `./scripts/deploy-coolify.sh` for normal operation; use raw SSH aliases only for debugging or when the script needs to be bypassed.
 
 ---
 
