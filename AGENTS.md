@@ -449,17 +449,53 @@ Environment Variables:
 
 #### Deploy Steps
 
+**Option 1: Via Coolify Dashboard (Recommended)**
+```bash
+# 1. Access Coolify dashboard at: https://cf.avolut.com
+# 2. Select application: uk80oo8804g4w0co444cgso4
+# 3. Click "Deploy" or "Redeploy"
+```
+
+**Option 2: Via SSH (Manual)**
 ```bash
 # 1. SSH to Coolify server
 ssh riz@cf.avolut.com
 
-# 2. Navigate to Coolify app directory
-# App ID: uk80oo8804g4w0co444cgso4
+# 2. Query Coolify database for application info
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "SELECT uuid, name, status, fqdn FROM applications WHERE uuid = 'uk80oo8804g4w0co444cgso4';"
 
-# 3. Deploy via Coolify UI or CLI
-# Access Coolify dashboard at: https://cf.avolut.com
-# Select application: uk80oo8804g4w0co444cgso4
-# Click "Deploy"
+# 3. Check environment variables
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "SELECT key FROM environment_variables WHERE resourceable_id = 125 AND is_preview = false ORDER BY key;"
+
+# 4. Trigger deployment by updating application timestamp
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "UPDATE applications SET updated_at = NOW() WHERE uuid = 'uk80oo8804g4w0co444cgso4';"
+
+# 5. Or insert deployment queue manually
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "INSERT INTO application_deployment_queues \
+    (application_id, deployment_uuid, commit, status, is_webhook, created_at, updated_at, application_name, server_id) \
+    VALUES (125, gen_random_uuid(), 'COMMIT_HASH', 'queued', false, NOW(), NOW(), 'inamsos', 1);"
+
+# 6. Check deployment status
+docker exec -i coolify-db psql -U coolify -d coolify \
+  -c "SELECT status, commit, updated_at FROM application_deployment_queues \
+    WHERE application_id = '125' ORDER BY created_at DESC LIMIT 1;"
+```
+
+**Option 3: Direct Docker (Emergency)**
+```bash
+# Only if Coolify deployment fails
+# Build locally and run with Coolify env vars
+cd ~/tumor-registry
+docker build -t tumor-registry:latest .
+docker run -d --name inamsos-emergency \
+  -p 127.0.0.1:13000:3000 \
+  -p 127.0.0.1:13001:3001 \
+  --env-file /path/to/coolify/env \
+  tumor-registry:latest
 ```
 
 #### Environment Variables (Coolify)
