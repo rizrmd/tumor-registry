@@ -5,7 +5,9 @@ export interface Center {
   id: string;
   name: string;
   code: string;
-  mrPrefix?: string | null;
+  mrPrefix?: string | null;  // Legacy 3-letter prefix (e.g., 'SBY')
+  registrationCode?: string | null;  // NEW: 2-digit numeric code (01-99)
+  tempNumberPrefix?: string | null;  // NEW: Prefix for temp numbers (default: 'T')
   province: string;
   regency?: string | null;
   address?: string | null;
@@ -32,7 +34,9 @@ export interface CenterStatistics {
 export interface CreateCenterDto {
   name: string;
   code: string;
-  mrPrefix?: string;
+  mrPrefix?: string;  // Legacy
+  registrationCode: string;  // NEW: Required 2-digit numeric (01-99)
+  tempNumberPrefix?: string;  // NEW: Optional, default 'T'
   province: string;
   regency?: string;
   address?: string;
@@ -40,7 +44,9 @@ export interface CreateCenterDto {
 
 export interface UpdateCenterDto {
   name?: string;
-  mrPrefix?: string;
+  mrPrefix?: string;  // Legacy
+  registrationCode?: string;  // NEW: 2-digit numeric (01-99)
+  tempNumberPrefix?: string;  // NEW
   province?: string;
   regency?: string;
   address?: string;

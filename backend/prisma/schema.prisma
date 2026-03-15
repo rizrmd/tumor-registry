@@ -36,11 +36,15 @@ model Center {
   researchRequests     ResearchRequest[]            @relation("RequestingCenter")
   activityLogs         ActivityLog[]                @relation("ActivityCenter")
   
-  // INAMSOS Medical Record Configuration
+  // INAMSOS Medical Record Configuration (Legacy - for backward compatibility)
   mrPrefix             String?                      @unique @db.VarChar(3)
   mrSequenceCounter    Int                          @default(0)
   mrSequenceYear       Int                          @default(2025)
   medicalRecordSequences MedicalRecordSequence[]
+  
+  // NEW: National Registration Configuration
+  registrationCode     String?                      @unique @db.VarChar(2)  // 2 digit: 01-99
+  tempNumberPrefix     String?                      @default("T") @db.VarChar(1)  // Prefix for temp numbers
 
   @@map("centers")
   @@schema("system")
@@ -189,12 +193,51 @@ model MedicalRecordSequence {
   @@schema("medical")
 }
 
+// NEW: National Registration Sequence (for CC-YY-NNNNN format)
+model NationalRegistrationSequence {
+  id           String   @id @default(cuid())
+  year         Int      @unique // 2 digit year (e.g., 25 for 2025)
+  lastSequence Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("national_registration_sequences")
+  @@schema("medical")
+}
+
+// NEW: Desktop Sequence Blocks (for offline number reservation)
+model DesktopSequenceBlock {
+  id              String    @id @default(cuid())
+  centerId        String
+  deviceId        String    // Desktop/device identifier
+  year            Int
+  blockStart      Int       // Start of reserved block
+  blockEnd        Int       // End of reserved block
+  currentSequence Int       @default(0) // Last used in block
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime? // Optional expiration
+  
+  center          Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@index([centerId, year])
+  @@index([deviceId])
+  @@map("desktop_sequence_blocks")
+  @@schema("medical")
+}
+
 model Patient {
   id                   String         @id @default(cuid())
   anonymousId          String?        @unique // P-XXX-NNNNN
-  inamsosRecordNumber  String?        @unique // Format: {CENTER}-{YEAR}-{SEQ}
+  inamsosRecordNumber  String?        @unique // Format: CC-YY-NNNNN (NEW National Format)
+  tempRecordNumber     String?        @unique // Format: CC-YY-T####T (Temporary for offline desktop)
   hospitalRecordNumber String?        // Old medicalRecordNumber
   nik                  String         @unique
+  
+  // Offline/Temp number tracking
+  isTempNumber         Boolean        @default(false)
+  numberAssignedAt     DateTime?
+  numberAssignedBy     String?        // 'SERVER' or deviceId
   name                String
   dateOfBirth         DateTime
   placeOfBirth        String?

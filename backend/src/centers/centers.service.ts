@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { Center } from './interfaces/center.interface';
 import { CreateCenterDto } from './dto/create-center.dto';
 import { UpdateCenterDto } from './dto/update-center.dto';
 
 @Injectable()
 export class CentersService {
+  private readonly logger = new Logger(CentersService.name);
   // Mock database - akan diganti dengan Prisma nanti
   private centers: Center[] = [
     {
@@ -66,16 +68,68 @@ export class CentersService {
       throw new ConflictException('Email center sudah digunakan');
     }
 
+    // Validate registration code if provided
+    if (createCenterDto.registrationCode) {
+      this.validateRegistrationCode(createCenterDto.registrationCode);
+      
+      // Check if registration code already exists
+      const existingRegCode = this.centers.find(c => c.registrationCode === createCenterDto.registrationCode);
+      if (existingRegCode) {
+        throw new ConflictException('Kode registrasi sudah digunakan oleh center lain');
+      }
+    }
+
     const newCenter: Center = {
       id: `center-${Date.now()}`,
       ...createCenterDto,
       isActive: true,
+      tempNumberPrefix: createCenterDto.tempNumberPrefix || 'T',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
     this.centers.push(newCenter);
+    this.logger.log(`Center created: ${newCenter.name} with registration code: ${newCenter.registrationCode}`);
     return newCenter;
+  }
+
+  /**
+   * Validate registration code format
+   * Format: 2 digit numeric (01-99)
+   */
+  validateRegistrationCode(code: string): boolean {
+    if (!code) {
+      throw new BadRequestException('Kode registrasi wajib diisi');
+    }
+    
+    if (!/^\d{2}$/.test(code)) {
+      throw new BadRequestException('Kode registrasi harus 2 digit numerik (01-99)');
+    }
+    
+    const numericCode = parseInt(code, 10);
+    if (numericCode < 1 || numericCode > 99) {
+      throw new BadRequestException('Kode registrasi harus antara 01-99');
+    }
+    
+    return true;
+  }
+
+  /**
+   * Generate next available registration code
+   */
+  async generateNextRegistrationCode(): Promise<string> {
+    const usedCodes = this.centers
+      .filter(c => c.registrationCode)
+      .map(c => parseInt(c.registrationCode!, 10))
+      .sort((a, b) => a - b);
+    
+    for (let i = 1; i <= 99; i++) {
+      if (!usedCodes.includes(i)) {
+        return String(i).padStart(2, '0');
+      }
+    }
+    
+    throw new ConflictException('Semua kode registrasi (01-99) sudah digunakan');
   }
 
   async findAll(
@@ -176,6 +230,16 @@ export class CentersService {
       }
     }
 
+    // Validate registration code if being updated
+    if (updateCenterDto.registrationCode && updateCenterDto.registrationCode !== center.registrationCode) {
+      this.validateRegistrationCode(updateCenterDto.registrationCode);
+      
+      const existingRegCode = this.centers.find(c => c.registrationCode === updateCenterDto.registrationCode && c.id !== id);
+      if (existingRegCode) {
+        throw new ConflictException('Kode registrasi sudah digunakan oleh center lain');
+      }
+    }
+
     // Update center
     const updatedCenter = {
       ...center,
@@ -184,6 +248,7 @@ export class CentersService {
     };
 
     this.centers[centerIndex] = updatedCenter;
+    this.logger.log(`Center updated: ${updatedCenter.name} with registration code: ${updatedCenter.registrationCode}`);
     return updatedCenter;
   }
 

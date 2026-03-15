@@ -11,7 +11,7 @@ import { PrismaClient } from '@prisma/client';
 import { SyncOfflineDataDto } from './dto/sync-offline-data.dto';
 import { ResolveConflictDto } from './dto/resolve-conflict.dto';
 import { FileSyncService } from './file-sync.service';
-
+import { MedicalRecordService } from '@/modules/medical-record/medical-record.service';
 import { RemotePrismaService } from '@/database/remote-prisma.service';
 
 @Injectable()
@@ -192,6 +192,7 @@ export class OfflineQueueService implements OnModuleInit {
     private prisma: PrismaService,
     private remotePrismaService: RemotePrismaService,
     private fileSyncService: FileSyncService,
+    private medicalRecordService: MedicalRecordService,
   ) { }
 
   // Getter to cast RemotePrismaService to PrismaClient for type compatibility
@@ -1469,13 +1470,31 @@ export class OfflineQueueService implements OnModuleInit {
   private async handlePatientOperation(client: any, operation: string, entityId: string | null, data: any): Promise<any> {
     switch (operation) {
       case 'CREATE':
+        // Check if patient has temporary number (from offline desktop)
+        if (data.tempRecordNumber && !data.inamsosRecordNumber) {
+          this.logger.log(`Converting temporary number ${data.tempRecordNumber} to final national number`);
+          
+          // Generate final national number
+          const finalNumber = await this.medicalRecordService.generateNationalRegistrationNumber(data.centerId);
+          
+          // Update data with final number
+          data.inamsosRecordNumber = finalNumber;
+          data.isTempNumber = false;
+          data.numberAssignedAt = new Date();
+          data.numberAssignedBy = data.deviceId || 'SERVER';
+          
+          this.logger.log(`Temporary number ${data.tempRecordNumber} converted to ${finalNumber}`);
+        }
         return await client.patient.create({ data });
+        
       case 'UPDATE':
         if (!entityId) throw new BadRequestException('Entity ID required for UPDATE');
         return await client.patient.update({ where: { id: entityId }, data });
+        
       case 'DELETE':
         if (!entityId) throw new BadRequestException('Entity ID required for DELETE');
         return await client.patient.update({ where: { id: entityId }, data: { isActive: false } });
+        
       default:
         throw new BadRequestException(`Unsupported operation: ${operation}`);
     }

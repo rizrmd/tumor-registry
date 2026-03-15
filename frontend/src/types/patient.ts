@@ -2,7 +2,9 @@ export interface Patient {
   id: string;
   // Privacy-compliant identifiers (NO name field)
   anonymousId: string; // Format: P-XXX-NNNNN (e.g., P-SBY-00001)
-  inamsosRecordNumber: string; // Format: XXX-YYYY-NNNNN (e.g., SBY-2025-00001)
+  inamsosRecordNumber: string; // NEW Format: CC-YY-NNNNN (e.g., 01-25-00001)
+  tempRecordNumber?: string; // Temporary format: CC-YY-T####T (e.g., 01-25-T0001T) for offline
+  isTempNumber?: boolean; // Flag if using temporary number
   hospitalRecordNumber?: string; // Optional hospital MR number
   name: string;
   identityNumber?: string; // NIK (should be encrypted in backend)
